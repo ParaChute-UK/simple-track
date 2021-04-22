@@ -2,7 +2,8 @@ import object_tracking
 import numpy as np
 import datetime
 import os
-import user_functions
+from glob import glob
+import nimrod_user_functions
 
 ##################################################################
 # THE FOLLOWING PARAMETERS SHOULD BE CHANGED BASED ON THE DATA (RESOLUTION ETC.)
@@ -94,10 +95,9 @@ if (np.fmod(xall,squarelength)!=0 or np.fmod(yall,squarelength)!=0):
 #DATA_DIR = './data/'
 #IMAGES_DIR = './output/'
 #################################################################
-DATA_DIR = './data/'
+DATA_DIR = '/home/markmuetz/mirrors/jasmin/gw_cosmic/mmuetz/data/wescon/output/2012/06/'
 IMAGES_DIR = './output/'
-filelist = os.listdir(DATA_DIR)
-filelist = np.sort(filelist)
+filelist = sorted(glob(DATA_DIR + 'metoffice-c-band-rain-radar_uk_201206*.nc'))
 if doradar:
         rarray=np.sqrt(xmat**2+ymat**2);
         azarray=np.arctan(xmat/ymat);
@@ -118,10 +118,12 @@ oldmask = []
 newmask = []
 num_dt = []
 
-for nt in range(len(filelist)):
+loader = nimrod_user_functions.FileLoader(filelist)
+
+for nt, (var, file_ID, hourval, minval) in enumerate(loader.load_next()):
         # Load new image
         now_time = start_time + datetime.timedelta(seconds=300.*nt)
-        var,file_ID,hourval,minval = user_functions.loadfile(DATA_DIR + filelist[nt])
+        # var,file_ID,hourval,minval = nimrod_user_functions.loadfile(DATA_DIR + filelist[nt])
         print(file_ID)
         write_file_ID = 'S' + sql_str + '_T'+ thr_str +'_A'+ areastr +'_'+ file_ID
         NewLabels=object_tracking.label_storms(var,minpixel,threshold,struct2d,under_t)
@@ -130,7 +132,7 @@ for nt in range(len(filelist)):
         # !!! NB If raw data are used (i.e. not zeros and ones) then fftpixels needs to be changed to remain sensible !!!
         if len(OldLabels) > 1:
             # CHECK TIME DIFFERENCE BETWEEN CONSECUTIVE IMAGES
-                dtnow = user_functions.timediff(oldhourval,oldminval,hourval,minval)
+                dtnow = nimrod_user_functions.timediff(oldhourval,oldminval,hourval,minval)
                 num_dt = dtnow/dt
                 if dtnow > dt_tolerance:
                         print('Data are too far apart in time --- Re-initialise objects')
@@ -151,9 +153,9 @@ for nt in range(len(filelist)):
         # Write tracked storm information (see object_tracking.write_storms)
         if flagwrite:
                 object_tracking.write_storms(write_file_ID, start_time, now_time, label_method, squarelength, rafraction, newwas, NewData, doradar, misval, IMAGES_DIR)
-        # Plot tracked storm information (see user_functions.plot_example)
+        # Plot tracked storm information (see nimrod_user_functions.plot_example)
         if flagplot:
-                user_functions.plot_example(write_file_ID, nt, var, xmat, ymat, newumat, newvmat, num_dt, wasarray, lifearray, threshold, IMAGES_DIR, plot_vectors)
+                nimrod_user_functions.plot_example(write_file_ID, nt, var, xmat, ymat, newumat, newvmat, num_dt, wasarray, lifearray, threshold, IMAGES_DIR, plot_vectors)
         # Save tracking information in preparation for next image
         OldData = NewData
         OldLabels = NewLabels

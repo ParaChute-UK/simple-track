@@ -1,6 +1,8 @@
 #!/usr/local/sci/bin/python2.7
+import os.path
 
-from netCDF4 import Dataset as ncfile
+import pandas as pd
+import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -12,6 +14,35 @@ import matplotlib.pyplot as plt
 # hh = file hour
 # mm = file minute stamp
 ###################################################
+class FileLoader(object):
+    def __init__(self, filelist):
+        self.filelist = filelist
+        self.curr_file = 0
+        self.curr_index = 0
+        self.curr_da = xr.open_dataarray(self.filelist[0])
+        # Chilbolton coords in OSGB eastings/northings.
+        self.chil_idx = (np.abs(self.curr_da.eastings.data - 439285)).argmin()
+        self.chil_idy = (np.abs(self.curr_da.northings.data - 138620)).argmin()
+
+    def load_next(self):
+        while True:
+            self.curr_index += 1
+            if self.curr_index >= self.curr_da.shape[0]:
+                self.curr_file += 1
+                if self.curr_file >= len(self.filelist):
+                    raise StopIteration()
+                self.curr_da = xr.open_dataarray(self.filelist[0])
+                self.curr_index = 0
+            time = pd.to_datetime(self.curr_da.time[self.curr_index].item())
+            hh = time.hour
+            mm = time.minute
+            fidd = '{}[{}]'.format(os.path.basename(self.filelist[self.curr_file]), self.curr_index)
+            # This runs!
+            yield self.curr_da[self.curr_index, 900:1200, 800:1200].data, fidd, hh, mm
+            # This doesn't.
+            #  yield self.curr_da[self.curr_index,
+            #                     self.chil_idy - 150:self.chil_idy + 150,
+            #                     self.chil_idx - 200:self.chil_idx + 200].data, fidd, hh, mm
 
 def loadfile(filename):
     nc = ncfile(filename)

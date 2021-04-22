@@ -119,23 +119,23 @@ class StormS():
 ###################################################################
 # TRACKING ALGORITHM
 # 1. Correlate previous and current time step to find (dx,dy) displacements.
-# 2. Propagate features from previous time step to current time step using (dx,dy) displacements. 
+# 2. Propagate features from previous time step to current time step using (dx,dy) displacements.
 # 3. Iterate through objects to check for overlap and inherit object properties.
 # 4. Iterate through objects to check for splitting and merging events.
 ###################################################################
 
 def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, ymat, fftpixels, dd_tolerance, halosq, squarehalf, oldbt, newbt, num_dt, lapthresh, misval, doradar, under_threshold, IMAGES_DIR, write_file_ID, flagplot, rarray=[],azarray=[]):
-    
+
     ###############################################################
     # PARAMETERS FOR FUTURE FUNCTIONALITY
     ###################################################################
     tukey_window=1
     extra_thresh=[]
-    
+
     ###############################################################
     # START TRACKING!!
     ###################################################################
-    
+
     newumat=0
     newvmat=0
     wasarray=0*StormLabels # set up array of zeros.
@@ -164,7 +164,7 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
        buu = np.full(xint.shape, np.NaN)
        bvv = np.full(xint.shape, np.NaN)
        bww = np.full(xint.shape, np.NaN)
-       for corx in range(0,int(np.size(xint,0))): 
+       for corx in range(0,int(np.size(xint,0))):
            if flagplot==True:
                nij=-3
                #fig, axs = plt.subplots(np.size(xint,1),3, figsize=(6,2*np.size(xint,1)), facecolor='w', edgecolor='k')
@@ -175,7 +175,7 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
                    nij=nij+3
                oldsquare=oldbt[(squarehalf)*corx:(squarehalf)*corx+2*squarehalf,(squarehalf)*cory:(squarehalf)*cory+2*squarehalf]
                newsquare=newbt[(squarehalf)*corx:(squarehalf)*corx+2*squarehalf,(squarehalf)*cory:(squarehalf)*cory+2*squarehalf]
-               if np.sum(oldsquare)<fftpixels or np.sum(newsquare)<fftpixels: # if there are too few storms, don't try to derive motion vectors. 
+               if np.sum(oldsquare)<fftpixels or np.sum(newsquare)<fftpixels: # if there are too few storms, don't try to derive motion vectors.
                   buu[corx,cory]=np.NaN
                   bvv[corx,cory]=np.NaN
                   bww[corx,cory]=np.NaN
@@ -197,7 +197,7 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
            if flagplot==True:
                plt.savefig(IMAGES_DIR + 'Correlations_' + write_file_ID + '_' + str(corx) +'.png')
                plt.close()
-       
+
        # CHECK NEIGHBOURING VALUES FOR SMOOTHNESS
        # Ignore warnings about mean over empty array in this section
        with warnings.catch_warnings():
@@ -237,14 +237,14 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
                    if np.abs(buu[corx,cory]-bu_nb)>dd_tolerance*num_dt:
                        buu[corx,cory]=np.nan
                    if np.abs(bvv[corx,cory]-bv_nb)>dd_tolerance*num_dt:
-                       bvv[corx,cory]=np.nan		   
-		   
+                       bvv[corx,cory]=np.nan
+
        ## ACTUAL DISPLACEMENT
        # Interpolate these displacements onto the full grid
-       newumat = interpolate_speeds(xint, yint, xmat, ymat, buu)
-       newvmat = interpolate_speeds(xint, yint, xmat, ymat, bvv)
-       
-       # Assign displacement to each of the old storms. 
+       newumat = interpolate_speeds(xint, yint, xmat, ymat, buu, OldStormLabels)
+       newvmat = interpolate_speeds(xint, yint, xmat, ymat, bvv, OldStormLabels)
+
+       # Assign displacement to each of the old storms.
        newlabel = np.zeros(OldStormLabels.shape)
        for ns in range(len(OldStormData)):
            jj = OldStormData[ns].storm
@@ -278,7 +278,7 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
               AdvectedStorms[ns][0] = np.mean(xmat[centrind])
               AdvectedStorms[ns][1] = np.mean(ymat[centrind])
               AdvectedStorms[ns][2] = int(np.size(centrind,1))
-    
+
        ###################################################
        # NOW LOOP THROUGH StormData AND CHECK FOR OVERLAP WITH
        # ADVECTED OldStormData STORMS
@@ -297,7 +297,7 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
            StormData += [StormS(jj,StormLabels,var, xmat,ymat,newwas, newumat, newvmat, num_dt, misval, doradar, under_threshold, extra_thresh=extra_thresh, storm_history=True, string=None, rarray=rarray, azarray=azarray)]
            wasarray[C]=int(jj)
            lifearray[C]=1
-           
+
            ###################################################
            # CHECK OVERLAP WITH QHIST
            # IF NO OVERLAP, THEN
@@ -307,7 +307,7 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
            qhist = (np.histogram(QuvL[np.where(StormLabels==jj)], qbins))[0][:]/float(StormData[ns].area) + (np.histogram(QuvL[np.where(StormLabels==jj)],qbins))[0][:]/qarea[:]
            #if nt==35 and jj==131:
            #   raise ValueError("Check storm 131 (or 120)")
-               
+
            if np.max(qhist[1:]) < lapthresh:
               newblob = 0*xmat
               blobind = np.where((xmat-StormData[ns].centroidx)**2+(ymat-StormData[ns].centroidy)**2 < halosq)
@@ -339,7 +339,7 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
                     if np.size(kkmax) > 1:
                         kkmax = kmax[0][kkmax[0]]
                  else:
-                    kkmax = kmax[0][0]  
+                    kkmax = kmax[0][0]
                  kindex = np.squeeze(numlaps[0][kkmax])
                  StormData[ns].inherit_properties(jj, OldStormData, kindex, QuvL, StormLabels, qhist, lapthresh, misval, single_overlap=False)
                  wasarray[C] = OldStormData[kindex].was
@@ -380,7 +380,7 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
                   acind=np.where((wasnum-StormData[ns].accreted[acnum])==0)
                   if np.size(acind,1) > 0:
                      StormData[ns].accreted[acnum]=misval
-              #acnew=np.where(StormData[ns].accreted > misval) 
+              #acnew=np.where(StormData[ns].accreted > misval)
               acnew = [aci for aci in StormData[ns].accreted if aci > misval]
               if np.size(acnew) > 0:
                  for acindex in range(np.size(acnew)):
@@ -441,15 +441,15 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
            ###################################################
            if np.size(children) > 0:
                StormData[wasind[0][kkmax]].parent = children
-    
-    
+
+
     return StormData, newwas, StormLabels, newumat, newvmat, wasarray, lifearray
 
 ###################################################
 # interpolate_speeds used for (dx,dy) calculation where no objects are identified.
 ###################################################
 
-def interpolate_speeds(xint, yint, xmat, ymat, buu):
+def interpolate_speeds(xint, yint, xmat, ymat, buu, OldStormLabels):
     valid_mask = ~np.isnan(buu)
     coords = np.array(np.nonzero(valid_mask)).T
     values = buu[valid_mask]
@@ -465,7 +465,7 @@ def interpolate_speeds(xint, yint, xmat, ymat, buu):
 ###################################################
 # label_storms IS A FLOOD FILL ALGORITHM RETURNING
 # AN ARRAY OF UNIQUELY LABELLED STORMS
-# THIS FUNCTION IS ESSENTIAL AND SHOULD ONLY BE ALTERED 
+# THIS FUNCTION IS ESSENTIAL AND SHOULD ONLY BE ALTERED
 # BY EXPERIENCED USERS
 ###################################################
 
@@ -481,14 +481,14 @@ def label_storms(bt,minarea,threshold,struct,under_threshold):
     binbt[area_mask[id_regions]] = 0
     id_regions, num_ids = ndimage.label(binbt, structure=struct)
     print('num_ids = ',num_ids)
-    
+
     return id_regions
 
 ##############################################################
-# ffttrack  
+# ffttrack
 ##############################################################
 # [dx, dy, amp] = ffttrack(s1, s2, method)
-# Input: 
+# Input:
 # s1 = oldsquare
 # s2 = newsquare
 # method = 1 for TUKEY WINDOW (TAPERED COSINE)
@@ -524,7 +524,7 @@ def ffttrack(s1,s2,method):
     m2 = b2-np.mean(b2)
 
     normval = np.sqrt(np.sum(m1**2)*np.sum(m2**2))
-	
+
     #ffv = signal.fftconvolve(s1,s2,mode='same')
     ffv = np.real(np.fft.ifft2(np.fft.fft2(m2)*(np.fft.fft2(m1)).conj()))
 
@@ -551,7 +551,7 @@ def ffttrack(s1,s2,method):
 ###################################################
 # write_storms produces TXT file for analysis of tracked object properties
 ###################################################
-    
+
 def write_storms(file_ID, init_time, now_time, label_method, squarelength, rafraction, newwas, StormData, doradar, misval, IMAGES_DIR):
    if not(isdir(IMAGES_DIR)): makedirs(IMAGES_DIR)
    #print("IMAGES_DIR + file_ID +'.txt'=", IMAGES_DIR + file_ID +'.txt')
@@ -584,7 +584,7 @@ def write_storms(file_ID, init_time, now_time, label_method, squarelength, rafra
        else:
            fw.write(str(StormData[ns].accreted[-1]) + ' parent=')
        fw.write(str(StormData[ns].child) + ' child=')
-       if np.size(StormData[ns].parent) > 1:   
+       if np.size(StormData[ns].parent) > 1:
            for acind in range(np.size(StormData[ns].parent)-1):
                fw.write(str(StormData[ns].parent[acind]) + ',')
            fw.write(str(StormData[ns].parent[np.size(StormData[ns].parent)-1]) + '\r\n')

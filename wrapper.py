@@ -12,7 +12,7 @@ import user_functions
 # Example 1: Radar data 5-minutes apart with time stamp in filename, dt = 5
 # Example 2: Satellite brightness temperatures hourly with time stamp in filename, dt = 1
 # NB. When writing storms, (dx,dy) will have units PIXELS per TIME STEP (specified by dt), so already scaled by number of missing files
-dt = 5. 
+dt = 5.
 dt_tolerance = 15. # Maximum separation in time allowed between consecutive images
 
 under_t=False ## True = labelling areas *under* the threshold (e.g. brightness temperature), False = labelling areas *above* threshold (e.g. rainfall)
@@ -23,7 +23,7 @@ rafraction = 0.01 ## Minimum fractional cover of objects required for fft to obt
 dd_tolerance = 3. # Maximum difference in displacement values between adjacent squares (to remove spurious values) - scaled by num_dt if necessary
 halopixel = 5. ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
 
-flagwrite = True ## For writing storm history data in a text file 
+flagwrite = True ## For writing storm history data in a text file
 doradar = False ## doradar=True is calculate range and azimuth for real-time tracking with radar (e.g. Chilbolton). doradar=False any other use, radar coordinates not relevant
 misval = -999 ## Missing value
 struct2d = np.ones((3,3)) ## np.ones((3,3)) is 8-point connectivity for labelling storms. Can be changed to user preference.
@@ -51,11 +51,11 @@ lapthresh = 0.6 ## Minimum fraction of overlap (0.6 in TITAN)
 # squarehalf: To determine grid spacing for coarse grid of (dx,dy) estimates
 # areastr: For filename identifier of area threshold used
 # thr_str: For filename identifier of variable threshold used
-# fftpixels: Minimum number of thresholded pixels needed to calculate (dx,dy) 
+# fftpixels: Minimum number of thresholded pixels needed to calculate (dx,dy)
 # halosq: To identify if new cell is nearby existing cell
 ##################################################################
 
-squarehalf = int(squarelength/2)   
+squarehalf = int(squarelength/2)
 areastr = str(int(minpixel))
 thr_str = str(int(threshold))
 sql_str = str(int(squarelength))
@@ -67,7 +67,7 @@ halosq = halopixel**2
 # NOT ESSENTIAL
 ##################################################################
 
-label_method='Rainfall rate > ' + thr_str + 'mm/hr'    
+label_method='Rainfall rate > ' + thr_str + 'mm/hr'
 
 ##################################################################
 # THE REMAINDER IS THE SET UP FOR THE EXAMPLE DATA
@@ -83,7 +83,7 @@ if (np.fmod(xall,squarelength)!=0 or np.fmod(yall,squarelength)!=0):
 
 #################################################################
 # For test data, try the following:
-# 
+#
 # All data (5-minute intervals)
 #DATA_DIR = './data/'
 #IMAGES_DIR = './output/'
@@ -102,9 +102,9 @@ if doradar:
 	rarray=np.sqrt(xmat**2+ymat**2);
 	azarray=np.arctan(xmat/ymat);
 	azarray[np.where((xmat<0) & (ymat>=0))]=azarray[np.where((xmat<0) & (ymat>=0))]+2*np.pi;
-	azarray[np.where(ymat<0)]=azarray[np.where(ymat<0)]+np.pi; 
-	azarray=180*azarray/np.pi;    
-	azarray[np.where(np.isnan(azarray)==1)]=0         
+	azarray[np.where(ymat<0)]=azarray[np.where(ymat<0)]+np.pi;
+	azarray=180*azarray/np.pi;
+	azarray[np.where(np.isnan(azarray)==1)]=0
 
 #   Initialise variables
 OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
@@ -129,7 +129,7 @@ for nt in range(len(filelist)):
 	# THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks, if displacement information is contained in structures within objects)
 	# !!! NB If raw data are used (i.e. not zeros and ones) then fftpixels needs to be changed to remain sensible !!!
 	if len(OldLabels) > 1:
-	    # CHECK TIME DIFFERENCE BETWEEN CONSECUTIVE IMAGES 
+	    # CHECK TIME DIFFERENCE BETWEEN CONSECUTIVE IMAGES
 		dtnow = user_functions.timediff(oldhourval,oldminval,hourval,minval)
 		num_dt = dtnow/dt
 		if dtnow > dt_tolerance:
@@ -144,7 +144,7 @@ for nt in range(len(filelist)):
 	# NewData = list of objects and properties
 	# newwas = final label number
 	# NewLabels = array with object IDs from [1, nummax] as found by label_storms
-	# newumat, newvmat = arrays with (dx,dy) displacement between two images (NB not displacement per dt!!!) 
+	# newumat, newvmat = arrays with (dx,dy) displacement between two images (NB not displacement per dt!!!)
 	# wasarray = array with object IDs consistent across images (i.e. tracked IDs)
 	# lifearray = array with object lifetime consistent across images
 	NewData, newwas, NewLabels, newumat, newvmat, wasarray, lifearray = object_tracking.track_storms(OldData, var, newwas, NewLabels, OldLabels, xmat, ymat, fftpixels, dd_tolerance, halosq, squarehalf, oldmask, newmask, num_dt, lapthresh, misval, doradar, under_t, IMAGES_DIR, write_file_ID, flagplottest)
