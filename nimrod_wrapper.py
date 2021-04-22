@@ -79,7 +79,7 @@ xmat,ymat = np.meshgrid(range(-200,200),range(-150,150))
 xall = np.size(xmat,0) # Only used to check grid dimensions
 yall = np.size(xmat,1) # Only used to check grid dimensions
 if (np.fmod(xall,squarelength)!=0 or np.fmod(yall,squarelength)!=0):
-	raise ValueError('Your grid does not match a multiple of squares as defined by squarelength')
+        raise ValueError('Your grid does not match a multiple of squares as defined by squarelength')
 
 #################################################################
 # For test data, try the following:
@@ -99,12 +99,12 @@ IMAGES_DIR = './output/'
 filelist = os.listdir(DATA_DIR)
 filelist = np.sort(filelist)
 if doradar:
-	rarray=np.sqrt(xmat**2+ymat**2);
-	azarray=np.arctan(xmat/ymat);
-	azarray[np.where((xmat<0) & (ymat>=0))]=azarray[np.where((xmat<0) & (ymat>=0))]+2*np.pi;
-	azarray[np.where(ymat<0)]=azarray[np.where(ymat<0)]+np.pi;
-	azarray=180*azarray/np.pi;
-	azarray[np.where(np.isnan(azarray)==1)]=0
+        rarray=np.sqrt(xmat**2+ymat**2);
+        azarray=np.arctan(xmat/ymat);
+        azarray[np.where((xmat<0) & (ymat>=0))]=azarray[np.where((xmat<0) & (ymat>=0))]+2*np.pi;
+        azarray[np.where(ymat<0)]=azarray[np.where(ymat<0)]+np.pi;
+        azarray=180*azarray/np.pi;
+        azarray[np.where(np.isnan(azarray)==1)]=0
 
 #   Initialise variables
 OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
@@ -119,46 +119,46 @@ newmask = []
 num_dt = []
 
 for nt in range(len(filelist)):
-	# Load new image
-	now_time = start_time + datetime.timedelta(seconds=300.*nt)
-	var,file_ID,hourval,minval = user_functions.loadfile(DATA_DIR + filelist[nt])
-	print(file_ID)
-	write_file_ID = 'S' + sql_str + '_T'+ thr_str +'_A'+ areastr +'_'+ file_ID
-	NewLabels=object_tracking.label_storms(var,minpixel,threshold,struct2d,under_t)
-	# oldmask, newmask, USED FOR DERIVING (dx,dy)
-	# THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks, if displacement information is contained in structures within objects)
-	# !!! NB If raw data are used (i.e. not zeros and ones) then fftpixels needs to be changed to remain sensible !!!
-	if len(OldLabels) > 1:
-	    # CHECK TIME DIFFERENCE BETWEEN CONSECUTIVE IMAGES
-		dtnow = user_functions.timediff(oldhourval,oldminval,hourval,minval)
-		num_dt = dtnow/dt
-		if dtnow > dt_tolerance:
-			print('Data are too far apart in time --- Re-initialise objects')
-			OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
-			newwas = 1
-			plot_vectors = False
-			continue
-		oldmask = np.where(OldLabels>=1,1,0)
-		newmask = np.where(NewLabels>=1,1,0)
-	# Call object tracking routine
-	# NewData = list of objects and properties
-	# newwas = final label number
-	# NewLabels = array with object IDs from [1, nummax] as found by label_storms
-	# newumat, newvmat = arrays with (dx,dy) displacement between two images (NB not displacement per dt!!!)
-	# wasarray = array with object IDs consistent across images (i.e. tracked IDs)
-	# lifearray = array with object lifetime consistent across images
-	NewData, newwas, NewLabels, newumat, newvmat, wasarray, lifearray = object_tracking.track_storms(OldData, var, newwas, NewLabels, OldLabels, xmat, ymat, fftpixels, dd_tolerance, halosq, squarehalf, oldmask, newmask, num_dt, lapthresh, misval, doradar, under_t, IMAGES_DIR, write_file_ID, flagplottest)
-	# Write tracked storm information (see object_tracking.write_storms)
-	if flagwrite:
-		object_tracking.write_storms(write_file_ID, start_time, now_time, label_method, squarelength, rafraction, newwas, NewData, doradar, misval, IMAGES_DIR)
-	# Plot tracked storm information (see user_functions.plot_example)
-	if flagplot:
-		user_functions.plot_example(write_file_ID, nt, var, xmat, ymat, newumat, newvmat, num_dt, wasarray, lifearray, threshold, IMAGES_DIR, plot_vectors)
-	# Save tracking information in preparation for next image
-	OldData = NewData
-	OldLabels = NewLabels
-	oldvar = var
-	oldhourval = hourval
-	oldminval = minval
-	plot_vectors = True
+        # Load new image
+        now_time = start_time + datetime.timedelta(seconds=300.*nt)
+        var,file_ID,hourval,minval = user_functions.loadfile(DATA_DIR + filelist[nt])
+        print(file_ID)
+        write_file_ID = 'S' + sql_str + '_T'+ thr_str +'_A'+ areastr +'_'+ file_ID
+        NewLabels=object_tracking.label_storms(var,minpixel,threshold,struct2d,under_t)
+        # oldmask, newmask, USED FOR DERIVING (dx,dy)
+        # THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks, if displacement information is contained in structures within objects)
+        # !!! NB If raw data are used (i.e. not zeros and ones) then fftpixels needs to be changed to remain sensible !!!
+        if len(OldLabels) > 1:
+            # CHECK TIME DIFFERENCE BETWEEN CONSECUTIVE IMAGES
+                dtnow = user_functions.timediff(oldhourval,oldminval,hourval,minval)
+                num_dt = dtnow/dt
+                if dtnow > dt_tolerance:
+                        print('Data are too far apart in time --- Re-initialise objects')
+                        OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
+                        newwas = 1
+                        plot_vectors = False
+                        continue
+                oldmask = np.where(OldLabels>=1,1,0)
+                newmask = np.where(NewLabels>=1,1,0)
+        # Call object tracking routine
+        # NewData = list of objects and properties
+        # newwas = final label number
+        # NewLabels = array with object IDs from [1, nummax] as found by label_storms
+        # newumat, newvmat = arrays with (dx,dy) displacement between two images (NB not displacement per dt!!!)
+        # wasarray = array with object IDs consistent across images (i.e. tracked IDs)
+        # lifearray = array with object lifetime consistent across images
+        NewData, newwas, NewLabels, newumat, newvmat, wasarray, lifearray = object_tracking.track_storms(OldData, var, newwas, NewLabels, OldLabels, xmat, ymat, fftpixels, dd_tolerance, halosq, squarehalf, oldmask, newmask, num_dt, lapthresh, misval, doradar, under_t, IMAGES_DIR, write_file_ID, flagplottest)
+        # Write tracked storm information (see object_tracking.write_storms)
+        if flagwrite:
+                object_tracking.write_storms(write_file_ID, start_time, now_time, label_method, squarelength, rafraction, newwas, NewData, doradar, misval, IMAGES_DIR)
+        # Plot tracked storm information (see user_functions.plot_example)
+        if flagplot:
+                user_functions.plot_example(write_file_ID, nt, var, xmat, ymat, newumat, newvmat, num_dt, wasarray, lifearray, threshold, IMAGES_DIR, plot_vectors)
+        # Save tracking information in preparation for next image
+        OldData = NewData
+        OldLabels = NewLabels
+        oldvar = var
+        oldhourval = hourval
+        oldminval = minval
+        plot_vectors = True
 

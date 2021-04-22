@@ -20,7 +20,7 @@ def loadfile(filename):
     fidd = filename[-9:-5]
     hh = float(fidd[0:2])
     mm = float(fidd[2:4])
-    
+
     return datad, fidd, hh, mm
 
 ###################################################
@@ -33,7 +33,7 @@ def timediff(oldh,oldm,newh,newm):
     hdif=newh-oldh
     mdif=newm-oldm
     tdif=60.*hdif+mdif
-    
+
     return tdif
 
 ###################################################
@@ -46,10 +46,10 @@ def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, 
     PLOT FIGURES WITH RAINFALL RATE AND STORM LABELS
     FOR ILLUSTRATIVE AND TESTING PURPOSES
     '''
-        
+
     lrain=rain+0.0
     lrain[np.where(lrain<=0.)]=0.01
-        
+
     figa=plt.figure(figsize=(6, 7))
     #ax = figa.add_subplot(111)
     #con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
@@ -66,7 +66,7 @@ def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, 
     cbar.set_label('Rainfall rate [log2 mm hr^{-1}]')
     plt.savefig(IMAGES_DIR + 'Rainrate_' + write_file_ID + '.png')
     plt.close()
-        
+
     figb=plt.figure(figsize=(6, 7))
     #ax = figa.add_subplot(111)
     #con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
@@ -83,7 +83,7 @@ def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, 
     cbar.set_label('Storm ID')
     plt.savefig(IMAGES_DIR + 'Stormid_' + write_file_ID + '.png')
     plt.close()
-        
+
     lifearray[np.where(lifearray==0)]=-6
     figc=plt.figure(figsize=(6, 7))
     #ax = figa.add_subplot(111)
