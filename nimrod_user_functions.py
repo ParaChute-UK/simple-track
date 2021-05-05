@@ -7,17 +7,10 @@ import pandas as pd
 import xarray as xr
 
 
-###################################################
-# loadfile IS A USER SPECIFIED FUNCTION TO LOAD THE DATA AND TIME STAMP INFORMATION
-# OUTPUT
-# datad = data (2D array)
-# fidd = file time identifier yyyymmdd
-# hh = file hour
-# mm = file minute stamp
-###################################################
 class FileLoader(object):
-    def __init__(self, filelist):
+    def __init__(self, filelist, chilbolton_centred=False):
         self.filelist = filelist
+        self.chilbolton_centred = chilbolton_centred
         self.curr_file = 0
         self.curr_index = 0
         self.curr_da = xr.open_dataarray(self.filelist[0])
@@ -35,17 +28,25 @@ class FileLoader(object):
                 self.curr_da = xr.open_dataarray(self.filelist[0])
                 self.curr_index = 0
             time = pd.to_datetime(self.curr_da.time[self.curr_index].item())
-            hh = time.hour
-            mm = time.minute
             fidd = '{}[{:03d}]'.format(os.path.basename(self.filelist[self.curr_file]), self.curr_index)
-            # This runs!
-            yield self.curr_da[self.curr_index, 900:1200, 800:1200].data, fidd, hh, mm
-            # This doesn't.
-            # yield self.curr_da[self.curr_index,
-            #                    self.chil_idy - 150:self.chil_idy + 150,
-            #                    self.chil_idx - 200:self.chil_idx + 200].data, fidd, hh, mm
+            if self.chilbolton_centred:
+                # This runs!
+                yield self.curr_da[self.curr_index, 750:1350, 600:1400].data, fidd, time
+            else:
+                # This doesn't.
+                yield self.curr_da[self.curr_index,
+                                   self.chil_idy - 300:self.chil_idy + 300,
+                                   self.chil_idx - 400:self.chil_idx + 400].data, fidd, time
 
 
+###################################################
+# loadfile IS A USER SPECIFIED FUNCTION TO LOAD THE DATA AND TIME STAMP INFORMATION
+# OUTPUT
+# datad = data (2D array)
+# fidd = file time identifier yyyymmdd
+# hh = file hour
+# mm = file minute stamp
+###################################################
 def loadfile(filename):
     nc = ncfile(filename)
     datad = nc.variables['var'][200:600, 250:550] / 32
@@ -106,7 +107,7 @@ def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, 
     figb = plt.figure(figsize=(6, 7))
     # ax = figa.add_subplot(111)
     # con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
-    con = plt.pcolor(xmat, ymat, wasarray, vmin=-10, vmax=200)
+    con = plt.pcolor(xmat, ymat, wasarray, vmin=0)
     plt_ax = plt.gca()
     left, bottom, width, height = plt_ax.get_position().bounds
     posnew = [left, bottom + height / 7, width, width * 6 / 7]

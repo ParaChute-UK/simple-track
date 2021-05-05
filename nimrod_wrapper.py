@@ -28,7 +28,7 @@ dt_tolerance = 15.  # Maximum separation in time allowed between consecutive ima
 under_t = False  ## True = labelling areas *under* the threshold (e.g. brightness temperature), False = labelling areas *above* threshold (e.g. rainfall)
 threshold = 3.  ## Threshold used to identify objects (with value of variable greater than this threshold)
 minpixel = 4.  ## Minimum object size in pixels
-squarelength = 100.  ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
+squarelength = 200.  ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
 rafraction = 0.01  ## Minimum fractional cover of objects required for fft to obtain (dx,dy) displacement
 dd_tolerance = 3.  # Maximum difference in displacement values between adjacent squares (to remove spurious values) - scaled by num_dt if necessary
 halopixel = 5.  ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
@@ -87,7 +87,8 @@ label_method = 'Rainfall rate > ' + thr_str + 'mm/hr'
 # !!!TEST: MAKE SURE xall AND yall DIVIDE IN squarelength!!!
 ##################################################################
 
-xmat, ymat = np.meshgrid(range(-200, 200), range(-150, 150))
+# xmat, ymat = np.meshgrid(range(-200, 200), range(-150, 150))
+xmat, ymat = np.meshgrid(range(-400, 400), range(-300, 300))
 xall = np.size(xmat, 0)  # Only used to check grid dimensions
 yall = np.size(xmat, 1)  # Only used to check grid dimensions
 if (np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0):
@@ -109,31 +110,26 @@ if (np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0):
 DATA_DIR = '/home/markmuetz/mirrors/jasmin/gw_cosmic/mmuetz/data/wescon/output/2012/06/'
 IMAGES_DIR = './output/'
 filelist = sorted(glob(DATA_DIR + 'metoffice-c-band-rain-radar_uk_201206*.nc'))[:3]
-if doradar:
-    rarray = np.sqrt(xmat ** 2 + ymat ** 2);
-    azarray = np.arctan(xmat / ymat);
-    azarray[np.where((xmat < 0) & (ymat >= 0))] = azarray[np.where((xmat < 0) & (ymat >= 0))] + 2 * np.pi;
-    azarray[np.where(ymat < 0)] = azarray[np.where(ymat < 0)] + np.pi;
-    azarray = 180 * azarray / np.pi;
-    azarray[np.where(np.isnan(azarray) == 1)] = 0
 
 #   Initialise variables
 OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
 newwas = 1
 plot_vectors = False
 
-start_time = datetime.datetime(2012, 6, 1, 0, 0, 0, 0)
+start_time = None
 oldhourval = []
 oldminval = []
 oldmask = []
 newmask = []
 num_dt = []
 
-loader = nimrod_user_functions.FileLoader(filelist)
+loader = nimrod_user_functions.FileLoader(filelist, chilbolton_centred=True)
 
-for nt, (var, file_ID, hourval, minval) in enumerate(loader.load_next()):
+for nt, (var, file_ID, now_time) in enumerate(loader.load_next()):
+    if not start_time:
+        start_time = now_time
     # Load new image
-    now_time = start_time + datetime.timedelta(seconds=300. * nt)
+    # now_time = start_time + datetime.timedelta(seconds=300. * nt)
     # var,file_ID,hourval,minval = nimrod_user_functions.loadfile(DATA_DIR + filelist[nt])
     print(file_ID)
     write_file_ID = 'S' + sql_str + '_T' + thr_str + '_A' + areastr + '_' + file_ID
@@ -143,7 +139,8 @@ for nt, (var, file_ID, hourval, minval) in enumerate(loader.load_next()):
     # !!! NB If raw data are used (i.e. not zeros and ones) then fftpixels needs to be changed to remain sensible !!!
     if len(OldLabels) > 1:
         # CHECK TIME DIFFERENCE BETWEEN CONSECUTIVE IMAGES
-        dtnow = nimrod_user_functions.timediff(oldhourval, oldminval, hourval, minval)
+        # dtnow = nimrod_user_functions.timediff(oldhourval, oldminval, hourval, minval)
+        dtnow = (now_time - old_time).total_seconds() / 60  # timediff in minutes.
         num_dt = dtnow / dt
         if dtnow > dt_tolerance:
             print('Data are too far apart in time --- Re-initialise objects')
@@ -162,11 +159,11 @@ for nt, (var, file_ID, hourval, minval) in enumerate(loader.load_next()):
     # lifearray = array with object lifetime consistent across images
     (NewData, newwas, NewLabels,
      newumat, newvmat, wasarray, lifearray) = ot.track_storms(OldData, var, newwas, NewLabels,
-                                                                           OldLabels, xmat, ymat, fftpixels,
-                                                                           dd_tolerance, halosq, squarehalf,
-                                                                           oldmask, newmask, num_dt, lapthresh,
-                                                                           misval, doradar, under_t, IMAGES_DIR,
-                                                                           write_file_ID, flagplottest)
+                                                              OldLabels, xmat, ymat, fftpixels,
+                                                              dd_tolerance, halosq, squarehalf,
+                                                              oldmask, newmask, num_dt, lapthresh,
+                                                              misval, doradar, under_t, IMAGES_DIR,
+                                                              write_file_ID, flagplottest)
     # Write tracked storm information (see ot.write_storms)
     if flagwrite:
         ot.write_storms(write_file_ID, start_time, now_time, label_method, squarelength, rafraction,
@@ -179,6 +176,5 @@ for nt, (var, file_ID, hourval, minval) in enumerate(loader.load_next()):
     OldData = NewData
     OldLabels = NewLabels
     oldvar = var
-    oldhourval = hourval
-    oldminval = minval
+    old_time = now_time
     plot_vectors = True
