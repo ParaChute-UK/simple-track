@@ -40,9 +40,9 @@ class FileLoader(object):
             # This runs!
             yield self.curr_da[self.curr_index, 900:1200, 800:1200].data, fidd, hh, mm
             # This doesn't.
-            #  yield self.curr_da[self.curr_index,
-            #                     self.chil_idy - 150:self.chil_idy + 150,
-            #                     self.chil_idx - 200:self.chil_idx + 200].data, fidd, hh, mm
+            # yield self.curr_da[self.curr_index,
+            #                    self.chil_idy - 150:self.chil_idy + 150,
+            #                    self.chil_idx - 200:self.chil_idx + 200].data, fidd, hh, mm
 
 def loadfile(filename):
     nc = ncfile(filename)

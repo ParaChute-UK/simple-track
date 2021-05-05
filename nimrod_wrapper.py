@@ -1,4 +1,4 @@
-import object_tracking
+import object_tracking as object_tracking
 import numpy as np
 import datetime
 import os
@@ -13,6 +13,8 @@ import nimrod_user_functions
 # Example 1: Radar data 5-minutes apart with time stamp in filename, dt = 5
 # Example 2: Satellite brightness temperatures hourly with time stamp in filename, dt = 1
 # NB. When writing storms, (dx,dy) will have units PIXELS per TIME STEP (specified by dt), so already scaled by number of missing files
+from nimrod_object_tracking_class import Tracker
+
 dt = 5.
 dt_tolerance = 15. # Maximum separation in time allowed between consecutive images
 
@@ -29,7 +31,7 @@ doradar = False ## doradar=True is calculate range and azimuth for real-time tra
 misval = -999 ## Missing value
 struct2d = np.ones((3,3)) ## np.ones((3,3)) is 8-point connectivity for labelling storms. Can be changed to user preference.
 
-flagplot = True ## For plotting images (vectors and IDs). Also set plot_type...
+flagplot = False ## For plotting images (vectors and IDs). Also set plot_type...
 flagplottest = False ## For plotting fft correlations (testing only, very slow, lots of plots)
 
 if flagplot or flagplottest:
@@ -60,7 +62,8 @@ squarehalf = int(squarelength/2)
 areastr = str(int(minpixel))
 thr_str = str(int(threshold))
 sql_str = str(int(squarelength))
-fftpixels = squarelength**2/int(1./rafraction)
+# fftpixels = squarelength**2/int(1./rafraction)
+fftpixels = 30
 halosq = halopixel**2
 
 ##################################################################
@@ -120,6 +123,14 @@ num_dt = []
 
 loader = nimrod_user_functions.FileLoader(filelist)
 
+
+tracker = Tracker(xmat, ymat, fftpixels, dd_tolerance, halosq, squarehalf, num_dt, lapthresh,
+                  misval, doradar, under_t, IMAGES_DIR, flagplot, rarray=[], azarray=[])
+
+
+tracker.track(loader)
+raise Exception('Done')
+
 for nt, (var, file_ID, hourval, minval) in enumerate(loader.load_next()):
         # Load new image
         now_time = start_time + datetime.timedelta(seconds=300.*nt)
@@ -149,7 +160,13 @@ for nt, (var, file_ID, hourval, minval) in enumerate(loader.load_next()):
         # newumat, newvmat = arrays with (dx,dy) displacement between two images (NB not displacement per dt!!!)
         # wasarray = array with object IDs consistent across images (i.e. tracked IDs)
         # lifearray = array with object lifetime consistent across images
-        NewData, newwas, NewLabels, newumat, newvmat, wasarray, lifearray = object_tracking.track_storms(OldData, var, newwas, NewLabels, OldLabels, xmat, ymat, fftpixels, dd_tolerance, halosq, squarehalf, oldmask, newmask, num_dt, lapthresh, misval, doradar, under_t, IMAGES_DIR, write_file_ID, flagplottest)
+        (NewData, newwas, NewLabels,
+         newumat, newvmat, wasarray, lifearray) = object_tracking.track_storms(OldData, var, newwas, NewLabels,
+                                                                               OldLabels, xmat, ymat, fftpixels,
+                                                                               dd_tolerance, halosq, squarehalf,
+                                                                               oldmask, newmask, num_dt, lapthresh,
+                                                                               misval, doradar, under_t, IMAGES_DIR,
+                                                                               write_file_ID, flagplottest)
         # Write tracked storm information (see object_tracking.write_storms)
         if flagwrite:
                 object_tracking.write_storms(write_file_ID, start_time, now_time, label_method, squarelength, rafraction, newwas, NewData, doradar, misval, IMAGES_DIR)
