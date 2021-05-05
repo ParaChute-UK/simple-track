@@ -1,14 +1,11 @@
 #!/usr/local/sci/bin/python2.7
 
-import numpy as np
-from scipy import interpolate
-import scipy.ndimage as ndimage
-import datetime
-from os.path import isfile, isdir
-import matplotlib.pyplot as plt
 import warnings
 
-from object_tracking import interpolate_speeds, label_storms, ffttrack, write_storms
+import matplotlib.pyplot as plt
+import numpy as np
+
+from object_tracking import interpolate_speeds, ffttrack, label_storms, write_storms
 
 
 ###################################################################

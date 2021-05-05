@@ -1,10 +1,11 @@
 #!/usr/local/sci/bin/python2.7
 import os.path
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import xarray as xr
-import numpy as np
-import matplotlib.pyplot as plt
+
 
 ###################################################
 # loadfile IS A USER SPECIFIED FUNCTION TO LOAD THE DATA AND TIME STAMP INFORMATION
@@ -44,9 +45,10 @@ class FileLoader(object):
             #                    self.chil_idy - 150:self.chil_idy + 150,
             #                    self.chil_idx - 200:self.chil_idx + 200].data, fidd, hh, mm
 
+
 def loadfile(filename):
     nc = ncfile(filename)
-    datad = nc.variables['var'][200:600,250:550]/32
+    datad = nc.variables['var'][200:600, 250:550] / 32
     datad = np.flipud(np.transpose(datad))
     fidd = filename[-9:-5]
     hh = float(fidd[0:2])
@@ -54,40 +56,43 @@ def loadfile(filename):
 
     return datad, fidd, hh, mm
 
+
 ###################################################
 # timediff IS A USER SPECIFIED FUNCION TO CALCULATE TIME SEPARATION BETWEEN CONSECUTIVE IMAGES
 # OUTPUT
 # tdif = time difference in units relevant to user specification (to be divided by "dt" in wrapper.py)
 ###################################################
 
-def timediff(oldh,oldm,newh,newm):
-    hdif=newh-oldh
-    mdif=newm-oldm
-    tdif=60.*hdif+mdif
+def timediff(oldh, oldm, newh, newm):
+    hdif = newh - oldh
+    mdif = newm - oldm
+    tdif = 60. * hdif + mdif
 
     return tdif
+
 
 ###################################################
 # plot_example IS ONLY USED AS AN ILLUSTRATION
 # OF THE EXAMPLE DATA
 ###################################################
 
-def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, wasarray, lifearray, threshold, IMAGES_DIR, do_vectors):
+def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, wasarray, lifearray, threshold,
+                 IMAGES_DIR, do_vectors):
     '''
     PLOT FIGURES WITH RAINFALL RATE AND STORM LABELS
     FOR ILLUSTRATIVE AND TESTING PURPOSES
     '''
 
-    lrain=rain+0.0
-    lrain[np.where(lrain<=0.)]=0.01
+    lrain = rain + 0.0
+    lrain[np.where(lrain <= 0.)] = 0.01
 
-    figa=plt.figure(figsize=(6, 7))
-    #ax = figa.add_subplot(111)
-    #con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
-    con = plt.pcolor(xmat,ymat,np.log2(lrain),vmin=-1,vmax=5)
+    figa = plt.figure(figsize=(6, 7))
+    # ax = figa.add_subplot(111)
+    # con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
+    con = plt.pcolor(xmat, ymat, np.log2(lrain), vmin=-1, vmax=5)
     plt_ax = plt.gca()
     left, bottom, width, height = plt_ax.get_position().bounds
-    posnew=[left,bottom+height/7,width,width*6/7]
+    posnew = [left, bottom + height / 7, width, width * 6 / 7]
     plt_ax.set_position(posnew)
     plt.xlabel('Distance from Chilbolton [km]')
     plt.ylabel('Distance from Chilbolton [km]')
@@ -98,13 +103,13 @@ def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, 
     plt.savefig(IMAGES_DIR + 'Rainrate_' + write_file_ID + '.png')
     plt.close()
 
-    figb=plt.figure(figsize=(6, 7))
-    #ax = figa.add_subplot(111)
-    #con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
-    con = plt.pcolor(xmat,ymat,wasarray,vmin=-10,vmax=200)
+    figb = plt.figure(figsize=(6, 7))
+    # ax = figa.add_subplot(111)
+    # con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
+    con = plt.pcolor(xmat, ymat, wasarray, vmin=-10, vmax=200)
     plt_ax = plt.gca()
     left, bottom, width, height = plt_ax.get_position().bounds
-    posnew=[left,bottom+height/7,width,width*6/7]
+    posnew = [left, bottom + height / 7, width, width * 6 / 7]
     plt_ax.set_position(posnew)
     plt.xlabel('Distance from Chilbolton [km]')
     plt.ylabel('Distance from Chilbolton [km]')
@@ -115,14 +120,14 @@ def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, 
     plt.savefig(IMAGES_DIR + 'Stormid_' + write_file_ID + '.png')
     plt.close()
 
-    lifearray[np.where(lifearray==0)]=-6
-    figc=plt.figure(figsize=(6, 7))
-    #ax = figa.add_subplot(111)
-    #con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
-    con = plt.pcolor(xmat,ymat,5*lifearray,vmin=-30,vmax=60)
+    lifearray[np.where(lifearray == 0)] = -6
+    figc = plt.figure(figsize=(6, 7))
+    # ax = figa.add_subplot(111)
+    # con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
+    con = plt.pcolor(xmat, ymat, 5 * lifearray, vmin=-30, vmax=60)
     plt_ax = plt.gca()
     left, bottom, width, height = plt_ax.get_position().bounds
-    posnew=[left,bottom+height/7,width,width*6/7]
+    posnew = [left, bottom + height / 7, width, width * 6 / 7]
     plt_ax.set_position(posnew)
     plt.xlabel('Distance from Chilbolton [km]')
     plt.ylabel('Distance from Chilbolton [km]')
@@ -132,15 +137,16 @@ def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, 
     cbar.set_label('Life time [mins]')
     plt.savefig(IMAGES_DIR + 'Lifetime_' + write_file_ID + '.png')
     plt.close()
-    if do_vectors==True:
-        figd=plt.figure(figsize=(6, 7))
-        #ax = figa.add_subplot(111)
-        #con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
-        con = plt.contour(xmat,ymat,lrain,levels=[threshold])
-        plt.quiver(xmat[::10,::10],ymat[::10,::10],newumat[::10,::10]/num_dt,newvmat[::10,::10]/num_dt,pivot='mid',units='width')
+    if do_vectors == True:
+        figd = plt.figure(figsize=(6, 7))
+        # ax = figa.add_subplot(111)
+        # con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
+        con = plt.contour(xmat, ymat, lrain, levels=[threshold])
+        plt.quiver(xmat[::10, ::10], ymat[::10, ::10], newumat[::10, ::10] / num_dt, newvmat[::10, ::10] / num_dt,
+                   pivot='mid', units='width')
         plt_ax = plt.gca()
         left, bottom, width, height = plt_ax.get_position().bounds
-        posnew=[left,bottom+height/7,width,width*6/7]
+        posnew = [left, bottom + height / 7, width, width * 6 / 7]
         plt_ax.set_position(posnew)
         plt.xlabel('Distance from Chilbolton [km]')
         plt.ylabel('Distance from Chilbolton [km]')
