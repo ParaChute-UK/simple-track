@@ -1,4 +1,5 @@
-import object_tracking as object_tracking
+import nimrod_object_tracking as object_tracking
+# import object_tracking as object_tracking
 import numpy as np
 import datetime
 import os
@@ -13,7 +14,6 @@ import nimrod_user_functions
 # Example 1: Radar data 5-minutes apart with time stamp in filename, dt = 5
 # Example 2: Satellite brightness temperatures hourly with time stamp in filename, dt = 1
 # NB. When writing storms, (dx,dy) will have units PIXELS per TIME STEP (specified by dt), so already scaled by number of missing files
-from nimrod_object_tracking_class import Tracker
 
 dt = 5.
 dt_tolerance = 15. # Maximum separation in time allowed between consecutive images
@@ -100,7 +100,7 @@ if (np.fmod(xall,squarelength)!=0 or np.fmod(yall,squarelength)!=0):
 #################################################################
 DATA_DIR = '/home/markmuetz/mirrors/jasmin/gw_cosmic/mmuetz/data/wescon/output/2012/06/'
 IMAGES_DIR = './output/'
-filelist = sorted(glob(DATA_DIR + 'metoffice-c-band-rain-radar_uk_201206*.nc'))
+filelist = sorted(glob(DATA_DIR + 'metoffice-c-band-rain-radar_uk_201206*.nc'))[:3]
 if doradar:
         rarray=np.sqrt(xmat**2+ymat**2);
         azarray=np.arctan(xmat/ymat);
@@ -114,7 +114,7 @@ OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
 newwas = 1
 plot_vectors = False
 
-start_time = datetime.datetime(2012,8,25,14,5,0,0)
+start_time = datetime.datetime(2012,6,1,0,0,0,0)
 oldhourval = []
 oldminval = []
 oldmask = []
@@ -122,14 +122,6 @@ newmask = []
 num_dt = []
 
 loader = nimrod_user_functions.FileLoader(filelist)
-
-
-tracker = Tracker(xmat, ymat, fftpixels, dd_tolerance, halosq, squarehalf, num_dt, lapthresh,
-                  misval, doradar, under_t, IMAGES_DIR, flagplot, rarray=[], azarray=[])
-
-
-tracker.track(loader)
-raise Exception('Done')
 
 for nt, (var, file_ID, hourval, minval) in enumerate(loader.load_next()):
         # Load new image

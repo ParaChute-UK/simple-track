@@ -30,13 +30,13 @@ class FileLoader(object):
             if self.curr_index >= self.curr_da.shape[0]:
                 self.curr_file += 1
                 if self.curr_file >= len(self.filelist):
-                    raise StopIteration()
+                    break
                 self.curr_da = xr.open_dataarray(self.filelist[0])
                 self.curr_index = 0
             time = pd.to_datetime(self.curr_da.time[self.curr_index].item())
             hh = time.hour
             mm = time.minute
-            fidd = '{}[{}]'.format(os.path.basename(self.filelist[self.curr_file]), self.curr_index)
+            fidd = '{}[{:03d}]'.format(os.path.basename(self.filelist[self.curr_file]), self.curr_index)
             # This runs!
             yield self.curr_da[self.curr_index, 900:1200, 800:1200].data, fidd, hh, mm
             # This doesn't.
