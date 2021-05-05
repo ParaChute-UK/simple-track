@@ -1,6 +1,7 @@
 #!/usr/local/sci/bin/python2.7
 
 import numpy as np
+import scipy.spatial.qhull
 from scipy import interpolate
 import scipy.ndimage as ndimage
 import datetime
@@ -454,7 +455,14 @@ def interpolate_speeds(xint, yint, xmat, ymat, buu, OldStormLabels):
     coords = np.array(np.nonzero(valid_mask)).T
     values = buu[valid_mask]
     if np.size(values)>=4:
-       it = interpolate.LinearNDInterpolator(coords, values, fill_value=0)
+       # Can raise: scipy.spatial.qhull.QhullError:
+       # QH6013 qhull input error: input is less than 3-dimensional since all points have the same x coordinate    4
+       try:
+           it = interpolate.LinearNDInterpolator(coords, values, fill_value=0)
+       except scipy.spatial.qhull.QhullError as e:
+           assert e.args[0].split()[0] == 'QH6013'
+           newumat = np.zeros(np.shape(OldStormLabels))
+           return newumat
        filled = it(list(np.ndindex(buu.shape))).reshape(buu.shape)
        fu = interpolate.interp2d(xint[0,:],yint[:,0],filled,kind='cubic')
        newumat = fu(xmat[0,:],ymat[:,0])
