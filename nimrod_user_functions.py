@@ -25,18 +25,16 @@ class FileLoader(object):
                 self.curr_file += 1
                 if self.curr_file >= len(self.filelist):
                     break
-                self.curr_da = xr.open_dataarray(self.filelist[0])
+                self.curr_da = xr.open_dataarray(self.filelist[self.curr_file])
                 self.curr_index = 0
             time = pd.to_datetime(self.curr_da.time[self.curr_index].item())
             fidd = '{}[{:03d}]'.format(os.path.basename(self.filelist[self.curr_file]), self.curr_index)
             if self.chilbolton_centred:
-                # This runs!
-                yield self.curr_da[self.curr_index, 750:1350, 600:1400].data, fidd, time
-            else:
-                # This doesn't.
                 yield self.curr_da[self.curr_index,
-                                   self.chil_idy - 300:self.chil_idy + 300,
-                                   self.chil_idx - 400:self.chil_idx + 400].data, fidd, time
+                      self.chil_idy - 300:self.chil_idy + 300,
+                      self.chil_idx - 400:self.chil_idx + 400].data, fidd, time
+            else:
+                yield self.curr_da[self.curr_index, 750:1350, 600:1400].data, fidd, time
 
 
 ###################################################

@@ -70,8 +70,8 @@ squarehalf = int(squarelength / 2)
 areastr = str(int(minpixel))
 thr_str = str(int(threshold))
 sql_str = str(int(squarelength))
-# fftpixels = squarelength**2/int(1./rafraction)
-fftpixels = 30
+fftpixels = squarelength**2/int(1./rafraction)
+# fftpixels = 30
 halosq = halopixel ** 2
 
 ##################################################################
@@ -109,7 +109,7 @@ if (np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0):
 #################################################################
 DATA_DIR = '/home/markmuetz/mirrors/jasmin/gw_cosmic/mmuetz/data/wescon/output/2012/06/'
 IMAGES_DIR = './output/'
-filelist = sorted(glob(DATA_DIR + 'metoffice-c-band-rain-radar_uk_201206*.nc'))[:3]
+filelist = sorted(glob(DATA_DIR + 'metoffice-c-band-rain-radar_uk_201206*.nc'))
 
 #   Initialise variables
 OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
@@ -123,16 +123,25 @@ oldmask = []
 newmask = []
 num_dt = []
 
-loader = nimrod_user_functions.FileLoader(filelist, chilbolton_centred=True)
+chilbolton_centred = True
+loader = nimrod_user_functions.FileLoader(filelist, chilbolton_centred=chilbolton_centred)
 
 for nt, (var, file_ID, now_time) in enumerate(loader.load_next()):
     if not start_time:
         start_time = now_time
+    if now_time.minute == 0 and now_time.hour == 0:
+        flagplot = True
+        flagplottest = True
+    else:
+        flagplot = False
+        flagplottest = False
+
     # Load new image
     # now_time = start_time + datetime.timedelta(seconds=300. * nt)
     # var,file_ID,hourval,minval = nimrod_user_functions.loadfile(DATA_DIR + filelist[nt])
     print(file_ID)
-    write_file_ID = 'S' + sql_str + '_T' + thr_str + '_A' + areastr + '_' + file_ID
+    domain = 'chil_' if chilbolton_centred else 'central_'
+    write_file_ID = domain + 'S' + sql_str + '_T' + thr_str + '_A' + areastr + '_' + file_ID
     NewLabels = ot.label_storms(var, minpixel, threshold, struct2d, under_t)
     # oldmask, newmask, USED FOR DERIVING (dx,dy)
     # THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks, if displacement information is contained in structures within objects)
@@ -167,11 +176,14 @@ for nt, (var, file_ID, now_time) in enumerate(loader.load_next()):
     # Write tracked storm information (see ot.write_storms)
     if flagwrite:
         ot.write_storms(write_file_ID, start_time, now_time, label_method, squarelength, rafraction,
-                                     newwas, NewData, doradar, misval, IMAGES_DIR)
+                        newwas, NewData, doradar, misval, IMAGES_DIR)
     # Plot tracked storm information (see nimrod_user_functions.plot_example)
     if flagplot:
-        nimrod_user_functions.plot_example(write_file_ID, nt, var, xmat, ymat, newumat, newvmat, num_dt, wasarray,
-                                           lifearray, threshold, IMAGES_DIR, plot_vectors)
+        try:
+            nimrod_user_functions.plot_example(write_file_ID, nt, var, xmat, ymat, newumat, newvmat, num_dt, wasarray,
+                                               lifearray, threshold, IMAGES_DIR, plot_vectors)
+        except:
+            pass
     # Save tracking information in preparation for next image
     OldData = NewData
     OldLabels = NewLabels

@@ -79,20 +79,27 @@ def create_storm_dag(storms):
 
 def plot_storms_dag(storms, storm_dag, display='dag'):
     pos = {}
+    max_id = 0
     if display == 'dag':
         for i, (date, storms_at_time) in enumerate(storms.items()):
             for j, storm in enumerate(storms_at_time.values()):
                 pos[storm] = np.array([i, storm.id * 5])
+                max_id = max(max_id, storm.id)
     elif display == 'loc':
         for i, (date, storms_at_time) in enumerate(storms.items()):
             for j, storm in enumerate(storms_at_time.values()):
                 pos[storm] = np.array(storm.centroid)
 
     fig = plt.figure(display)
+    plt.clf()
     node_size = 20
-    nx.draw_networkx_nodes(storm_dag, pos, storm_dag.nodes, node_color='k', node_size=node_size)
-    nx.draw_networkx_edges(storm_dag, pos, node_size=node_size)
+    nx.draw_networkx_nodes(storm_dag, pos, storm_dag.nodes,
+                           node_color=[s.id for s in storm_dag.nodes], node_size=node_size)
+    # nx.draw_networkx_edges(storm_dag, pos, node_size=node_size)
     # nx.draw_networkx_edges(task_ctrl.task_dag, pos)
+    if display == 'dag':
+        plt.xlim((0, len(storms)))
+        plt.ylim((0, max_id * 5))
     plt.pause(0.01)
 
 
