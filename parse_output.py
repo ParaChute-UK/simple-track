@@ -101,6 +101,7 @@ def plot_storms_dag(storms, storm_dag, display='dag'):
         plt.xlim((0, len(storms)))
         plt.ylim((0, max_id * 5))
     plt.pause(0.01)
+    plt.savefig(f'output/storms_dag.{display}.png')
 
 
 if __name__ == '__main__':
