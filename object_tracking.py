@@ -1,4 +1,6 @@
 #!/usr/local/sci/bin/python2.7
+from os import makedirs
+import sys
 
 import numpy as np
 import scipy.spatial.qhull
@@ -460,7 +462,8 @@ def interpolate_speeds(xint, yint, xmat, ymat, buu, OldStormLabels):
        try:
            it = interpolate.LinearNDInterpolator(coords, values, fill_value=0)
        except scipy.spatial.qhull.QhullError as e:
-           assert e.args[0].split()[0] == 'QH6013'
+           # assert e.args[0].split()[0] == 'QH6013'
+           print(e, sys.stderr)
            newumat = np.zeros(np.shape(OldStormLabels))
            return newumat
        filled = it(list(np.ndindex(buu.shape))).reshape(buu.shape)
