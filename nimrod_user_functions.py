@@ -28,7 +28,7 @@ class FileLoader(object):
                 self.curr_da = xr.open_dataarray(self.filelist[self.curr_file])
                 self.curr_index = 0
             time = pd.to_datetime(self.curr_da.time[self.curr_index].item())
-            fidd = '{}_{}'.format(os.path.basename(self.filelist[self.curr_file]), f'{time.hour:02}:{time.minute:02}')
+            fidd = '{}_{}'.format(os.path.basename(self.filelist[self.curr_file]), f'{time.hour:02}{time.minute:02}')
             if self.chilbolton_centred:
                 yield self.curr_da[self.curr_index,
                                    self.chil_idy - 300:self.chil_idy + 300,
