@@ -28,32 +28,13 @@ class FileLoader(object):
                 self.curr_da = xr.open_dataarray(self.filelist[self.curr_file])
                 self.curr_index = 0
             time = pd.to_datetime(self.curr_da.time[self.curr_index].item())
-            fidd = '{}[{:03d}]'.format(os.path.basename(self.filelist[self.curr_file]), self.curr_index)
+            fidd = '{}_{}'.format(os.path.basename(self.filelist[self.curr_file]), f'{time.hour:02}:{time.minute:02}')
             if self.chilbolton_centred:
                 yield self.curr_da[self.curr_index,
-                      self.chil_idy - 300:self.chil_idy + 300,
-                      self.chil_idx - 400:self.chil_idx + 400].data, fidd, time
+                                   self.chil_idy - 300:self.chil_idy + 300,
+                                   self.chil_idx - 400:self.chil_idx + 400].data, fidd, time
             else:
                 yield self.curr_da[self.curr_index, 750:1350, 600:1400].data, fidd, time
-
-
-###################################################
-# loadfile IS A USER SPECIFIED FUNCTION TO LOAD THE DATA AND TIME STAMP INFORMATION
-# OUTPUT
-# datad = data (2D array)
-# fidd = file time identifier yyyymmdd
-# hh = file hour
-# mm = file minute stamp
-###################################################
-def loadfile(filename):
-    nc = ncfile(filename)
-    datad = nc.variables['var'][200:600, 250:550] / 32
-    datad = np.flipud(np.transpose(datad))
-    fidd = filename[-9:-5]
-    hh = float(fidd[0:2])
-    mm = float(fidd[2:4])
-
-    return datad, fidd, hh, mm
 
 
 ###################################################
