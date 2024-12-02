@@ -164,9 +164,9 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
     ###################################################
     elif np.max(OldStormLabels) > 0 and np.max(StormLabels) > 0:
        xint,yint = np.meshgrid(range(xmat[0,0]+squarehalf,xmat[0,-1],squarehalf),range(ymat[0,0]+squarehalf,ymat[-1,0],squarehalf))
-       buu = np.full(xint.shape, np.NaN)
-       bvv = np.full(xint.shape, np.NaN)
-       bww = np.full(xint.shape, np.NaN)
+       buu = np.full(xint.shape, np.nan)
+       bvv = np.full(xint.shape, np.nan)
+       bww = np.full(xint.shape, np.nan)
        for corx in range(0,int(np.size(xint,0))):
            if flagplot==True:
                nij=-3
@@ -179,9 +179,9 @@ def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, y
                oldsquare=oldbt[(squarehalf)*corx:(squarehalf)*corx+2*squarehalf,(squarehalf)*cory:(squarehalf)*cory+2*squarehalf]
                newsquare=newbt[(squarehalf)*corx:(squarehalf)*corx+2*squarehalf,(squarehalf)*cory:(squarehalf)*cory+2*squarehalf]
                if np.sum(oldsquare)<fftpixels or np.sum(newsquare)<fftpixels: # if there are too few storms, don't try to derive motion vectors.
-                  buu[corx,cory]=np.NaN
-                  bvv[corx,cory]=np.NaN
-                  bww[corx,cory]=np.NaN
+                  buu[corx,cory]=np.nan
+                  bvv[corx,cory]=np.nan
+                  bww[corx,cory]=np.nan
                else:
                   dx,dy,amplitude,corrval = ffttrack(oldsquare,newsquare,tukey_window)
                   buu[corx,cory]=dx
@@ -467,8 +467,16 @@ def interpolate_speeds(xint, yint, xmat, ymat, buu, OldStormLabels):
            newumat = np.zeros(np.shape(OldStormLabels))
            return newumat
        filled = it(list(np.ndindex(buu.shape))).reshape(buu.shape)
-       fu = interpolate.interp2d(xint[0,:],yint[:,0],filled,kind='cubic')
-       newumat = fu(xmat[0,:],ymat[:,0])
+       # interp2d no longer works. See here for how to swap for RegularGridInterpolator:
+       # https://scipy.github.io/devdocs/tutorial/interpolate/interp_transition_guide.html
+       # fu = interpolate.interp2d(xint[0,:],yint[:,0],filled,kind='cubic')
+       # newumat = fu(xmat[0,:],ymat[:,0])
+       # raise
+       # Doesn't preserve behaviour when nans in filled??
+       fu = interpolate.RegularGridInterpolator((xint[0,:], yint[:,0]), filled.T, method='cubic', bounds_error=False, fill_value=None)
+       # newumat = fu((xmat[0,:],ymat[:,0]))
+       newumat = fu((xmat,ymat))
+       # raise Exception('stop here')
     else:
        newumat = np.zeros(np.shape(OldStormLabels))
     return newumat
