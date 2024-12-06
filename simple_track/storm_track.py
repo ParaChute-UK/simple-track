@@ -2,6 +2,7 @@ import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import ndimage
 
 from .object_tracking import interpolate_speeds, ffttrack, label_storms, write_storms
 
@@ -14,24 +15,24 @@ from .object_tracking import interpolate_speeds, ffttrack, label_storms, write_s
 
 class StormS:
     def __init__(
-        self,
-        jj,
-        storm_labels,
-        var,
-        xmat,
-        ymat,
-        newwas,
-        newumat,
-        newvmat,
-        num_dt,
-        misval,
-        doradar,
-        under_threshold,
-        extra_thresh=(),
-        storm_history=False,
-        string=None,
-        rarray=(),
-        azarray=(),
+            self,
+            jj,
+            storm_labels,
+            var,
+            xmat,
+            ymat,
+            newwas,
+            newumat,
+            newvmat,
+            num_dt,
+            misval,
+            doradar,
+            under_threshold,
+            extra_thresh=(),
+            storm_history=False,
+            string=None,
+            rarray=(),
+            azarray=(),
     ):
         if string is None:  # initialiase to default values
             c = np.where(storm_labels == jj)
@@ -93,7 +94,8 @@ class StormS:
         else:  # Use string which is line in save file to initialise
             self.storm = int(jj)
             self.area = int([d for d in string.split() if d.startswith('area=')][0].replace('area=', ''))
-            self.extreme = float([d for d in string.split() if d.startswith('extreme=')][0].replace('extreme=', ''))
+            self.extreme = float(
+                [d for d in string.split() if d.startswith('extreme=')][0].replace('extreme=', ''))
             self.meanvar = float([d for d in string.split() if d.startswith('meanv=')][0].replace('meanv=', ''))
             if len(extra_thresh) > 0:
                 self.extra_area = [
@@ -112,7 +114,8 @@ class StormS:
             self.dy = float([d for d in string.split() if d.startswith('dy=')][0].replace('dy=', ''))
             self.parent = [
                 int(p)
-                for p in [d for d in string.split() if d.startswith('parent=')][0].replace('parent=', '').split(',')
+                for p in
+                [d for d in string.split() if d.startswith('parent=')][0].replace('parent=', '').split(',')
             ]
             self.child = [
                 int(p)
@@ -120,7 +123,8 @@ class StormS:
             ]
             self.accreted = [
                 int(p)
-                for p in [d for d in string.split() if d.startswith('accreted=')][0].replace('accreted=', '').split(',')
+                for p in
+                [d for d in string.split() if d.startswith('accreted=')][0].replace('accreted=', '').split(',')
             ]
             box = [d for d in string.split() if d.startswith('box=')][0].replace('box=', '').split(',')
             self.boxleft = float(box[0])
@@ -132,10 +136,11 @@ class StormS:
                 self.azimuthl = float(
                     [d for d in string.split() if d.startswith('azimuth=')][0].replace('azimuth=', '')[0]
                 )
-                self.azimuthu = [d for d in string.split() if d.startswith('azimuth=')][0].replace('azimuth=', '')[1]
+                self.azimuthu = [d for d in string.split() if d.startswith('azimuth=')][0].replace('azimuth=', '')[
+                    1]
 
     def inherit_properties(
-        self, jj, old_storm_data, kindex, quvl, storm_labels, qhist, lapthresh, misval, single_overlap=False
+            self, jj, old_storm_data, kindex, quvl, storm_labels, qhist, lapthresh, misval, single_overlap=False
     ):
         self.was = old_storm_data[kindex].was
         self.life = old_storm_data[kindex].life + 1
@@ -162,31 +167,255 @@ class StormS:
 # 4. Iterate through objects to check for splitting and merging events.
 ###################################################################
 
+class StormTracker:
+    def __init__(
+            self,
+            loader,
+            dt=5.0,
+            dt_tolerance=15.0,  # Maximum separation in time allowed between consecutive images
+            under_t=False,
+            ## True = labelling areas *under* the threshold (e.g. brightness temperature), False = labelling areas *above* threshold (e.g. rainfall)
+            threshold=3.0,  ## Threshold used to identify objects (with value of variable greater than this threshold)
+            minpixel=4.0,  ## Minimum object size in pixels
+            squarelength=200.0,
+            ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
+            rafraction=0.01,  ## Minimum fractional cover of objects required for fft to obtain (dx,dy) displacement
+            dd_tolerance=3.0,
+            # Maximum difference in displacement values between adjacent squares (to remove spurious values) - scaled by num_dt if necessary
+            halopixel=5.0,
+            ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
+            flagwrite=True,  ## For writing storm history data in a text file
+            doradar=False,
+            ## doradar=True is calculate range and azimuth for real-time tracking with radar (e.g. Chilbolton). doradar=False any other use, radar coordinates not relevant
+            misval=-999,  ## Missing value
+            struct2d=np.ones((3, 3)),
+            ## np.ones((3,3)) is 8-point connectivity for labelling storms. Can be changed to user preference.
+            lapthresh=0.6,  ## Minimum fraction of overlap (0.6 in TITAN)
+    ):
+        self.loader = loader
+
+        self.dt = dt
+        self.dt_tolerance = dt_tolerance
+        self.under_t = under_t
+        self.threshold = threshold
+        self.minpixel = minpixel
+        self.squarelength = squarelength
+        self.rafraction = rafraction
+        self.dd_tolerance = dd_tolerance
+        self.halopixel = halopixel
+        self.flagwrite = flagwrite
+        self.doradar = doradar
+        self.misval = misval
+        self.struct2d = struct2d
+        self.lapthresh = lapthresh
+
+        self.squarehalf = int(squarelength / 2)
+        self.areastr = str(int(minpixel))
+        self.thr_str = str(int(threshold))
+        self.sql_str = str(int(squarelength))
+        self.fftpixels = squarelength ** 2 / int(1.0 / rafraction)
+        self.halosq = halopixel ** 2
+        self.xmat, self.ymat = np.meshgrid(range(-400, 400), range(-300, 300))
+        self.xall = np.size(self.xmat, 0)  # Only used to check grid dimensions
+        self.yall = np.size(self.xmat, 1)  # Only used to check grid dimensions
+        if np.fmod(self.xall, squarelength) != 0 or np.fmod(self.yall, squarelength) != 0:
+            raise ValueError('Your grid does not match a multiple of squares as defined by squarelength')
+        self.images_dir = outdir
+
+        #   Initialise variables
+        self.old_data, self.old_labels, self.oldvar, self.newvar, self.prev_time = [], [], [], [], []
+        self.newwas = 1
+
+        self.start_time = None
+        self.old_time = None
+        self.oldmask = []
+        self.newmask = []
+        self.num_dt = []
+
+    def _label_storms(self, bt, minarea, threshold, struct, under_threshold):
+        binbt = np.zeros_like(bt)
+        if under_threshold:
+            binbt[np.where(bt < threshold)] = 1
+        else:
+            binbt[np.where(bt > threshold)] = 1
+        id_regions, num_ids = ndimage.label(binbt, structure=struct)
+        id_sizes = np.array(ndimage.sum(binbt, id_regions, range(num_ids + 1)))
+        area_mask = id_sizes < minarea
+        binbt[area_mask[id_regions]] = 0
+        id_regions, num_ids = ndimage.label(binbt, structure=struct)
+        print('num_ids = ', num_ids)
+
+        return id_regions
+
+    def track_storms(self):
+        for nt, (var, file_id, now_time) in enumerate(self.loader.load_next()):
+            if not self.start_time:
+                start_time = now_time
+            if now_time.minute == 0 and now_time.hour == 12:
+                flagplot = True
+                flagplottest = True
+            else:
+                flagplot = False
+                flagplottest = False
+
+            # Load new image
+            # now_time = start_time + datetime.timedelta(seconds=300. * nt)
+            # var,file_id,hourval,minval = nimrod_user_functions.loadfile(DATA_DIR + filelist[nt])
+            print(file_id)
+            domain = 'chil_' if self.chilbolton_centred else 'central_'
+            write_file_id = domain + 'S' + self.sql_str + '_T' + self.thr_str + '_A' + self.areastr + '_' + file_id
+            # new_labels = self._label_storms(var)
+            new_labels = self._label_storms(var, self.minpixel, self.threshold, self.struct2d, self.under_t)
+            # oldmask, newmask, USED FOR DERIVING (dx,dy)
+            # THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks, if displacement information is contained in structures within objects)
+            # !!! NB If raw data are used (i.e. not zeros and ones) then fftpixels needs to be changed to remain sensible !!!
+            if len(self.old_labels) > 1:
+                # CHECK TIME DIFFERENCE BETWEEN CONSECUTIVE IMAGES
+                # dtnow = nimrod_user_functions.timediff(oldhourval, oldminval, hourval, minval)
+                dtnow = (now_time - self.old_time).total_seconds() / 60  # timediff in minutes.
+                num_dt = dtnow / self.dt
+                if dtnow > self.dt_tolerance:
+                    print('Data are too far apart in time --- Re-initialise objects')
+                    self.old_data, self.old_labels, self.oldvar, self.newvar, self.prev_time = [], [], [], [], []
+                    newwas = 1
+                    plot_vectors = False
+                    continue
+                oldmask = np.where(self.old_labels >= 1, 1, 0)
+                newmask = np.where(self.new_labels >= 1, 1, 0)
+            # Call object tracking routine
+            # new_data = list of objects and properties
+            # newwas = final label number
+            # new_labels = array with object IDs from [1, nummax] as found by label_storms
+            # newumat, newvmat = arrays with (dx,dy) displacement between two images (NB not displacement per dt!!!)
+            # wasarray = array with object IDs consistent across images (i.e. tracked IDs)
+            # lifearray = array with object lifetime consistent across images
+            (new_data, newwas, new_labels, newumat, newvmat, wasarray, lifearray) = self._track_storms(
+                self.old_data,
+                var,
+                self.newwas,
+                self.new_labels,
+                self.old_labels,
+                self.xmat,
+                self.ymat,
+                self.fftpixels,
+                self.dd_tolerance,
+                self.halosq,
+                self.squarehalf,
+                self.oldmask,
+                self.newmask,
+                self.num_dt,
+                self.lapthresh,
+                self.misval,
+                self.doradar,
+                self.under_t,
+                self.images_dir,
+                self.write_file_id,
+                self.flagplottest,
+            )
+
+    def _track_storms(self, old_storm_data, var, newwas, storm_labels, old_storm_labels, xmat, ymat, fftpixels,
+                      dd_tolerance, halosq, squarehalf, oldmask, newmask, num_dt, lapthresh, misval, doradar,
+                      under_threshold,
+                      images_dir,
+                      write_file_id, flagplottest, rarray=(), azarray=(), ):
+        storm_data, extra_thresh, lifearray, newumat, newvmat, numstorms, tukey_window, wasarray = init_vars(
+            storm_labels)
+
+        if len(old_storm_data) == 0:
+            storm_data, newwas = init_new_storms(
+                storm_data,
+                storm_labels,
+                xmat,
+                ymat,
+                misval,
+                doradar,
+                extra_thresh,
+                lifearray,
+                newwas,
+                num_dt,
+                numstorms,
+                rarray,
+                under_threshold,
+                var,
+                wasarray,
+                azarray,
+            )
+        elif np.max(old_storm_labels) > 0 and np.max(storm_labels) > 0:
+            newumat, newvmat = calc_corr_velocities(
+                images_dir,
+                old_storm_labels,
+                dd_tolerance,
+                fftpixels,
+                flagplot,
+                newbt,
+                num_dt,
+                oldbt,
+                squarehalf,
+                tukey_window,
+                write_file_id,
+                xmat,
+                ymat,
+            )
+
+            # Assign displacement to each of the old storms.
+            advected_storms, quvl = assign_displacements(old_storm_data, old_storm_labels, newumat, newvmat, xmat, ymat)
+
+            storm_data, newwas, wasnum = find_overlaps(
+                advected_storms,
+                old_storm_data,
+                old_storm_labels,
+                quvl,
+                storm_data,
+                storm_labels,
+                azarray,
+                doradar,
+                extra_thresh,
+                halosq,
+                lapthresh,
+                lifearray,
+                misval,
+                newumat,
+                newvmat,
+                newwas,
+                num_dt,
+                numstorms,
+                rarray,
+                under_threshold,
+                var,
+                wasarray,
+                xmat,
+                ymat,
+            )
+
+            newwas = check_multiple_merges(storm_data, storm_labels, lifearray, misval, newwas, wasarray, wasnum)
+
+        return storm_data, newwas, storm_labels, newumat, newvmat, wasarray, lifearray
+
 
 def track_storms(
-    old_storm_data,
-    var,
-    newwas,
-    storm_labels,
-    old_storm_labels,
-    xmat,
-    ymat,
-    fftpixels,
-    dd_tolerance,
-    halosq,
-    squarehalf,
-    oldbt,
-    newbt,
-    num_dt,
-    lapthresh,
-    misval,
-    doradar,
-    under_threshold,
-    images_dir,
-    write_file_id,
-    flagplot,
-    rarray=(),
-    azarray=(),
+        old_storm_data,
+        var,
+        newwas,
+        storm_labels,
+        old_storm_labels,
+        xmat,
+        ymat,
+        fftpixels,
+        dd_tolerance,
+        halosq,
+        squarehalf,
+        oldbt,
+        newbt,
+        num_dt,
+        lapthresh,
+        misval,
+        doradar,
+        under_threshold,
+        images_dir,
+        write_file_id,
+        flagplot,
+        rarray=(),
+        azarray=(),
 ):
     storm_data, extra_thresh, lifearray, newumat, newvmat, numstorms, tukey_window, wasarray = init_vars(storm_labels)
 
@@ -339,30 +568,30 @@ def check_multiple_merges(storm_data, storm_labels, lifearray, misval, newwas, w
 
 
 def find_overlaps(
-    advected_storms,
-    old_storm_data,
-    old_storm_labels,
-    quvl,
-    storm_data,
-    storm_labels,
-    azarray,
-    doradar,
-    extra_thresh,
-    halosq,
-    lapthresh,
-    lifearray,
-    misval,
-    newumat,
-    newvmat,
-    newwas,
-    num_dt,
-    numstorms,
-    rarray,
-    under_threshold,
-    var,
-    wasarray,
-    xmat,
-    ymat,
+        advected_storms,
+        old_storm_data,
+        old_storm_labels,
+        quvl,
+        storm_data,
+        storm_labels,
+        azarray,
+        doradar,
+        extra_thresh,
+        halosq,
+        lapthresh,
+        lifearray,
+        misval,
+        newumat,
+        newvmat,
+        newwas,
+        num_dt,
+        numstorms,
+        rarray,
+        under_threshold,
+        var,
+        wasarray,
+        xmat,
+        ymat,
 ):
     ###################################################
     # NOW LOOP THROUGH storm_data AND CHECK FOR OVERLAP WITH
@@ -409,18 +638,32 @@ def find_overlaps(
         # CHECK FOR OVERLAP WITHIN (halo) km OF CENTROID
         ###################################################
         qhist = (np.histogram(quvl[np.where(storm_labels == jj)], qbins))[0][:] / float(storm_data[ns].area) + (
-            np.histogram(quvl[np.where(storm_labels == jj)], qbins)
-        )[0][:] / qarea[:]
+                                                                                                                   np.histogram(
+                                                                                                                       quvl[
+                                                                                                                           np.where(
+                                                                                                                               storm_labels == jj)],
+                                                                                                                       qbins)
+                                                                                                               )[
+                                                                                                                   0][
+                                                                                                               :] / qarea[
+                                                                                                                    :]
         # if nt==35 and jj==131:
         #   raise ValueError("Check storm 131 (or 120)")
 
         if np.max(qhist[1:]) < lapthresh:
             newblob = 0 * xmat
-            blobind = np.where((xmat - storm_data[ns].centroidx) ** 2 + (ymat - storm_data[ns].centroidy) ** 2 < halosq)
+            blobind = np.where(
+                (xmat - storm_data[ns].centroidx) ** 2 + (ymat - storm_data[ns].centroidy) ** 2 < halosq)
             newblob[blobind] = newblob[blobind] + 1
             qhist = (np.histogram(quvl[np.where(newblob == 1)], qbins))[0][:] / float(storm_data[ns].area) + (
-                np.histogram(quvl[np.where(newblob == 1)], qbins)
-            )[0][:] / qarea[:]
+                                                                                                                 np.histogram(
+                                                                                                                     quvl[
+                                                                                                                         np.where(
+                                                                                                                             newblob == 1)],
+                                                                                                                     qbins)
+                                                                                                             )[0][
+                                                                                                             :] / qarea[
+                                                                                                                  :]
         ###################################################
         # IF OVERLAP, THEN
         # - INHERIT "WAS"
@@ -518,10 +761,10 @@ def assign_displacements(old_storm_data, old_storm_labels, newumat, newvmat, xma
                 newyind = labelind[1][ii] + int(np.around(dx))
                 newxind = labelind[0][ii] + int(np.around(dy))
                 if (
-                    newxind > np.size(newlabel, 0) - 1
-                    or newyind > np.size(newlabel, 1) - 1
-                    or newxind < 0
-                    or newyind < 0
+                        newxind > np.size(newlabel, 0) - 1
+                        or newyind > np.size(newlabel, 1) - 1
+                        or newxind < 0
+                        or newyind < 0
                 ):
                     continue
                 elif newlabel[newxind, newyind] > 0:
@@ -551,19 +794,19 @@ def assign_displacements(old_storm_data, old_storm_labels, newumat, newvmat, xma
 
 
 def calc_corr_velocities(
-    images_dir,
-    old_storm_labels,
-    dd_tolerance,
-    fftpixels,
-    flagplot,
-    newbt,
-    num_dt,
-    oldbt,
-    squarehalf,
-    tukey_window,
-    write_file_id,
-    xmat,
-    ymat,
+        images_dir,
+        old_storm_labels,
+        dd_tolerance,
+        fftpixels,
+        flagplot,
+        newbt,
+        num_dt,
+        oldbt,
+        squarehalf,
+        tukey_window,
+        write_file_id,
+        xmat,
+        ymat,
 ):
     ###################################################
     # old_storm_data & storm_data ARE NOT EMPTY, SO USE FFT TO GET VELOCITIES
@@ -571,7 +814,8 @@ def calc_corr_velocities(
     # Estimate velocities using squares within domain
     ###################################################
     xint, yint = np.meshgrid(
-        range(xmat[0, 0] + squarehalf, xmat[0, -1], squarehalf), range(ymat[0, 0] + squarehalf, ymat[-1, 0], squarehalf)
+        range(xmat[0, 0] + squarehalf, xmat[0, -1], squarehalf),
+        range(ymat[0, 0] + squarehalf, ymat[-1, 0], squarehalf)
     )
     buu = np.full(xint.shape, np.NaN)
     bvv = np.full(xint.shape, np.NaN)
@@ -588,15 +832,15 @@ def calc_corr_velocities(
             if flagplot:
                 nij = nij + 3
             oldsquare = oldbt[
-                squarehalf * corx: squarehalf * corx + 2 * squarehalf,
-                squarehalf * cory: squarehalf * cory + 2 * squarehalf,
-            ]
+                        squarehalf * corx: squarehalf * corx + 2 * squarehalf,
+                        squarehalf * cory: squarehalf * cory + 2 * squarehalf,
+                        ]
             newsquare = newbt[
-                squarehalf * corx: squarehalf * corx + 2 * squarehalf,
-                squarehalf * cory: squarehalf * cory + 2 * squarehalf,
-            ]
+                        squarehalf * corx: squarehalf * corx + 2 * squarehalf,
+                        squarehalf * cory: squarehalf * cory + 2 * squarehalf,
+                        ]
             if (
-                np.sum(oldsquare) < fftpixels or np.sum(newsquare) < fftpixels
+                    np.sum(oldsquare) < fftpixels or np.sum(newsquare) < fftpixels
             ):  # if there are too few storms, don't try to derive motion vectors.
                 buu[corx, cory] = np.NaN
                 bvv[corx, cory] = np.NaN
@@ -723,22 +967,22 @@ def calc_corr_velocities(
 
 
 def init_new_storms(
-    storm_data,
-    storm_labels,
-    xmat,
-    ymat,
-    misval,
-    doradar,
-    extra_thresh,
-    lifearray,
-    newwas,
-    num_dt,
-    numstorms,
-    rarray,
-    under_threshold,
-    var,
-    wasarray,
-    azarray,
+        storm_data,
+        storm_labels,
+        xmat,
+        ymat,
+        misval,
+        doradar,
+        extra_thresh,
+        lifearray,
+        newwas,
+        num_dt,
+        numstorms,
+        rarray,
+        under_threshold,
+        var,
+        wasarray,
+        azarray,
 ):
     waslabels = []
     for ns in range(numstorms):

@@ -3,6 +3,25 @@ import numpy as np
 from . import nimrod_object_tracking
 from . import nimrod_user_functions
 from . import object_tracking
+from .storm_track import StormTracker
+
+
+def storm_tracker_driver(filelist, outdir):
+    chilbolton_centred = True
+    loader = nimrod_user_functions.FileLoader(filelist, chilbolton_centred=chilbolton_centred)
+    tracker = StormTracker(
+        loader=loader,
+    )
+
+    flagplot = False,  ## For plotting images (vectors and IDs). Also set plot_type...
+    flagplottest = False,  ## For plotting fft correlations (testing only, very slow, lots of plots)
+
+    if flagplot or flagplottest:
+        plot_type = '.png'
+    ##################################################################
+    # THE FOLLOWING PARAMETERS CAN BE CHANGED, BUT SHOULD NOT BE
+    ##################################################################
+    tracker.track_storms()
 
 
 def nimrod_driver(filelist, outdir, tracking_method='orig'):
@@ -69,9 +88,9 @@ def nimrod_driver(filelist, outdir, tracking_method='orig'):
     areastr = str(int(minpixel))
     thr_str = str(int(threshold))
     sql_str = str(int(squarelength))
-    fftpixels = squarelength**2 / int(1.0 / rafraction)
+    fftpixels = squarelength ** 2 / int(1.0 / rafraction)
     # fftpixels = 30
-    halosq = halopixel**2
+    halosq = halopixel ** 2
 
     ##################################################################
     # AUTOMATIC SET UP OF TEXT STRING FOR INFORMATION ON LABELLING
@@ -111,11 +130,8 @@ def nimrod_driver(filelist, outdir, tracking_method='orig'):
     #   Initialise variables
     old_data, old_labels, oldvar, newvar, prev_time = [], [], [], [], []
     newwas = 1
-    plot_vectors = False
 
     start_time = None
-    oldhourval = []
-    oldminval = []
     oldmask = []
     newmask = []
     num_dt = []

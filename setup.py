@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='simple_track',
+    name='simple track',
     description='Simple cloud tracking',
     license='LICENSE',
     packages=[
