@@ -1,11 +1,4 @@
-#!/usr/bin/env python
-from pathlib import Path
-import subprocess as sp
-
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='simple_track',
@@ -14,4 +7,9 @@ setup(
     packages=[
         'simple_track',
     ],
+    install_requires=[
+        'matplotlib',
+        'networkx',
+        'numpy',
+    ]
 )

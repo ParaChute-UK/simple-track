@@ -1,7 +1,9 @@
-import object_tracking
-import numpy as np
 import datetime
 import os
+
+import numpy as np
+
+import object_tracking
 import user_functions
 
 ##################################################################
@@ -88,13 +90,13 @@ if np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0:
 #
 # All data (5-minute intervals)
 # DATA_DIR = './data/'
-# IMAGES_DIR = './output/'
+# images_dir = './output/'
 # Sparse data (10-minute intervals), to test similarity in vector fields (scaling by num_dt working correctly)
 # DATA_DIR = './data/'
-# IMAGES_DIR = './output/'
+# images_dir = './output/'
 # Missing data (10-minute intervals, 1 file missing), to test dt_tolerance
 # DATA_DIR = './data/'
-# IMAGES_DIR = './output/'
+# images_dir = './output/'
 #################################################################
 DATA_DIR = './data/'
 IMAGES_DIR = './output/'

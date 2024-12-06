@@ -1,11 +1,9 @@
-#!/usr/local/sci/bin/python2.7
-
 import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from object_tracking import interpolate_speeds, ffttrack, label_storms, write_storms
+from .object_tracking import interpolate_speeds, ffttrack
 
 
 ###################################################################
@@ -18,7 +16,7 @@ class StormS:
     def __init__(
         self,
         jj,
-        StormLabels,
+        storm_labels,
         var,
         xmat,
         ymat,
@@ -29,34 +27,34 @@ class StormS:
         misval,
         doradar,
         under_threshold,
-        extra_thresh=[],
+        extra_thresh=(),
         storm_history=False,
         string=None,
-        rarray=[],
-        azarray=[],
+        rarray=(),
+        azarray=(),
     ):
-        if string == None:  # initialiase to default values
-            C = np.where(StormLabels == jj)
+        if string is None:  # initialiase to default values
+            c = np.where(storm_labels == jj)
             self.storm = int(jj)
-            self.area = int(np.size(C, 1))
+            self.area = int(np.size(c, 1))
             if under_threshold:
-                self.extreme = np.min(var[C])
+                self.extreme = np.min(var[c])
             else:
-                self.extreme = np.max(var[C])
-            self.meanvar = np.mean(var[C])
+                self.extreme = np.max(var[c])
+            self.meanvar = np.mean(var[c])
             if len(extra_thresh) > 0:
-                self.extra_area = [(var[C] < a).sum() for a in extra_thresh]
-            self.centroidx = np.mean(xmat[C])
-            self.centroidy = np.mean(ymat[C])
-            self.boxleft = np.min(xmat[C])
-            self.boxup = np.max(ymat[C])
-            self.boxwidth = np.max(xmat[C]) - np.min(xmat[C])
-            self.boxheight = np.max(ymat[C]) - np.min(ymat[C])
+                self.extra_area = [(var[c] < a).sum() for a in extra_thresh]
+            self.centroidx = np.mean(xmat[c])
+            self.centroidy = np.mean(ymat[c])
+            self.boxleft = np.min(xmat[c])
+            self.boxup = np.max(ymat[c])
+            self.boxwidth = np.max(xmat[c]) - np.min(xmat[c])
+            self.boxheight = np.max(ymat[c]) - np.min(ymat[c])
             self.life = 1
             if storm_history:
                 self.was = int(jj)
-                self.dx = np.mean(newumat[C]) / num_dt
-                self.dy = np.mean(newvmat[C]) / num_dt
+                self.dx = np.mean(newumat[c]) / num_dt
+                self.dy = np.mean(newvmat[c]) / num_dt
             else:  # First image to be considered, so no dx or dy or previous label
                 self.was = newwas
                 self.dx = 0
@@ -66,15 +64,15 @@ class StormS:
             self.wasdist = misval
             self.accreted = [misval]
             if doradar:
-                self.rangel = np.min(rarray[C])
-                self.rangeu = np.max(rarray[C])
-                if np.min(rarray[C]) == 0:
+                self.rangel = np.min(rarray[c])
+                self.rangeu = np.max(rarray[c])
+                if np.min(rarray[c]) == 0:
                     self.azimuthl = 0.0
                     self.azimuthu = 360.0
-                elif (np.min(azarray[C]) == 0) & (np.max(azarray[C]) > 180):
+                elif (np.min(azarray[c]) == 0) & (np.max(azarray[c]) > 180):
                     azxy = np.where((xmat == np.round(self.centroidx)) & (ymat == np.round(self.centroidy)))
                     azoffset = np.fmod(np.round(azarray[azxy]) + 180.0, 360.0)
-                    aznotind = np.where((StormLabels == jj) & (azarray < azoffset))
+                    aznotind = np.where((storm_labels == jj) & (azarray < azoffset))
                     if np.size(aznotind) == 0:
                         self.azimuthl = 0.0
                         self.azimuthu = 360.0
@@ -82,7 +80,7 @@ class StormS:
                         self.azimuthl = 0.0
                         self.azimuthu = 360.0
                     else:
-                        azleftind = np.where((StormLabels == jj) & (azarray >= azoffset))
+                        azleftind = np.where((storm_labels == jj) & (azarray >= azoffset))
                         if np.size(azleftind) == 0:
                             self.azimuthl = np.min(azarray[aznotind])
                             self.azimuthu = np.max(azarray[aznotind])
@@ -90,8 +88,8 @@ class StormS:
                             self.azimuthl = np.min(azarray[azleftind])
                             self.azimuthu = np.max(azarray[aznotind])
                 else:
-                    self.azimuthl = np.min(azarray[C])
-                    self.azimuthu = np.max(azarray[C])
+                    self.azimuthl = np.min(azarray[c])
+                    self.azimuthu = np.max(azarray[c])
         else:  # Use string which is line in save file to initialise
             self.storm = int(jj)
             self.area = int([d for d in string.split() if d.startswith('area=')][0].replace('area=', ''))
@@ -137,23 +135,23 @@ class StormS:
                 self.azimuthu = [d for d in string.split() if d.startswith('azimuth=')][0].replace('azimuth=', '')[1]
 
     def inherit_properties(
-        self, jj, OldStormData, kindex, QuvL, StormLabels, qhist, lapthresh, misval, single_overlap=False
+        self, jj, old_storm_data, kindex, quvl, storm_labels, qhist, lapthresh, misval, single_overlap=False
     ):
-        self.was = OldStormData[kindex].was
-        self.life = OldStormData[kindex].life + 1
-        self.wasdist = np.size(np.where((QuvL == kindex + 1) & (StormLabels == jj)), 1)
+        self.was = old_storm_data[kindex].was
+        self.life = old_storm_data[kindex].life + 1
+        self.wasdist = np.size(np.where((quvl == kindex + 1) & (storm_labels == jj)), 1)
         qind = kindex + 1
         # Code below is only required when multiple clouds overlap
-        if not (single_overlap):
+        if not single_overlap:
             alllaps = np.where(qhist[1:] >= lapthresh)
             for kkind in range(np.size(alllaps, 1)):
                 allindex = np.squeeze(alllaps[0][kkind])
                 if allindex == kindex:
                     continue
                 if self.accreted[-1] == misval:
-                    self.accreted[-1] = OldStormData[allindex].was
+                    self.accreted[-1] = old_storm_data[allindex].was
                 else:
-                    self.accreted.append(OldStormData[allindex].was)
+                    self.accreted.append(old_storm_data[allindex].was)
 
 
 ###################################################################
@@ -166,11 +164,11 @@ class StormS:
 
 
 def track_storms(
-    OldStormData,
+    old_storm_data,
     var,
     newwas,
-    StormLabels,
-    OldStormLabels,
+    storm_labels,
+    old_storm_labels,
     xmat,
     ymat,
     fftpixels,
@@ -184,18 +182,18 @@ def track_storms(
     misval,
     doradar,
     under_threshold,
-    IMAGES_DIR,
-    write_file_ID,
+    images_dir,
+    write_file_id,
     flagplot,
-    rarray=[],
-    azarray=[],
+    rarray=(),
+    azarray=(),
 ):
-    StormData, extra_thresh, lifearray, newumat, newvmat, numstorms, tukey_window, wasarray = init_vars(StormLabels)
+    storm_data, extra_thresh, lifearray, newumat, newvmat, numstorms, tukey_window, wasarray = init_vars(storm_labels)
 
-    if len(OldStormData) == 0:
-        StormData, newwas = init_new_storms(
-            StormData,
-            StormLabels,
+    if len(old_storm_data) == 0:
+        storm_data, newwas = init_new_storms(
+            storm_data,
+            storm_labels,
             xmat,
             ymat,
             misval,
@@ -211,10 +209,10 @@ def track_storms(
             wasarray,
             azarray,
         )
-    elif np.max(OldStormLabels) > 0 and np.max(StormLabels) > 0:
+    elif np.max(old_storm_labels) > 0 and np.max(storm_labels) > 0:
         newumat, newvmat = calc_corr_velocities(
-            IMAGES_DIR,
-            OldStormLabels,
+            images_dir,
+            old_storm_labels,
             dd_tolerance,
             fftpixels,
             flagplot,
@@ -223,21 +221,21 @@ def track_storms(
             oldbt,
             squarehalf,
             tukey_window,
-            write_file_ID,
+            write_file_id,
             xmat,
             ymat,
         )
 
         # Assign displacement to each of the old storms.
-        AdvectedStorms, QuvL = assign_displacements(OldStormData, OldStormLabels, newumat, newvmat, xmat, ymat)
+        advected_storms, quvl = assign_displacements(old_storm_data, old_storm_labels, newumat, newvmat, xmat, ymat)
 
-        StormData, newwas, wasnum = find_overlaps(
-            AdvectedStorms,
-            OldStormData,
-            OldStormLabels,
-            QuvL,
-            StormData,
-            StormLabels,
+        storm_data, newwas, wasnum = find_overlaps(
+            advected_storms,
+            old_storm_data,
+            old_storm_labels,
+            quvl,
+            storm_data,
+            storm_labels,
             azarray,
             doradar,
             extra_thresh,
@@ -258,12 +256,12 @@ def track_storms(
             ymat,
         )
 
-        newwas = check_multiple_merges(StormData, StormLabels, lifearray, misval, newwas, wasarray, wasnum)
+        newwas = check_multiple_merges(storm_data, storm_labels, lifearray, misval, newwas, wasarray, wasnum)
 
-    return StormData, newwas, StormLabels, newumat, newvmat, wasarray, lifearray
+    return storm_data, newwas, storm_labels, newumat, newvmat, wasarray, lifearray
 
 
-def init_vars(StormLabels):
+def init_vars(storm_labels):
     ###############################################################
     # PARAMETERS FOR FUTURE FUNCTIONALITY
     ###################################################################
@@ -274,31 +272,31 @@ def init_vars(StormLabels):
     ###################################################################
     newumat = 0
     newvmat = 0
-    wasarray = 0 * StormLabels  # set up array of zeros.
-    lifearray = 0 * StormLabels
-    numstorms = StormLabels.max()
+    wasarray = 0 * storm_labels  # set up array of zeros.
+    lifearray = 0 * storm_labels
+    numstorms = storm_labels.max()
     print('numstorms = ', numstorms)
-    StormData = []
-    return StormData, extra_thresh, lifearray, newumat, newvmat, numstorms, tukey_window, wasarray
+    storm_data = []
+    return storm_data, extra_thresh, lifearray, newumat, newvmat, numstorms, tukey_window, wasarray
 
 
-def check_multiple_merges(StormData, StormLabels, lifearray, misval, newwas, wasarray, wasnum):
+def check_multiple_merges(storm_data, storm_labels, lifearray, misval, newwas, wasarray, wasnum):
     ###################################################
     # TRACKING MERGING BREAKING
-    # MULTIPLE STORMS AT T (StormData) MAY HAVE SAME LABEL "WAS"
+    # MULTIPLE STORMS AT T (storm_data) MAY HAVE SAME LABEL "WAS"
     # FIND STORM WITH LARGEST OVERLAP AT T+1 WITH ADVECTED q(T)
     # THIS IS THE "PARENT" STORM,
     # "PARENT" VECTOR WITH INDICES OF NEW LABELS FOR "CHILD" STORMS
     # STORMS WITH SAME WAS BUT FUTHER FROM CENTROID ARE "CHILD", VALUE "PARENT"
     ###################################################
-    for ns in range(len(StormData)):
-        jj = StormData[ns].storm
-        if StormData[ns].wasdist == [misval]:
+    for ns in range(len(storm_data)):
+        jj = storm_data[ns].storm
+        if storm_data[ns].wasdist == [misval]:
             continue
         wasind = np.where(wasnum == wasnum[ns])
         wasseplength = 0
         for kkind in range(np.size(wasind)):
-            if StormData[wasind[0][kkind]].wasdist == [misval]:
+            if storm_data[wasind[0][kkind]].wasdist == [misval]:
                 continue
             else:
                 wasseplength = wasseplength + 1
@@ -306,13 +304,13 @@ def check_multiple_merges(StormData, StormLabels, lifearray, misval, newwas, was
         if np.size(wasind) > 1:
             kkval = 0
             for kkind in range(np.size(wasind)):
-                if StormData[wasind[0][kkind]].wasdist == [misval]:
+                if storm_data[wasind[0][kkind]].wasdist == [misval]:
                     continue
                 else:
-                    wassep[kkval] = StormData[wasind[0][kkind]].wasdist
+                    wassep[kkval] = storm_data[wasind[0][kkind]].wasdist
                     kkval = kkval + 1
         else:
-            wassep = StormData[wasind[0][0]].wasdist
+            wassep = storm_data[wasind[0][0]].wasdist
         ########################################
         # WASSEP NOW CONTAINS ALL NON-ZERO OVERLAP VALUES
         # FIND THE MAXIMUM (THIS WILL BE THE PARENT)
@@ -323,30 +321,30 @@ def check_multiple_merges(StormData, StormLabels, lifearray, misval, newwas, was
         children = []
         for kkind in range(np.size(wassep)):
             if not kkind == kkmax:
-                StormData[wasind[0][kkind]].child = StormData[wasind[0][kkmax]].was
-                StormData[wasind[0][kkind]].was = newwas
-                wasarray[np.where(StormLabels == wasind[0][kkind] + 1)] = newwas
-                StormData[wasind[0][kkind]].life = StormData[wasind[0][kkmax]].life
-                lifearray[np.where(StormLabels == wasind[0][kkind] + 1)] = StormData[wasind[0][kkmax]].life
+                storm_data[wasind[0][kkind]].child = storm_data[wasind[0][kkmax]].was
+                storm_data[wasind[0][kkind]].was = newwas
+                wasarray[np.where(storm_labels == wasind[0][kkind] + 1)] = newwas
+                storm_data[wasind[0][kkind]].life = storm_data[wasind[0][kkmax]].life
+                lifearray[np.where(storm_labels == wasind[0][kkind] + 1)] = storm_data[wasind[0][kkmax]].life
                 newwas = newwas + 1
-                wasnum[wasind[0][kkind]] = StormData[wasind[0][kkind]].was
-                children.append(StormData[wasind[0][kkind]].was)
-                StormData[wasind[0][kkind]].wasdist = misval
+                wasnum[wasind[0][kkind]] = storm_data[wasind[0][kkind]].was
+                children.append(storm_data[wasind[0][kkind]].was)
+                storm_data[wasind[0][kkind]].wasdist = misval
         ###################################################
         # UPDATE PARENT STORM WITH CHILDREN
         ###################################################
         if np.size(children) > 0:
-            StormData[wasind[0][kkmax]].parent = children
+            storm_data[wasind[0][kkmax]].parent = children
     return newwas
 
 
 def find_overlaps(
-    AdvectedStorms,
-    OldStormData,
-    OldStormLabels,
-    QuvL,
-    StormData,
-    StormLabels,
+    advected_storms,
+    old_storm_data,
+    old_storm_labels,
+    quvl,
+    storm_data,
+    storm_labels,
     azarray,
     doradar,
     extra_thresh,
@@ -367,24 +365,23 @@ def find_overlaps(
     ymat,
 ):
     ###################################################
-    # NOW LOOP THROUGH StormData AND CHECK FOR OVERLAP WITH
-    # ADVECTED OldStormData STORMS
+    # NOW LOOP THROUGH storm_data AND CHECK FOR OVERLAP WITH
+    # ADVECTED old_storm_data STORMS
     ###################################################
-    wasnum = np.zeros(len(StormData))
-    qbins = range(int(np.max(OldStormLabels)) + 2)
-    qarea = np.ones([int(np.max(OldStormLabels)) + 1])
-    qlife = np.ones([int(np.max(OldStormLabels)) + 1])
-    for qq in range(len(OldStormData)):
-        if AdvectedStorms[qq, 2] > 0:
-            qarea[qq + 1] = AdvectedStorms[qq, 2]
-        qlife[qq + 1] = OldStormData[qq].life
+    qbins = range(int(np.max(old_storm_labels)) + 2)
+    qarea = np.ones([int(np.max(old_storm_labels)) + 1])
+    qlife = np.ones([int(np.max(old_storm_labels)) + 1])
+    for qq in range(len(old_storm_data)):
+        if advected_storms[qq, 2] > 0:
+            qarea[qq + 1] = advected_storms[qq, 2]
+        qlife[qq + 1] = old_storm_data[qq].life
     for ns in range(numstorms):
         jj = ns + 1  # first storm is labelled 1, but python indeces start at 0.
-        C = np.where(StormLabels == jj)
-        StormData += [
+        c = np.where(storm_labels == jj)
+        storm_data += [
             StormS(
                 jj,
-                StormLabels,
+                storm_labels,
                 var,
                 xmat,
                 ymat,
@@ -402,8 +399,8 @@ def find_overlaps(
                 azarray=azarray,
             )
         ]
-        wasarray[C] = int(jj)
-        lifearray[C] = 1
+        wasarray[c] = int(jj)
+        lifearray[c] = 1
 
         ###################################################
         # CHECK OVERLAP WITH QHIST
@@ -411,18 +408,18 @@ def find_overlaps(
         # GENERATE (halo) km RADIUS AROUND CENTROID
         # CHECK FOR OVERLAP WITHIN (halo) km OF CENTROID
         ###################################################
-        qhist = (np.histogram(QuvL[np.where(StormLabels == jj)], qbins))[0][:] / float(StormData[ns].area) + (
-            np.histogram(QuvL[np.where(StormLabels == jj)], qbins)
+        qhist = (np.histogram(quvl[np.where(storm_labels == jj)], qbins))[0][:] / float(storm_data[ns].area) + (
+            np.histogram(quvl[np.where(storm_labels == jj)], qbins)
         )[0][:] / qarea[:]
         # if nt==35 and jj==131:
         #   raise ValueError("Check storm 131 (or 120)")
 
         if np.max(qhist[1:]) < lapthresh:
             newblob = 0 * xmat
-            blobind = np.where((xmat - StormData[ns].centroidx) ** 2 + (ymat - StormData[ns].centroidy) ** 2 < halosq)
+            blobind = np.where((xmat - storm_data[ns].centroidx) ** 2 + (ymat - storm_data[ns].centroidy) ** 2 < halosq)
             newblob[blobind] = newblob[blobind] + 1
-            qhist = (np.histogram(QuvL[np.where(newblob == 1)], qbins))[0][:] / float(StormData[ns].area) + (
-                np.histogram(QuvL[np.where(newblob == 1)], qbins)
+            qhist = (np.histogram(quvl[np.where(newblob == 1)], qbins))[0][:] / float(storm_data[ns].area) + (
+                np.histogram(quvl[np.where(newblob == 1)], qbins)
             )[0][:] / qarea[:]
         ###################################################
         # IF OVERLAP, THEN
@@ -443,10 +440,10 @@ def find_overlaps(
                 for kkind in range(np.size(numlaps, 1)):
                     qindex = np.squeeze(numlaps[0][kkind])
                     lapdist[kkind] = np.sqrt(
-                        (StormData[ns].centroidx - AdvectedStorms[qindex, 0]) ** 2
-                        + (StormData[ns].centroidy - AdvectedStorms[qindex, 1]) ** 2
+                        (storm_data[ns].centroidx - advected_storms[qindex, 0]) ** 2
+                        + (storm_data[ns].centroidy - advected_storms[qindex, 1]) ** 2
                     )
-                    sectlap[kkind] = np.size(np.where((QuvL == qindex + 1) & (StormLabels == jj)), 1)
+                    sectlap[kkind] = np.size(np.where((quvl == qindex + 1) & (storm_labels == jj)), 1)
                 kmax = np.where(sectlap == np.max(sectlap))
                 if np.size(kmax, 1) > 1:
                     kkmax = kmax[0][np.where(lapdist[kmax[0][:]] == np.min(lapdist[kmax[0][:]]))]
@@ -455,25 +452,21 @@ def find_overlaps(
                 else:
                     kkmax = kmax[0][0]
                 kindex = np.squeeze(numlaps[0][kkmax])
-                StormData[ns].inherit_properties(
-                    jj, OldStormData, kindex, QuvL, StormLabels, qhist, lapthresh, misval, single_overlap=False
+                storm_data[ns].inherit_properties(
+                    jj, old_storm_data, kindex, quvl, storm_labels, qhist, lapthresh, misval, single_overlap=False
                 )
-                wasarray[C] = OldStormData[kindex].was
-                lifearray[C] = StormData[ns].life
+                wasarray[c] = old_storm_data[kindex].was
+                lifearray[c] = storm_data[ns].life
             ###################################################
             # SINGLE OVERLAP
             ###################################################
             else:
                 zindex = np.squeeze(numlaps[0][0])
-                lapdist = np.sqrt(
-                    (StormData[ns].centroidx - OldStormData[zindex].centroidx) ** 2
-                    + (StormData[ns].centroidy - OldStormData[zindex].centroidy) ** 2
+                storm_data[ns].inherit_properties(
+                    jj, old_storm_data, zindex, quvl, storm_labels, qhist, lapthresh, misval, single_overlap=True
                 )
-                StormData[ns].inherit_properties(
-                    jj, OldStormData, zindex, QuvL, StormLabels, qhist, lapthresh, misval, single_overlap=True
-                )
-                wasarray[C] = OldStormData[zindex].was
-                lifearray[C] = StormData[ns].life
+                wasarray[c] = old_storm_data[zindex].was
+                lifearray[c] = storm_data[ns].life
 
         ###################################################
         # IF NO OVERLAP, THEN (NEW STORM)
@@ -481,41 +474,41 @@ def find_overlaps(
         # - UPDATE "LIFE" AND "TRACK" AND "WASDIST" FOR A NEW STORM
         ###################################################
         else:
-            StormData[ns].was = newwas
-            wasarray[C] = newwas
-            StormData[ns].life = 1
-            lifearray[C] = 1
+            storm_data[ns].was = newwas
+            wasarray[c] = newwas
+            storm_data[ns].life = 1
+            lifearray[c] = 1
             newwas = newwas + 1
-    wasnum = np.array([StormData[ns].was for ns in range(len(StormData))])
+    wasnum = np.array([storm_data[ns].was for ns in range(len(storm_data))])
     ###################################################
     # QUICK SANITY CHECK
     # ACCRETED SHOULD NEVER BE A VALUE
     # SIMILAR TO EXISTING STORM ID
     ###################################################
-    for ns in range(len(StormData)):
-        jj = StormData[ns].storm
-        if StormData[ns].accreted[-1] == misval:
+    for ns in range(len(storm_data)):
+        jj = storm_data[ns].storm
+        if storm_data[ns].accreted[-1] == misval:
             continue
         else:
-            for acnum in range(np.size(StormData[ns].accreted)):
-                acind = np.where((wasnum - StormData[ns].accreted[acnum]) == 0)
+            for acnum in range(np.size(storm_data[ns].accreted)):
+                acind = np.where((wasnum - storm_data[ns].accreted[acnum]) == 0)
                 if np.size(acind, 1) > 0:
-                    StormData[ns].accreted[acnum] = misval
-            # acnew=np.where(StormData[ns].accreted > misval)
-            acnew = [aci for aci in StormData[ns].accreted if aci > misval]
+                    storm_data[ns].accreted[acnum] = misval
+            # acnew=np.where(storm_data[ns].accreted > misval)
+            acnew = [aci for aci in storm_data[ns].accreted if aci > misval]
             if np.size(acnew) > 0:
                 for acindex in range(np.size(acnew)):
-                    StormData[ns].accreted[acnum] = acnew[acindex]
+                    storm_data[ns].accreted[acnum] = acnew[acindex]
             else:
-                StormData[ns].accreted = [misval]
-    return StormData, newwas, wasnum
+                storm_data[ns].accreted = [misval]
+    return storm_data, newwas, wasnum
 
 
-def assign_displacements(OldStormData, OldStormLabels, newumat, newvmat, xmat, ymat):
-    newlabel = np.zeros(OldStormLabels.shape)
-    for ns in range(len(OldStormData)):
-        jj = OldStormData[ns].storm
-        labelind = np.where(OldStormLabels == jj)
+def assign_displacements(old_storm_data, old_storm_labels, newumat, newvmat, xmat, ymat):
+    newlabel = np.zeros(old_storm_labels.shape)
+    for ns in range(len(old_storm_data)):
+        jj = old_storm_data[ns].storm
+        labelind = np.where(old_storm_labels == jj)
         dx = np.mean(newumat[labelind])
         dy = np.mean(newvmat[labelind])
         if dx == 0.0 and dy == 0.0:
@@ -533,33 +526,33 @@ def assign_displacements(OldStormData, OldStormLabels, newumat, newvmat, xmat, y
                     continue
                 elif newlabel[newxind, newyind] > 0:
                     nq = int(newlabel[newxind, newyind] - 1)
-                    olddist = (xmat[newxind, newyind] - OldStormData[nq].centroidx) ** 2 + (
-                        ymat[newxind, newyind] - OldStormData[nq].centroidy
+                    olddist = (xmat[newxind, newyind] - old_storm_data[nq].centroidx) ** 2 + (
+                            ymat[newxind, newyind] - old_storm_data[nq].centroidy
                     ) ** 2
-                    newdist = (xmat[newxind, newyind] - OldStormData[ns].centroidx) ** 2 + (
-                        ymat[newxind, newyind] - OldStormData[ns].centroidy
+                    newdist = (xmat[newxind, newyind] - old_storm_data[ns].centroidx) ** 2 + (
+                            ymat[newxind, newyind] - old_storm_data[ns].centroidy
                     ) ** 2
                     if newdist < olddist:
                         newlabel[newxind, newyind] = jj
                 else:
                     newlabel[newxind, newyind] = jj
-    QuvL = newlabel
-    AdvectedStorms = np.zeros([len(OldStormData), 3])
-    for ns in range(len(OldStormData)):
-        jj = OldStormData[ns].storm
-        centrind = np.where(QuvL == jj)
+    quvl = newlabel
+    advected_storms = np.zeros([len(old_storm_data), 3])
+    for ns in range(len(old_storm_data)):
+        jj = old_storm_data[ns].storm
+        centrind = np.where(quvl == jj)
         if np.size(centrind, 1) == 0:
             continue
         else:
-            AdvectedStorms[ns][0] = np.mean(xmat[centrind])
-            AdvectedStorms[ns][1] = np.mean(ymat[centrind])
-            AdvectedStorms[ns][2] = int(np.size(centrind, 1))
-    return AdvectedStorms, QuvL
+            advected_storms[ns][0] = np.mean(xmat[centrind])
+            advected_storms[ns][1] = np.mean(ymat[centrind])
+            advected_storms[ns][2] = int(np.size(centrind, 1))
+    return advected_storms, quvl
 
 
 def calc_corr_velocities(
-    IMAGES_DIR,
-    OldStormLabels,
+    images_dir,
+    old_storm_labels,
     dd_tolerance,
     fftpixels,
     flagplot,
@@ -568,13 +561,13 @@ def calc_corr_velocities(
     oldbt,
     squarehalf,
     tukey_window,
-    write_file_ID,
+    write_file_id,
     xmat,
     ymat,
 ):
     ###################################################
-    # OldStormData & StormData ARE NOT EMPTY, SO USE FFT TO GET VELOCITIES
-    # AND UPDATE UVLABEL IN OldStormData ACCORDINGLY
+    # old_storm_data & storm_data ARE NOT EMPTY, SO USE FFT TO GET VELOCITIES
+    # AND UPDATE UVLABEL IN old_storm_data ACCORDINGLY
     # Estimate velocities using squares within domain
     ###################################################
     xint, yint = np.meshgrid(
@@ -584,7 +577,7 @@ def calc_corr_velocities(
     bvv = np.full(xint.shape, np.NaN)
     bww = np.full(xint.shape, np.NaN)
     for corx in range(0, int(np.size(xint, 0))):
-        if flagplot == True:
+        if flagplot:
             nij = -3
             # fig, axs = plt.subplots(np.size(xint,1),3, figsize=(6,2*np.size(xint,1)), facecolor='w', edgecolor='k')
             fig, axs = plt.subplots(
@@ -592,15 +585,15 @@ def calc_corr_velocities(
             )
             axs = axs.ravel()
         for cory in range(0, int(np.size(xint, 1))):
-            if flagplot == True:
+            if flagplot:
                 nij = nij + 3
             oldsquare = oldbt[
-                (squarehalf) * corx : (squarehalf) * corx + 2 * squarehalf,
-                (squarehalf) * cory : (squarehalf) * cory + 2 * squarehalf,
+                squarehalf * corx: squarehalf * corx + 2 * squarehalf,
+                squarehalf * cory: squarehalf * cory + 2 * squarehalf,
             ]
             newsquare = newbt[
-                (squarehalf) * corx : (squarehalf) * corx + 2 * squarehalf,
-                (squarehalf) * cory : (squarehalf) * cory + 2 * squarehalf,
+                squarehalf * corx: squarehalf * corx + 2 * squarehalf,
+                squarehalf * cory: squarehalf * cory + 2 * squarehalf,
             ]
             if (
                 np.sum(oldsquare) < fftpixels or np.sum(newsquare) < fftpixels
@@ -613,7 +606,7 @@ def calc_corr_velocities(
                 buu[corx, cory] = dx
                 bvv[corx, cory] = dy  ## indices are upside down so need minus to get real-world dy-velocity
                 bww[corx, cory] = amplitude
-                if flagplot == True:
+                if flagplot:
                     # print(corx)
                     # print(cory)
                     # print(nij)
@@ -623,8 +616,8 @@ def calc_corr_velocities(
                     axs[nij + 1].set_title(str(int(np.sum(newsquare))))
                     axs[nij + 2].pcolormesh(corrval)
                     axs[nij + 2].set_title('(' + str(dx) + ',' + str(dy) + ')')
-        if flagplot == True:
-            plt.savefig(IMAGES_DIR + 'Correlations_' + write_file_ID + '_' + str(corx) + '.png')
+        if flagplot:
+            plt.savefig(images_dir + 'Correlations_' + write_file_id + '_' + str(corx) + '.png')
             plt.close()
     # CHECK NEIGHBOURING VALUES FOR SMOOTHNESS
     # Ignore warnings about mean over empty array in this section
@@ -632,8 +625,6 @@ def calc_corr_velocities(
         warnings.simplefilter("ignore", category=RuntimeWarning)
         for corx in range(0, int(np.size(xint, 0))):
             for cory in range(0, int(np.size(xint, 1))):
-                bu_nb = np.nan
-                bv_nb = np.nan
                 if np.isnan(buu[corx, cory]) and np.isnan(bvv[corx, cory]):
                     continue
                 if corx == 0:
@@ -726,14 +717,14 @@ def calc_corr_velocities(
                     bvv[corx, cory] = np.nan
     ## ACTUAL DISPLACEMENT
     # Interpolate these displacements onto the full grid
-    newumat = interpolate_speeds(xint, yint, xmat, ymat, buu, OldStormLabels)
-    newvmat = interpolate_speeds(xint, yint, xmat, ymat, bvv, OldStormLabels)
+    newumat = interpolate_speeds(xint, yint, xmat, ymat, buu, old_storm_labels)
+    newvmat = interpolate_speeds(xint, yint, xmat, ymat, bvv, old_storm_labels)
     return newumat, newvmat
 
 
 def init_new_storms(
-    StormData,
-    StormLabels,
+    storm_data,
+    storm_labels,
     xmat,
     ymat,
     misval,
@@ -752,11 +743,11 @@ def init_new_storms(
     waslabels = []
     for ns in range(numstorms):
         jj = ns + 1  # First storm is labelled 1, but python indeces start at 0.
-        C = np.where(StormLabels == jj)
-        StormData += [
+        c = np.where(storm_labels == jj)
+        storm_data += [
             StormS(
                 jj,
-                StormLabels,
+                storm_labels,
                 var,
                 xmat,
                 ymat,
@@ -774,8 +765,8 @@ def init_new_storms(
                 azarray=azarray,
             )
         ]
-        wasarray[C] = newwas
+        wasarray[c] = newwas
         newwas = newwas + 1
-        lifearray[C] = 1
-        waslabels.append(StormData[ns].was)
-    return StormData, newwas
+        lifearray[c] = 1
+        waslabels.append(storm_data[ns].was)
+    return storm_data, newwas

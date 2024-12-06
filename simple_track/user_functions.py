@@ -1,8 +1,9 @@
 #!/usr/local/sci/bin/python2.7
 
-from netCDF4 import Dataset as ncfile
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from netCDF4 import Dataset as ncfile
+
 
 ###################################################
 # loadfile IS A USER SPECIFIED FUNCTION TO LOAD THE DATA AND TIME STAMP INFORMATION

@@ -1,4 +1,3 @@
-#!/usr/local/sci/bin/python2.7
 import os.path
 
 import matplotlib.pyplot as plt
@@ -61,8 +60,7 @@ def timediff(oldh, oldm, newh, newm):
 
 
 def plot_example(
-    write_file_ID,
-    nt,
+    write_file_id,
     rain,
     xmat,
     ymat,
@@ -75,10 +73,10 @@ def plot_example(
     IMAGES_DIR,
     do_vectors,
 ):
-    '''
+    """
     PLOT FIGURES WITH RAINFALL RATE AND STORM LABELS
     FOR ILLUSTRATIVE AND TESTING PURPOSES
-    '''
+    """
 
     lrain = rain + 0.0
     lrain[np.where(lrain <= 0.0)] = 0.01
@@ -97,7 +95,7 @@ def plot_example(
     # add a colourbar with a label
     cbar = plt.colorbar(con, colorbar_axes, orientation='horizontal')
     cbar.set_label('Rainfall rate [log2 mm hr^{-1}]')
-    plt.savefig(IMAGES_DIR + 'Rainrate_' + write_file_ID + '.png')
+    plt.savefig(IMAGES_DIR + 'Rainrate_' + write_file_id + '.png')
     plt.close()
 
     figb = plt.figure(figsize=(6, 7))
@@ -114,13 +112,11 @@ def plot_example(
     # add a colourbar with a label
     cbar = plt.colorbar(con, colorbar_axes, orientation='horizontal')
     cbar.set_label('Storm ID')
-    plt.savefig(IMAGES_DIR + 'Stormid_' + write_file_ID + '.png')
+    plt.savefig(IMAGES_DIR + 'Stormid_' + write_file_id + '.png')
     plt.close()
 
     lifearray[np.where(lifearray == 0)] = -6
     figc = plt.figure(figsize=(6, 7))
-    # ax = figa.add_subplot(111)
-    # con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
     con = plt.pcolor(xmat, ymat, 5 * lifearray, vmin=-30, vmax=60)
     plt_ax = plt.gca()
     left, bottom, width, height = plt_ax.get_position().bounds
@@ -132,13 +128,11 @@ def plot_example(
     # add a colourbar with a label
     cbar = plt.colorbar(con, colorbar_axes, orientation='horizontal')
     cbar.set_label('Life time [mins]')
-    plt.savefig(IMAGES_DIR + 'Lifetime_' + write_file_ID + '.png')
+    plt.savefig(IMAGES_DIR + 'Lifetime_' + write_file_id + '.png')
     plt.close()
-    if do_vectors == True:
-        figd = plt.figure(figsize=(6, 7))
-        # ax = figa.add_subplot(111)
-        # con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
-        con = plt.contour(xmat, ymat, lrain, levels=[threshold])
+    if do_vectors:
+        plt.figure(figsize=(6, 7))
+        plt.contour(xmat, ymat, lrain, levels=[threshold])
         plt.quiver(
             xmat[::10, ::10],
             ymat[::10, ::10],
@@ -153,5 +147,5 @@ def plot_example(
         plt_ax.set_position(posnew)
         plt.xlabel('Distance from Chilbolton [km]')
         plt.ylabel('Distance from Chilbolton [km]')
-        plt.savefig(IMAGES_DIR + 'Vectors_' + write_file_ID + '.png')
+        plt.savefig(IMAGES_DIR + 'Vectors_' + write_file_id + '.png')
         plt.close()

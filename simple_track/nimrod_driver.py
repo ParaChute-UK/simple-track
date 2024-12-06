@@ -1,12 +1,8 @@
-import datetime
-from glob import glob
-import sys
-
 import numpy as np
 
-import object_tracking
-import nimrod_object_tracking
-import nimrod_user_functions
+from . import nimrod_object_tracking
+from . import nimrod_user_functions
+from . import object_tracking
 
 
 def nimrod_driver(filelist, outdir, tracking_method='orig'):
@@ -102,18 +98,18 @@ def nimrod_driver(filelist, outdir, tracking_method='orig'):
     #
     # All data (5-minute intervals)
     # DATA_DIR = './data/'
-    # IMAGES_DIR = './output/'
+    # images_dir = './output/'
     # Sparse data (10-minute intervals), to test similarity in vector fields (scaling by num_dt working correctly)
     # DATA_DIR = './data/'
-    # IMAGES_DIR = './output/'
+    # images_dir = './output/'
     # Missing data (10-minute intervals, 1 file missing), to test dt_tolerance
     # DATA_DIR = './data/'
-    # IMAGES_DIR = './output/'
+    # images_dir = './output/'
     #################################################################
-    IMAGES_DIR = outdir
+    images_dir = outdir
 
     #   Initialise variables
-    OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
+    old_data, old_labels, oldvar, newvar, prev_time = [], [], [], [], []
     newwas = 1
     plot_vectors = False
 
@@ -127,7 +123,7 @@ def nimrod_driver(filelist, outdir, tracking_method='orig'):
     chilbolton_centred = True
     loader = nimrod_user_functions.FileLoader(filelist, chilbolton_centred=chilbolton_centred)
 
-    for nt, (var, file_ID, now_time) in enumerate(loader.load_next()):
+    for nt, (var, file_id, now_time) in enumerate(loader.load_next()):
         if not start_time:
             start_time = now_time
         if now_time.minute == 0 and now_time.hour == 12:
@@ -139,40 +135,40 @@ def nimrod_driver(filelist, outdir, tracking_method='orig'):
 
         # Load new image
         # now_time = start_time + datetime.timedelta(seconds=300. * nt)
-        # var,file_ID,hourval,minval = nimrod_user_functions.loadfile(DATA_DIR + filelist[nt])
-        print(file_ID)
+        # var,file_id,hourval,minval = nimrod_user_functions.loadfile(DATA_DIR + filelist[nt])
+        print(file_id)
         domain = 'chil_' if chilbolton_centred else 'central_'
-        write_file_ID = domain + 'S' + sql_str + '_T' + thr_str + '_A' + areastr + '_' + file_ID
-        NewLabels = ot.label_storms(var, minpixel, threshold, struct2d, under_t)
+        write_file_id = domain + 'S' + sql_str + '_T' + thr_str + '_A' + areastr + '_' + file_id
+        new_labels = ot.label_storms(var, minpixel, threshold, struct2d, under_t)
         # oldmask, newmask, USED FOR DERIVING (dx,dy)
         # THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks, if displacement information is contained in structures within objects)
         # !!! NB If raw data are used (i.e. not zeros and ones) then fftpixels needs to be changed to remain sensible !!!
-        if len(OldLabels) > 1:
+        if len(old_labels) > 1:
             # CHECK TIME DIFFERENCE BETWEEN CONSECUTIVE IMAGES
             # dtnow = nimrod_user_functions.timediff(oldhourval, oldminval, hourval, minval)
             dtnow = (now_time - old_time).total_seconds() / 60  # timediff in minutes.
             num_dt = dtnow / dt
             if dtnow > dt_tolerance:
                 print('Data are too far apart in time --- Re-initialise objects')
-                OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
+                old_data, old_labels, oldvar, newvar, prev_time = [], [], [], [], []
                 newwas = 1
                 plot_vectors = False
                 continue
-            oldmask = np.where(OldLabels >= 1, 1, 0)
-            newmask = np.where(NewLabels >= 1, 1, 0)
+            oldmask = np.where(old_labels >= 1, 1, 0)
+            newmask = np.where(new_labels >= 1, 1, 0)
         # Call object tracking routine
-        # NewData = list of objects and properties
+        # new_data = list of objects and properties
         # newwas = final label number
-        # NewLabels = array with object IDs from [1, nummax] as found by label_storms
+        # new_labels = array with object IDs from [1, nummax] as found by label_storms
         # newumat, newvmat = arrays with (dx,dy) displacement between two images (NB not displacement per dt!!!)
         # wasarray = array with object IDs consistent across images (i.e. tracked IDs)
         # lifearray = array with object lifetime consistent across images
-        (NewData, newwas, NewLabels, newumat, newvmat, wasarray, lifearray) = ot.track_storms(
-            OldData,
+        (new_data, newwas, new_labels, newumat, newvmat, wasarray, lifearray) = ot.track_storms(
+            old_data,
             var,
             newwas,
-            NewLabels,
-            OldLabels,
+            new_labels,
+            old_labels,
             xmat,
             ymat,
             fftpixels,
@@ -186,30 +182,30 @@ def nimrod_driver(filelist, outdir, tracking_method='orig'):
             misval,
             doradar,
             under_t,
-            IMAGES_DIR,
-            write_file_ID,
+            images_dir,
+            write_file_id,
             flagplottest,
         )
         # Write tracked storm information (see ot.write_storms)
         if flagwrite:
             ot.write_storms(
-                write_file_ID,
+                write_file_id,
                 start_time,
                 now_time,
                 label_method,
                 squarelength,
                 rafraction,
                 newwas,
-                NewData,
+                new_data,
                 doradar,
                 misval,
-                IMAGES_DIR,
+                images_dir,
             )
         # Plot tracked storm information (see nimrod_user_functions.plot_example)
         if flagplot:
             try:
                 nimrod_user_functions.plot_example(
-                    write_file_ID,
+                    write_file_id,
                     nt,
                     var,
                     xmat,
@@ -220,14 +216,13 @@ def nimrod_driver(filelist, outdir, tracking_method='orig'):
                     wasarray,
                     lifearray,
                     threshold,
-                    IMAGES_DIR,
-                    plot_vectors,
+                    images_dir,
                 )
             except:
                 pass
         # Save tracking information in preparation for next image
-        OldData = NewData
-        OldLabels = NewLabels
+        old_data = new_data
+        old_labels = new_labels
         oldvar = var
         old_time = now_time
         plot_vectors = True

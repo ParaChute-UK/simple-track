@@ -1,12 +1,11 @@
-import datetime
-from glob import glob
 import sys
+from glob import glob
 
 import numpy as np
 
-import object_tracking
 import nimrod_object_tracking
 import nimrod_user_functions
+import object_tracking
 
 if sys.argv[1] == 'orig':
     ot = object_tracking
@@ -100,13 +99,13 @@ if np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0:
 #
 # All data (5-minute intervals)
 # DATA_DIR = './data/'
-# IMAGES_DIR = './output/'
+# images_dir = './output/'
 # Sparse data (10-minute intervals), to test similarity in vector fields (scaling by num_dt working correctly)
 # DATA_DIR = './data/'
-# IMAGES_DIR = './output/'
+# images_dir = './output/'
 # Missing data (10-minute intervals, 1 file missing), to test dt_tolerance
 # DATA_DIR = './data/'
-# IMAGES_DIR = './output/'
+# images_dir = './output/'
 #################################################################
 DATA_DIR = '/home/markmuetz/mirrors/jasmin/gw_cosmic/mmuetz/data/wescon/output/2012/06/'
 IMAGES_DIR = './output/'

@@ -1,5 +1,3 @@
-# coding: utf-8
-from pathlib import Path
 import datetime as dt
 
 import matplotlib.pyplot as plt
@@ -90,26 +88,14 @@ def plot_storms_dag(storms, storm_dag, display='dag'):
             for j, storm in enumerate(storms_at_time.values()):
                 pos[storm] = np.array(storm.centroid)
 
-    fig = plt.figure(display)
+    plt.figure(display)
     plt.clf()
     node_size = 20
     nx.draw_networkx_nodes(
         storm_dag, pos, storm_dag.nodes, node_color=[s.id for s in storm_dag.nodes], node_size=node_size
     )
-    # nx.draw_networkx_edges(storm_dag, pos, node_size=node_size)
-    # nx.draw_networkx_edges(task_ctrl.task_dag, pos)
     if display == 'dag':
         plt.xlim((0, len(storms)))
         plt.ylim((0, max_id * 5))
     plt.pause(0.01)
     plt.savefig(f'output/storms_dag.{display}.png')
-
-
-if __name__ == '__main__':
-    tracking_output = sorted(Path('output').glob('history*.txt'))
-
-    storms = parse_storms(tracking_output)
-    storm_dag = create_storm_dag(storms)
-
-    plot_storms_dag(storms, storm_dag, display='dag')
-    plot_storms_dag(storms, storm_dag, display='loc')

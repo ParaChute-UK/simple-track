@@ -1,15 +1,15 @@
 #!/usr/local/sci/bin/python2.7
-from os import makedirs
 import sys
+import warnings
+from os import makedirs
+from os.path import isdir
 
+import matplotlib.pyplot as plt
 import numpy as np
+import scipy.ndimage as ndimage
 import scipy.spatial.qhull
 from scipy import interpolate
-import scipy.ndimage as ndimage
-import datetime
-from os.path import isfile, isdir
-import matplotlib.pyplot as plt
-import warnings
+
 
 ###################################################################
 # Initiate StormS class with object properties. Can be adjusted to store additional object properties.
@@ -243,8 +243,8 @@ def track_storms(
             lifearray[C] = 1
             waslabels.append(StormData[ns].was)
     ###################################################
-    # OldStormData & StormData ARE NOT EMPTY, SO USE FFT TO GET VELOCITIES
-    # AND UPDATE UVLABEL IN OldStormData ACCORDINGLY
+    # old_storm_data & storm_data ARE NOT EMPTY, SO USE FFT TO GET VELOCITIES
+    # AND UPDATE UVLABEL IN old_storm_data ACCORDINGLY
     # Estimate velocities using squares within domain
     ###################################################
     elif np.max(OldStormLabels) > 0 and np.max(StormLabels) > 0:
@@ -448,8 +448,8 @@ def track_storms(
                 AdvectedStorms[ns][2] = int(np.size(centrind, 1))
 
         ###################################################
-        # NOW LOOP THROUGH StormData AND CHECK FOR OVERLAP WITH
-        # ADVECTED OldStormData STORMS
+        # NOW LOOP THROUGH storm_data AND CHECK FOR OVERLAP WITH
+        # ADVECTED old_storm_data STORMS
         ###################################################
         wasnum = np.zeros(len(StormData))
         qbins = range(int(np.max(OldStormLabels)) + 2)
@@ -584,7 +584,7 @@ def track_storms(
                     acind = np.where((wasnum - StormData[ns].accreted[acnum]) == 0)
                     if np.size(acind, 1) > 0:
                         StormData[ns].accreted[acnum] = misval
-                # acnew=np.where(StormData[ns].accreted > misval)
+                # acnew=np.where(storm_data[ns].accreted > misval)
                 acnew = [aci for aci in StormData[ns].accreted if aci > misval]
                 if np.size(acnew) > 0:
                     for acindex in range(np.size(acnew)):
@@ -593,7 +593,7 @@ def track_storms(
                     StormData[ns].accreted = [misval]
         ###################################################
         # TRACKING MERGING BREAKING
-        # MULTIPLE STORMS AT T (StormData) MAY HAVE SAME LABEL "WAS"
+        # MULTIPLE STORMS AT T (storm_data) MAY HAVE SAME LABEL "WAS"
         # FIND STORM WITH LARGEST OVERLAP AT T+1 WITH ADVECTED q(T)
         # THIS IS THE "PARENT" STORM,
         # "PARENT" VECTOR WITH INDICES OF NEW LABELS FOR "CHILD" STORMS
@@ -790,7 +790,7 @@ def write_storms(
 ):
     if not (isdir(IMAGES_DIR)):
         makedirs(IMAGES_DIR)
-    # print("IMAGES_DIR + file_ID +'.txt'=", IMAGES_DIR + file_ID +'.txt')
+    # print("images_dir + file_ID +'.txt'=", images_dir + file_ID +'.txt')
     fw = open(IMAGES_DIR + 'history_' + file_ID + '.txt', 'w')
     fw.write('missing_value=' + str(misval) + '\r\n')
     fw.write('Start date and time=' + init_time.strftime('%d/%m/%y-%H%M') + '\r\n')
@@ -801,7 +801,7 @@ def write_storms(
     fw.write('total number of tracked storms=' + str(newwas - 1) + '\r\n')
     for ns in range(len(StormData)):
         fw.write('storm ' + str(StormData[ns].was))
-        #       fw.write(' label=' + str(StormData[ns].storm)) # Matches storm to label in mask. Actually no need for this as it is the same as it matches the order of the storms.
+        #       fw.write(' label=' + str(storm_data[ns].storm)) # Matches storm to label in mask. Actually no need for this as it is the same as it matches the order of the storms.
         fw.write(' area=' + str(StormData[ns].area))
         fw.write(' centroid=' + str(round(StormData[ns].centroidx, 2)) + ',' + str(round(StormData[ns].centroidy, 2)))
         fw.write(
