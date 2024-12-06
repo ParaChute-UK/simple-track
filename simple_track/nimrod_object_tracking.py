@@ -13,9 +13,28 @@ from object_tracking import interpolate_speeds, ffttrack, label_storms, write_st
 # Future release could relate StormS and write_storms functions for easier management and user adaptation.
 ###################################################################
 
-class StormS():
-    def __init__(self, jj, StormLabels, var, xmat, ymat, newwas, newumat, newvmat, num_dt, misval, doradar,
-                 under_threshold, extra_thresh=[], storm_history=False, string=None, rarray=[], azarray=[]):
+
+class StormS:
+    def __init__(
+        self,
+        jj,
+        StormLabels,
+        var,
+        xmat,
+        ymat,
+        newwas,
+        newumat,
+        newvmat,
+        num_dt,
+        misval,
+        doradar,
+        under_threshold,
+        extra_thresh=[],
+        storm_history=False,
+        string=None,
+        rarray=[],
+        azarray=[],
+    ):
         if string == None:  # initialiase to default values
             C = np.where(StormLabels == jj)
             self.storm = int(jj)
@@ -50,18 +69,18 @@ class StormS():
                 self.rangel = np.min(rarray[C])
                 self.rangeu = np.max(rarray[C])
                 if np.min(rarray[C]) == 0:
-                    self.azimuthl = 0.
-                    self.azimuthu = 360.
+                    self.azimuthl = 0.0
+                    self.azimuthu = 360.0
                 elif (np.min(azarray[C]) == 0) & (np.max(azarray[C]) > 180):
                     azxy = np.where((xmat == np.round(self.centroidx)) & (ymat == np.round(self.centroidy)))
-                    azoffset = np.fmod(np.round(azarray[azxy]) + 180., 360.)
+                    azoffset = np.fmod(np.round(azarray[azxy]) + 180.0, 360.0)
                     aznotind = np.where((StormLabels == jj) & (azarray < azoffset))
                     if np.size(aznotind) == 0:
-                        self.azimuthl = 0.
-                        self.azimuthu = 360.
-                    elif np.max(azarray[aznotind]) > azoffset - 1.:
-                        self.azimuthl = 0.
-                        self.azimuthu = 360.
+                        self.azimuthl = 0.0
+                        self.azimuthu = 360.0
+                    elif np.max(azarray[aznotind]) > azoffset - 1.0:
+                        self.azimuthl = 0.0
+                        self.azimuthu = 360.0
                     else:
                         azleftind = np.where((StormLabels == jj) & (azarray >= azoffset))
                         if np.size(azleftind) == 0:
@@ -79,23 +98,32 @@ class StormS():
             self.extreme = float([d for d in string.split() if d.startswith('extreme=')][0].replace('extreme=', ''))
             self.meanvar = float([d for d in string.split() if d.startswith('meanv=')][0].replace('meanv=', ''))
             if len(extra_thresh) > 0:
-                self.extra_area = [int([d for d in string.split() if d.startswith('area<' + str(e))][0].split('=')[-1])
-                                   for e in extra_thresh]
+                self.extra_area = [
+                    int([d for d in string.split() if d.startswith('area<' + str(e))][0].split('=')[-1])
+                    for e in extra_thresh
+                ]
             self.centroidx = float(
-                [d for d in string.split() if d.startswith('centroid=')][0].replace('centroid=', '').split(',')[0])
+                [d for d in string.split() if d.startswith('centroid=')][0].replace('centroid=', '').split(',')[0]
+            )
             self.centroidy = float(
-                [d for d in string.split() if d.startswith('centroid=')][0].replace('centroid=', '').split(',')[1])
+                [d for d in string.split() if d.startswith('centroid=')][0].replace('centroid=', '').split(',')[1]
+            )
             self.life = int([d for d in string.split() if d.startswith('life=')][0].replace('life=', ''))
             self.was = int(string.split()[1])
             self.dx = float([d for d in string.split() if d.startswith('dx=')][0].replace('dx=', ''))
             self.dy = float([d for d in string.split() if d.startswith('dy=')][0].replace('dy=', ''))
-            self.parent = [int(p) for p in
-                           [d for d in string.split() if d.startswith('parent=')][0].replace('parent=', '').split(',')]
-            self.child = [int(p) for p in
-                          [d for d in string.split() if d.startswith('child=')][0].replace('child=', '').split(',')]
-            self.accreted = [int(p) for p in
-                             [d for d in string.split() if d.startswith('accreted=')][0].replace('accreted=', '').split(
-                                 ',')]
+            self.parent = [
+                int(p)
+                for p in [d for d in string.split() if d.startswith('parent=')][0].replace('parent=', '').split(',')
+            ]
+            self.child = [
+                int(p)
+                for p in [d for d in string.split() if d.startswith('child=')][0].replace('child=', '').split(',')
+            ]
+            self.accreted = [
+                int(p)
+                for p in [d for d in string.split() if d.startswith('accreted=')][0].replace('accreted=', '').split(',')
+            ]
             box = [d for d in string.split() if d.startswith('box=')][0].replace('box=', '').split(',')
             self.boxleft = float(box[0])
             self.boxup = float(box[1])
@@ -104,11 +132,13 @@ class StormS():
             if doradar:
                 self.range = float([d for d in string.split() if d.startswith('range=')][0].replace('range=', ''))
                 self.azimuthl = float(
-                    [d for d in string.split() if d.startswith('azimuth=')][0].replace('azimuth=', '')[0])
-                self.azimuthu = ([d for d in string.split() if d.startswith('azimuth=')][0].replace('azimuth=', '')[1])
+                    [d for d in string.split() if d.startswith('azimuth=')][0].replace('azimuth=', '')[0]
+                )
+                self.azimuthu = [d for d in string.split() if d.startswith('azimuth=')][0].replace('azimuth=', '')[1]
 
-    def inherit_properties(self, jj, OldStormData, kindex, QuvL, StormLabels, qhist, lapthresh, misval,
-                           single_overlap=False):
+    def inherit_properties(
+        self, jj, OldStormData, kindex, QuvL, StormLabels, qhist, lapthresh, misval, single_overlap=False
+    ):
         self.was = OldStormData[kindex].was
         self.life = OldStormData[kindex].life + 1
         self.wasdist = np.size(np.where((QuvL == kindex + 1) & (StormLabels == jj)), 1)
@@ -134,27 +164,99 @@ class StormS():
 # 4. Iterate through objects to check for splitting and merging events.
 ###################################################################
 
-def track_storms(OldStormData, var, newwas, StormLabels, OldStormLabels, xmat, ymat, fftpixels, dd_tolerance, halosq,
-                 squarehalf, oldbt, newbt, num_dt, lapthresh, misval, doradar, under_threshold, IMAGES_DIR,
-                 write_file_ID, flagplot, rarray=[], azarray=[]):
+
+def track_storms(
+    OldStormData,
+    var,
+    newwas,
+    StormLabels,
+    OldStormLabels,
+    xmat,
+    ymat,
+    fftpixels,
+    dd_tolerance,
+    halosq,
+    squarehalf,
+    oldbt,
+    newbt,
+    num_dt,
+    lapthresh,
+    misval,
+    doradar,
+    under_threshold,
+    IMAGES_DIR,
+    write_file_ID,
+    flagplot,
+    rarray=[],
+    azarray=[],
+):
     StormData, extra_thresh, lifearray, newumat, newvmat, numstorms, tukey_window, wasarray = init_vars(StormLabels)
 
     if len(OldStormData) == 0:
-        StormData, newwas = init_new_storms(StormData, StormLabels, xmat, ymat, misval, doradar, extra_thresh,
-                                            lifearray, newwas, num_dt, numstorms, rarray, under_threshold, var,
-                                            wasarray, azarray)
+        StormData, newwas = init_new_storms(
+            StormData,
+            StormLabels,
+            xmat,
+            ymat,
+            misval,
+            doradar,
+            extra_thresh,
+            lifearray,
+            newwas,
+            num_dt,
+            numstorms,
+            rarray,
+            under_threshold,
+            var,
+            wasarray,
+            azarray,
+        )
     elif np.max(OldStormLabels) > 0 and np.max(StormLabels) > 0:
-        newumat, newvmat = calc_corr_velocities(IMAGES_DIR, OldStormLabels, dd_tolerance, fftpixels, flagplot, newbt,
-                                                num_dt, oldbt, squarehalf, tukey_window,
-                                                write_file_ID, xmat, ymat)
+        newumat, newvmat = calc_corr_velocities(
+            IMAGES_DIR,
+            OldStormLabels,
+            dd_tolerance,
+            fftpixels,
+            flagplot,
+            newbt,
+            num_dt,
+            oldbt,
+            squarehalf,
+            tukey_window,
+            write_file_ID,
+            xmat,
+            ymat,
+        )
 
         # Assign displacement to each of the old storms.
         AdvectedStorms, QuvL = assign_displacements(OldStormData, OldStormLabels, newumat, newvmat, xmat, ymat)
 
-        StormData, newwas, wasnum = find_overlaps(AdvectedStorms, OldStormData, OldStormLabels, QuvL, StormData,
-                                                  StormLabels, azarray, doradar, extra_thresh, halosq, lapthresh,
-                                                  lifearray, misval, newumat, newvmat, newwas, num_dt, numstorms,
-                                                  rarray, under_threshold, var, wasarray, xmat, ymat)
+        StormData, newwas, wasnum = find_overlaps(
+            AdvectedStorms,
+            OldStormData,
+            OldStormLabels,
+            QuvL,
+            StormData,
+            StormLabels,
+            azarray,
+            doradar,
+            extra_thresh,
+            halosq,
+            lapthresh,
+            lifearray,
+            misval,
+            newumat,
+            newvmat,
+            newwas,
+            num_dt,
+            numstorms,
+            rarray,
+            under_threshold,
+            var,
+            wasarray,
+            xmat,
+            ymat,
+        )
 
         newwas = check_multiple_merges(StormData, StormLabels, lifearray, misval, newwas, wasarray, wasnum)
 
@@ -238,9 +340,32 @@ def check_multiple_merges(StormData, StormLabels, lifearray, misval, newwas, was
     return newwas
 
 
-def find_overlaps(AdvectedStorms, OldStormData, OldStormLabels, QuvL, StormData, StormLabels, azarray, doradar,
-                  extra_thresh, halosq, lapthresh, lifearray, misval, newumat, newvmat, newwas, num_dt, numstorms,
-                  rarray, under_threshold, var, wasarray, xmat, ymat):
+def find_overlaps(
+    AdvectedStorms,
+    OldStormData,
+    OldStormLabels,
+    QuvL,
+    StormData,
+    StormLabels,
+    azarray,
+    doradar,
+    extra_thresh,
+    halosq,
+    lapthresh,
+    lifearray,
+    misval,
+    newumat,
+    newvmat,
+    newwas,
+    num_dt,
+    numstorms,
+    rarray,
+    under_threshold,
+    var,
+    wasarray,
+    xmat,
+    ymat,
+):
     ###################################################
     # NOW LOOP THROUGH StormData AND CHECK FOR OVERLAP WITH
     # ADVECTED OldStormData STORMS
@@ -256,9 +381,27 @@ def find_overlaps(AdvectedStorms, OldStormData, OldStormLabels, QuvL, StormData,
     for ns in range(numstorms):
         jj = ns + 1  # first storm is labelled 1, but python indeces start at 0.
         C = np.where(StormLabels == jj)
-        StormData += [StormS(jj, StormLabels, var, xmat, ymat, newwas, newumat, newvmat, num_dt, misval, doradar,
-                             under_threshold, extra_thresh=extra_thresh, storm_history=True, string=None,
-                             rarray=rarray, azarray=azarray)]
+        StormData += [
+            StormS(
+                jj,
+                StormLabels,
+                var,
+                xmat,
+                ymat,
+                newwas,
+                newumat,
+                newvmat,
+                num_dt,
+                misval,
+                doradar,
+                under_threshold,
+                extra_thresh=extra_thresh,
+                storm_history=True,
+                string=None,
+                rarray=rarray,
+                azarray=azarray,
+            )
+        ]
         wasarray[C] = int(jj)
         lifearray[C] = 1
 
@@ -268,18 +411,19 @@ def find_overlaps(AdvectedStorms, OldStormData, OldStormLabels, QuvL, StormData,
         # GENERATE (halo) km RADIUS AROUND CENTROID
         # CHECK FOR OVERLAP WITHIN (halo) km OF CENTROID
         ###################################################
-        qhist = (np.histogram(QuvL[np.where(StormLabels == jj)], qbins))[0][:] / float(StormData[ns].area) + \
-                (np.histogram(QuvL[np.where(StormLabels == jj)], qbins))[0][:] / qarea[:]
+        qhist = (np.histogram(QuvL[np.where(StormLabels == jj)], qbins))[0][:] / float(StormData[ns].area) + (
+            np.histogram(QuvL[np.where(StormLabels == jj)], qbins)
+        )[0][:] / qarea[:]
         # if nt==35 and jj==131:
         #   raise ValueError("Check storm 131 (or 120)")
 
         if np.max(qhist[1:]) < lapthresh:
             newblob = 0 * xmat
-            blobind = np.where(
-                (xmat - StormData[ns].centroidx) ** 2 + (ymat - StormData[ns].centroidy) ** 2 < halosq)
+            blobind = np.where((xmat - StormData[ns].centroidx) ** 2 + (ymat - StormData[ns].centroidy) ** 2 < halosq)
             newblob[blobind] = newblob[blobind] + 1
-            qhist = (np.histogram(QuvL[np.where(newblob == 1)], qbins))[0][:] / float(StormData[ns].area) + \
-                    (np.histogram(QuvL[np.where(newblob == 1)], qbins))[0][:] / qarea[:]
+            qhist = (np.histogram(QuvL[np.where(newblob == 1)], qbins))[0][:] / float(StormData[ns].area) + (
+                np.histogram(QuvL[np.where(newblob == 1)], qbins)
+            )[0][:] / qarea[:]
         ###################################################
         # IF OVERLAP, THEN
         # - INHERIT "WAS"
@@ -298,8 +442,10 @@ def find_overlaps(AdvectedStorms, OldStormData, OldStormLabels, QuvL, StormData,
                 sectlap = np.zeros([np.size(numlaps, 1)])
                 for kkind in range(np.size(numlaps, 1)):
                     qindex = np.squeeze(numlaps[0][kkind])
-                    lapdist[kkind] = np.sqrt((StormData[ns].centroidx - AdvectedStorms[qindex, 0]) ** 2 + (
-                            StormData[ns].centroidy - AdvectedStorms[qindex, 1]) ** 2)
+                    lapdist[kkind] = np.sqrt(
+                        (StormData[ns].centroidx - AdvectedStorms[qindex, 0]) ** 2
+                        + (StormData[ns].centroidy - AdvectedStorms[qindex, 1]) ** 2
+                    )
                     sectlap[kkind] = np.size(np.where((QuvL == qindex + 1) & (StormLabels == jj)), 1)
                 kmax = np.where(sectlap == np.max(sectlap))
                 if np.size(kmax, 1) > 1:
@@ -309,8 +455,9 @@ def find_overlaps(AdvectedStorms, OldStormData, OldStormLabels, QuvL, StormData,
                 else:
                     kkmax = kmax[0][0]
                 kindex = np.squeeze(numlaps[0][kkmax])
-                StormData[ns].inherit_properties(jj, OldStormData, kindex, QuvL, StormLabels, qhist, lapthresh,
-                                                 misval, single_overlap=False)
+                StormData[ns].inherit_properties(
+                    jj, OldStormData, kindex, QuvL, StormLabels, qhist, lapthresh, misval, single_overlap=False
+                )
                 wasarray[C] = OldStormData[kindex].was
                 lifearray[C] = StormData[ns].life
             ###################################################
@@ -318,10 +465,13 @@ def find_overlaps(AdvectedStorms, OldStormData, OldStormLabels, QuvL, StormData,
             ###################################################
             else:
                 zindex = np.squeeze(numlaps[0][0])
-                lapdist = np.sqrt((StormData[ns].centroidx - OldStormData[zindex].centroidx) ** 2 + (
-                        StormData[ns].centroidy - OldStormData[zindex].centroidy) ** 2)
-                StormData[ns].inherit_properties(jj, OldStormData, zindex, QuvL, StormLabels, qhist, lapthresh,
-                                                 misval, single_overlap=True)
+                lapdist = np.sqrt(
+                    (StormData[ns].centroidx - OldStormData[zindex].centroidx) ** 2
+                    + (StormData[ns].centroidy - OldStormData[zindex].centroidy) ** 2
+                )
+                StormData[ns].inherit_properties(
+                    jj, OldStormData, zindex, QuvL, StormLabels, qhist, lapthresh, misval, single_overlap=True
+                )
                 wasarray[C] = OldStormData[zindex].was
                 lifearray[C] = StormData[ns].life
 
@@ -374,15 +524,21 @@ def assign_displacements(OldStormData, OldStormLabels, newumat, newvmat, xmat, y
             for ii in range(np.size(labelind, 1)):
                 newyind = labelind[1][ii] + int(np.around(dx))
                 newxind = labelind[0][ii] + int(np.around(dy))
-                if newxind > np.size(newlabel, 0) - 1 or newyind > np.size(newlabel,
-                                                                           1) - 1 or newxind < 0 or newyind < 0:
+                if (
+                    newxind > np.size(newlabel, 0) - 1
+                    or newyind > np.size(newlabel, 1) - 1
+                    or newxind < 0
+                    or newyind < 0
+                ):
                     continue
                 elif newlabel[newxind, newyind] > 0:
                     nq = int(newlabel[newxind, newyind] - 1)
                     olddist = (xmat[newxind, newyind] - OldStormData[nq].centroidx) ** 2 + (
-                            ymat[newxind, newyind] - OldStormData[nq].centroidy) ** 2
+                        ymat[newxind, newyind] - OldStormData[nq].centroidy
+                    ) ** 2
                     newdist = (xmat[newxind, newyind] - OldStormData[ns].centroidx) ** 2 + (
-                            ymat[newxind, newyind] - OldStormData[ns].centroidy) ** 2
+                        ymat[newxind, newyind] - OldStormData[ns].centroidy
+                    ) ** 2
                     if newdist < olddist:
                         newlabel[newxind, newyind] = jj
                 else:
@@ -401,15 +557,29 @@ def assign_displacements(OldStormData, OldStormLabels, newumat, newvmat, xmat, y
     return AdvectedStorms, QuvL
 
 
-def calc_corr_velocities(IMAGES_DIR, OldStormLabels, dd_tolerance, fftpixels, flagplot, newbt, num_dt,
-                         oldbt, squarehalf, tukey_window, write_file_ID, xmat, ymat):
+def calc_corr_velocities(
+    IMAGES_DIR,
+    OldStormLabels,
+    dd_tolerance,
+    fftpixels,
+    flagplot,
+    newbt,
+    num_dt,
+    oldbt,
+    squarehalf,
+    tukey_window,
+    write_file_ID,
+    xmat,
+    ymat,
+):
     ###################################################
     # OldStormData & StormData ARE NOT EMPTY, SO USE FFT TO GET VELOCITIES
     # AND UPDATE UVLABEL IN OldStormData ACCORDINGLY
     # Estimate velocities using squares within domain
     ###################################################
-    xint, yint = np.meshgrid(range(xmat[0, 0] + squarehalf, xmat[0, -1], squarehalf),
-                             range(ymat[0, 0] + squarehalf, ymat[-1, 0], squarehalf))
+    xint, yint = np.meshgrid(
+        range(xmat[0, 0] + squarehalf, xmat[0, -1], squarehalf), range(ymat[0, 0] + squarehalf, ymat[-1, 0], squarehalf)
+    )
     buu = np.full(xint.shape, np.NaN)
     bvv = np.full(xint.shape, np.NaN)
     bww = np.full(xint.shape, np.NaN)
@@ -417,18 +587,24 @@ def calc_corr_velocities(IMAGES_DIR, OldStormLabels, dd_tolerance, fftpixels, fl
         if flagplot == True:
             nij = -3
             # fig, axs = plt.subplots(np.size(xint,1),3, figsize=(6,2*np.size(xint,1)), facecolor='w', edgecolor='k')
-            fig, axs = plt.subplots(int(0.5 * np.size(xint, 1)) + 1, 6, figsize=(6, np.size(xint, 1)),
-                                    facecolor='w', edgecolor='k')
+            fig, axs = plt.subplots(
+                int(0.5 * np.size(xint, 1)) + 1, 6, figsize=(6, np.size(xint, 1)), facecolor='w', edgecolor='k'
+            )
             axs = axs.ravel()
         for cory in range(0, int(np.size(xint, 1))):
             if flagplot == True:
                 nij = nij + 3
-            oldsquare = oldbt[(squarehalf) * corx:(squarehalf) * corx + 2 * squarehalf,
-                        (squarehalf) * cory:(squarehalf) * cory + 2 * squarehalf]
-            newsquare = newbt[(squarehalf) * corx:(squarehalf) * corx + 2 * squarehalf,
-                        (squarehalf) * cory:(squarehalf) * cory + 2 * squarehalf]
-            if np.sum(oldsquare) < fftpixels or np.sum(
-                    newsquare) < fftpixels:  # if there are too few storms, don't try to derive motion vectors.
+            oldsquare = oldbt[
+                (squarehalf) * corx : (squarehalf) * corx + 2 * squarehalf,
+                (squarehalf) * cory : (squarehalf) * cory + 2 * squarehalf,
+            ]
+            newsquare = newbt[
+                (squarehalf) * corx : (squarehalf) * corx + 2 * squarehalf,
+                (squarehalf) * cory : (squarehalf) * cory + 2 * squarehalf,
+            ]
+            if (
+                np.sum(oldsquare) < fftpixels or np.sum(newsquare) < fftpixels
+            ):  # if there are too few storms, don't try to derive motion vectors.
                 buu[corx, cory] = np.NaN
                 bvv[corx, cory] = np.NaN
                 bww[corx, cory] = np.NaN
@@ -469,9 +645,11 @@ def calc_corr_velocities(IMAGES_DIR, OldStormLabels, dd_tolerance, fftpixels, fl
                         bv_nb = np.nanmean([bvv[0, cory - 1], bvv[1, cory], bvv[1, cory - 1]])
                     else:
                         bu_nb = np.nanmean(
-                            [buu[0, cory + 1], buu[0, cory - 1], buu[1, cory - 1], buu[1, cory], buu[1, cory + 1]])
+                            [buu[0, cory + 1], buu[0, cory - 1], buu[1, cory - 1], buu[1, cory], buu[1, cory + 1]]
+                        )
                         bv_nb = np.nanmean(
-                            [bvv[0, cory + 1], bvv[0, cory - 1], bvv[1, cory - 1], bvv[1, cory], bvv[1, cory + 1]])
+                            [bvv[0, cory + 1], bvv[0, cory - 1], bvv[1, cory - 1], bvv[1, cory], bvv[1, cory + 1]]
+                        )
                 elif corx == int(np.size(xint, 0)) - 1:
                     if cory == 0:
                         bu_nb = np.nanmean([buu[corx, 1], buu[corx - 1, 0], buu[corx - 1, 1]])
@@ -481,27 +659,67 @@ def calc_corr_velocities(IMAGES_DIR, OldStormLabels, dd_tolerance, fftpixels, fl
                         bv_nb = np.nanmean([bvv[corx, cory - 1], bvv[corx - 1, cory], bvv[corx - 1, cory - 1]])
                     else:
                         bu_nb = np.nanmean(
-                            [buu[corx, cory + 1], buu[corx, cory - 1], buu[corx - 1, cory - 1], buu[corx - 1, cory],
-                             buu[corx - 1, cory + 1]])
+                            [
+                                buu[corx, cory + 1],
+                                buu[corx, cory - 1],
+                                buu[corx - 1, cory - 1],
+                                buu[corx - 1, cory],
+                                buu[corx - 1, cory + 1],
+                            ]
+                        )
                         bv_nb = np.nanmean(
-                            [bvv[corx, cory + 1], bvv[corx, cory - 1], bvv[corx - 1, cory - 1], bvv[corx - 1, cory],
-                             bvv[corx - 1, cory + 1]])
+                            [
+                                bvv[corx, cory + 1],
+                                bvv[corx, cory - 1],
+                                bvv[corx - 1, cory - 1],
+                                bvv[corx - 1, cory],
+                                bvv[corx - 1, cory + 1],
+                            ]
+                        )
                 elif cory == int(np.size(xint, 1)) - 1:
                     bu_nb = np.nanmean(
-                        [buu[corx, cory - 1], buu[corx - 1, cory], buu[corx - 1, cory - 1], buu[corx + 1, cory - 1],
-                         buu[corx + 1, cory]])
+                        [
+                            buu[corx, cory - 1],
+                            buu[corx - 1, cory],
+                            buu[corx - 1, cory - 1],
+                            buu[corx + 1, cory - 1],
+                            buu[corx + 1, cory],
+                        ]
+                    )
                     bv_nb = np.nanmean(
-                        [bvv[corx, cory - 1], bvv[corx - 1, cory], bvv[corx - 1, cory - 1], bvv[corx + 1, cory - 1],
-                         bvv[corx + 1, cory]])
+                        [
+                            bvv[corx, cory - 1],
+                            bvv[corx - 1, cory],
+                            bvv[corx - 1, cory - 1],
+                            bvv[corx + 1, cory - 1],
+                            bvv[corx + 1, cory],
+                        ]
+                    )
                 else:
                     bu_nb = np.nanmean(
-                        [buu[corx, cory + 1], buu[corx, cory - 1], buu[corx - 1, cory - 1], buu[corx - 1, cory],
-                         buu[corx - 1, cory + 1], buu[corx + 1, cory - 1], buu[corx + 1, cory],
-                         buu[corx + 1, cory + 1]])
+                        [
+                            buu[corx, cory + 1],
+                            buu[corx, cory - 1],
+                            buu[corx - 1, cory - 1],
+                            buu[corx - 1, cory],
+                            buu[corx - 1, cory + 1],
+                            buu[corx + 1, cory - 1],
+                            buu[corx + 1, cory],
+                            buu[corx + 1, cory + 1],
+                        ]
+                    )
                     bv_nb = np.nanmean(
-                        [bvv[corx, cory + 1], bvv[corx, cory - 1], bvv[corx - 1, cory - 1], bvv[corx - 1, cory],
-                         bvv[corx - 1, cory + 1], bvv[corx + 1, cory - 1], bvv[corx + 1, cory],
-                         bvv[corx + 1, cory + 1]])
+                        [
+                            bvv[corx, cory + 1],
+                            bvv[corx, cory - 1],
+                            bvv[corx - 1, cory - 1],
+                            bvv[corx - 1, cory],
+                            bvv[corx - 1, cory + 1],
+                            bvv[corx + 1, cory - 1],
+                            bvv[corx + 1, cory],
+                            bvv[corx + 1, cory + 1],
+                        ]
+                    )
                 if np.abs(buu[corx, cory] - bu_nb) > dd_tolerance * num_dt:
                     buu[corx, cory] = np.nan
                 if np.abs(bvv[corx, cory] - bv_nb) > dd_tolerance * num_dt:
@@ -513,15 +731,49 @@ def calc_corr_velocities(IMAGES_DIR, OldStormLabels, dd_tolerance, fftpixels, fl
     return newumat, newvmat
 
 
-def init_new_storms(StormData, StormLabels, xmat, ymat, misval, doradar, extra_thresh, lifearray, newwas, num_dt,
-                    numstorms, rarray, under_threshold, var, wasarray, azarray):
+def init_new_storms(
+    StormData,
+    StormLabels,
+    xmat,
+    ymat,
+    misval,
+    doradar,
+    extra_thresh,
+    lifearray,
+    newwas,
+    num_dt,
+    numstorms,
+    rarray,
+    under_threshold,
+    var,
+    wasarray,
+    azarray,
+):
     waslabels = []
     for ns in range(numstorms):
         jj = ns + 1  # First storm is labelled 1, but python indeces start at 0.
         C = np.where(StormLabels == jj)
         StormData += [
-            StormS(jj, StormLabels, var, xmat, ymat, newwas, 0, 0, num_dt, misval, doradar, under_threshold,
-                   extra_thresh=extra_thresh, storm_history=False, string=None, rarray=rarray, azarray=azarray)]
+            StormS(
+                jj,
+                StormLabels,
+                var,
+                xmat,
+                ymat,
+                newwas,
+                0,
+                0,
+                num_dt,
+                misval,
+                doradar,
+                under_threshold,
+                extra_thresh=extra_thresh,
+                storm_history=False,
+                string=None,
+                rarray=rarray,
+                azarray=azarray,
+            )
+        ]
         wasarray[C] = newwas
         newwas = newwas + 1
         lifearray[C] = 1

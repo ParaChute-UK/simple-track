@@ -22,22 +22,23 @@ elif sys.argv[1] == 'nimrod':
 # Example 2: Satellite brightness temperatures hourly with time stamp in filename, dt = 1
 # NB. When writing storms, (dx,dy) will have units PIXELS per TIME STEP (specified by dt), so already scaled by number of missing files
 
-dt = 5.
-dt_tolerance = 15.  # Maximum separation in time allowed between consecutive images
+dt = 5.0
+dt_tolerance = 15.0  # Maximum separation in time allowed between consecutive images
 
 under_t = False  ## True = labelling areas *under* the threshold (e.g. brightness temperature), False = labelling areas *above* threshold (e.g. rainfall)
-threshold = 3.  ## Threshold used to identify objects (with value of variable greater than this threshold)
-minpixel = 4.  ## Minimum object size in pixels
-squarelength = 200.  ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
+threshold = 3.0  ## Threshold used to identify objects (with value of variable greater than this threshold)
+minpixel = 4.0  ## Minimum object size in pixels
+squarelength = 200.0  ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
 rafraction = 0.01  ## Minimum fractional cover of objects required for fft to obtain (dx,dy) displacement
-dd_tolerance = 3.  # Maximum difference in displacement values between adjacent squares (to remove spurious values) - scaled by num_dt if necessary
-halopixel = 5.  ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
+dd_tolerance = 3.0  # Maximum difference in displacement values between adjacent squares (to remove spurious values) - scaled by num_dt if necessary
+halopixel = 5.0  ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
 
 flagwrite = True  ## For writing storm history data in a text file
 doradar = False  ## doradar=True is calculate range and azimuth for real-time tracking with radar (e.g. Chilbolton). doradar=False any other use, radar coordinates not relevant
 misval = -999  ## Missing value
 struct2d = np.ones(
-    (3, 3))  ## np.ones((3,3)) is 8-point connectivity for labelling storms. Can be changed to user preference.
+    (3, 3)
+)  ## np.ones((3,3)) is 8-point connectivity for labelling storms. Can be changed to user preference.
 
 flagplot = False  ## For plotting images (vectors and IDs). Also set plot_type...
 flagplottest = False  ## For plotting fft correlations (testing only, very slow, lots of plots)
@@ -70,9 +71,9 @@ squarehalf = int(squarelength / 2)
 areastr = str(int(minpixel))
 thr_str = str(int(threshold))
 sql_str = str(int(squarelength))
-fftpixels = squarelength**2/int(1./rafraction)
+fftpixels = squarelength**2 / int(1.0 / rafraction)
 # fftpixels = 30
-halosq = halopixel ** 2
+halosq = halopixel**2
 
 ##################################################################
 # AUTOMATIC SET UP OF TEXT STRING FOR INFORMATION ON LABELLING
@@ -91,7 +92,7 @@ label_method = 'Rainfall rate > ' + thr_str + 'mm/hr'
 xmat, ymat = np.meshgrid(range(-400, 400), range(-300, 300))
 xall = np.size(xmat, 0)  # Only used to check grid dimensions
 yall = np.size(xmat, 1)  # Only used to check grid dimensions
-if (np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0):
+if np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0:
     raise ValueError('Your grid does not match a multiple of squares as defined by squarelength')
 
 #################################################################
@@ -166,22 +167,62 @@ for nt, (var, file_ID, now_time) in enumerate(loader.load_next()):
     # newumat, newvmat = arrays with (dx,dy) displacement between two images (NB not displacement per dt!!!)
     # wasarray = array with object IDs consistent across images (i.e. tracked IDs)
     # lifearray = array with object lifetime consistent across images
-    (NewData, newwas, NewLabels,
-     newumat, newvmat, wasarray, lifearray) = ot.track_storms(OldData, var, newwas, NewLabels,
-                                                              OldLabels, xmat, ymat, fftpixels,
-                                                              dd_tolerance, halosq, squarehalf,
-                                                              oldmask, newmask, num_dt, lapthresh,
-                                                              misval, doradar, under_t, IMAGES_DIR,
-                                                              write_file_ID, flagplottest)
+    (NewData, newwas, NewLabels, newumat, newvmat, wasarray, lifearray) = ot.track_storms(
+        OldData,
+        var,
+        newwas,
+        NewLabels,
+        OldLabels,
+        xmat,
+        ymat,
+        fftpixels,
+        dd_tolerance,
+        halosq,
+        squarehalf,
+        oldmask,
+        newmask,
+        num_dt,
+        lapthresh,
+        misval,
+        doradar,
+        under_t,
+        IMAGES_DIR,
+        write_file_ID,
+        flagplottest,
+    )
     # Write tracked storm information (see ot.write_storms)
     if flagwrite:
-        ot.write_storms(write_file_ID, start_time, now_time, label_method, squarelength, rafraction,
-                        newwas, NewData, doradar, misval, IMAGES_DIR)
+        ot.write_storms(
+            write_file_ID,
+            start_time,
+            now_time,
+            label_method,
+            squarelength,
+            rafraction,
+            newwas,
+            NewData,
+            doradar,
+            misval,
+            IMAGES_DIR,
+        )
     # Plot tracked storm information (see nimrod_user_functions.plot_example)
     if flagplot:
         try:
-            nimrod_user_functions.plot_example(write_file_ID, nt, var, xmat, ymat, newumat, newvmat, num_dt, wasarray,
-                                               lifearray, threshold, IMAGES_DIR, plot_vectors)
+            nimrod_user_functions.plot_example(
+                write_file_ID,
+                nt,
+                var,
+                xmat,
+                ymat,
+                newumat,
+                newvmat,
+                num_dt,
+                wasarray,
+                lifearray,
+                threshold,
+                IMAGES_DIR,
+                plot_vectors,
+            )
         except:
             pass
     # Save tracking information in preparation for next image

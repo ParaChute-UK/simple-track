@@ -30,9 +30,11 @@ class FileLoader(object):
             time = pd.to_datetime(self.curr_da.time[self.curr_index].item())
             fidd = '{}_{}'.format(os.path.basename(self.filelist[self.curr_file]), f'{time.hour:02}{time.minute:02}')
             if self.chilbolton_centred:
-                yield self.curr_da[self.curr_index,
-                                   self.chil_idy - 300:self.chil_idy + 300,
-                                   self.chil_idx - 400:self.chil_idx + 400].data, fidd, time
+                yield self.curr_da[
+                    self.curr_index,
+                    self.chil_idy - 300 : self.chil_idy + 300,
+                    self.chil_idx - 400 : self.chil_idx + 400,
+                ].data, fidd, time
             else:
                 yield self.curr_da[self.curr_index, 750:1350, 600:1400].data, fidd, time
 
@@ -43,10 +45,11 @@ class FileLoader(object):
 # tdif = time difference in units relevant to user specification (to be divided by "dt" in wrapper.py)
 ###################################################
 
+
 def timediff(oldh, oldm, newh, newm):
     hdif = newh - oldh
     mdif = newm - oldm
-    tdif = 60. * hdif + mdif
+    tdif = 60.0 * hdif + mdif
 
     return tdif
 
@@ -56,15 +59,29 @@ def timediff(oldh, oldm, newh, newm):
 # OF THE EXAMPLE DATA
 ###################################################
 
-def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, wasarray, lifearray, threshold,
-                 IMAGES_DIR, do_vectors):
+
+def plot_example(
+    write_file_ID,
+    nt,
+    rain,
+    xmat,
+    ymat,
+    newumat,
+    newvmat,
+    num_dt,
+    wasarray,
+    lifearray,
+    threshold,
+    IMAGES_DIR,
+    do_vectors,
+):
     '''
     PLOT FIGURES WITH RAINFALL RATE AND STORM LABELS
     FOR ILLUSTRATIVE AND TESTING PURPOSES
     '''
 
     lrain = rain + 0.0
-    lrain[np.where(lrain <= 0.)] = 0.01
+    lrain[np.where(lrain <= 0.0)] = 0.01
 
     figa = plt.figure(figsize=(6, 7))
     # ax = figa.add_subplot(111)
@@ -122,8 +139,14 @@ def plot_example(write_file_ID, nt, rain, xmat, ymat, newumat, newvmat, num_dt, 
         # ax = figa.add_subplot(111)
         # con = ax.imshow(f, cmap=cm.jet, interpolation='nearest')
         con = plt.contour(xmat, ymat, lrain, levels=[threshold])
-        plt.quiver(xmat[::10, ::10], ymat[::10, ::10], newumat[::10, ::10] / num_dt, newvmat[::10, ::10] / num_dt,
-                   pivot='mid', units='width')
+        plt.quiver(
+            xmat[::10, ::10],
+            ymat[::10, ::10],
+            newumat[::10, ::10] / num_dt,
+            newvmat[::10, ::10] / num_dt,
+            pivot='mid',
+            units='width',
+        )
         plt_ax = plt.gca()
         left, bottom, width, height = plt_ax.get_position().bounds
         posnew = [left, bottom + height / 7, width, width * 6 / 7]

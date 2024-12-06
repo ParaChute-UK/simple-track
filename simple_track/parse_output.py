@@ -93,8 +93,9 @@ def plot_storms_dag(storms, storm_dag, display='dag'):
     fig = plt.figure(display)
     plt.clf()
     node_size = 20
-    nx.draw_networkx_nodes(storm_dag, pos, storm_dag.nodes,
-                           node_color=[s.id for s in storm_dag.nodes], node_size=node_size)
+    nx.draw_networkx_nodes(
+        storm_dag, pos, storm_dag.nodes, node_color=[s.id for s in storm_dag.nodes], node_size=node_size
+    )
     # nx.draw_networkx_edges(storm_dag, pos, node_size=node_size)
     # nx.draw_networkx_edges(task_ctrl.task_dag, pos)
     if display == 'dag':
@@ -112,4 +113,3 @@ if __name__ == '__main__':
 
     plot_storms_dag(storms, storm_dag, display='dag')
     plot_storms_dag(storms, storm_dag, display='loc')
-
