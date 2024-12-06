@@ -2,3 +2,4 @@
 .*.sw?
 output/
 .idea/
+simple_track.egg-info
