@@ -1,3 +1,5 @@
+from os import makedirs
+from os.path import isdir
 import warnings
 
 import numpy as np
@@ -7,7 +9,7 @@ from .object_tracking import interpolate_speeds, ffttrack
 
 
 class Storm:
-    def __init__(self, storm_idx, storm_label_idx, frame, num_dt, under_t, storm_history=False, ):
+    def __init__(self, storm_idx, storm_label_idx, frame, num_dt, under_t, storm_history=False):
         storm_mask = np.where(frame.storm_labels == storm_label_idx)
         self.storm = int(storm_label_idx)
         self.area = int(np.size(storm_mask, 1))
@@ -38,6 +40,8 @@ class Storm:
         self.child = None
         self.accreted = []
 
+        self.wasdist = None
+
     @classmethod
     def from_string(cls, storm_label_idx, string):
         storm = cls(storm_label_idx, 0, None, 0, False)
@@ -66,9 +70,11 @@ class Storm:
         storm.boxheight = float(box[2])
         storm.boxwidth = float(box[3])
 
-    def inherit_properties(self, old_storm_data, kindex, qhist, lapthresh, single_overlap=False):
+    def inherit_properties(self, frame, storm_label_idx, old_storm_data, kindex, qhist, lapthresh, single_overlap=False):
         self.storm_idx = old_storm_data[kindex].storm_idx
         self.life = old_storm_data[kindex].life + 1
+        # TODO: ??
+        self.wasdist = np.size(np.where((frame.propagated_storm_labels == kindex + 1) & (frame.storm_labels == storm_label_idx)), 1)
         # Handle multiple clouds overlap
         if not single_overlap:
             alllaps = np.where(qhist[1:] >= lapthresh)
@@ -104,7 +110,8 @@ class Frame:
 # 4. Iterate through objects to check for splitting and merging events.
 
 class StormTracker:
-    def __init__(self, loader, dt=5.0, dt_tolerance=15.0,
+    def __init__(self, loader, outdir,
+                 dt=5.0, dt_tolerance=15.0,
                  # Maximum separation in time allowed between consecutive images
                  under_t=False,
                  ## True = labelling areas *under* the threshold (e.g. brightness temperature), False = labelling areas *above* threshold (e.g. rainfall)
@@ -124,6 +131,7 @@ class StormTracker:
                  lapthresh=0.6,  ## Minimum fraction of overlap (0.6 in TITAN)
                  ):
         self.loader = loader
+        self.outdir = outdir
 
         self.dt = dt
         self.dt_tolerance = dt_tolerance
@@ -159,7 +167,7 @@ class StormTracker:
             binfield[np.where(frame.field > self.threshold)] = 1
         # Perform full labelling
         id_regions, num_ids = ndimage.label(binfield, structure=self.struct2d)
-        # Apply area threshol.
+        # Apply area threshold.
         id_sizes = np.array(ndimage.sum(binfield, id_regions, range(num_ids + 1)))
         area_mask = id_sizes < self.minpixel
         binfield[area_mask[id_regions]] = 0
@@ -172,6 +180,8 @@ class StormTracker:
     def track_storms(self):
         old_frame = None
         for nt, (field, file_id, now_time) in enumerate(self.loader.load_next()):
+            if nt == 0:
+                init_time = now_time
             frame = Frame(now_time, field, self.x, self.y)
             self.label_storms(frame)
 
@@ -189,9 +199,9 @@ class StormTracker:
                 for i in range(frame.numstorms):
                     storm_label_idx = i + 1  # First storm is labelled 1, but python indeces start at 0.
                     frame.storm_data.append(Storm(self.new_storm_idx, storm_label_idx, frame, self.num_dt, self.under_t,
-                                                  storm_history=False, ))
+                                                  storm_history=False))
                     self.new_storm_idx += 1
-            elif old_frame.numstorms and frame.storm_labels:
+            elif old_frame.numstorms and frame.numstorms:
                 # Do object tracking
                 self.calc_corr_velocities(old_frame, frame, self.fftpixels, self.num_dt, self.squarehalf,
                                           self.tukey_window)
@@ -199,9 +209,11 @@ class StormTracker:
                 # Assign displacement to each of the old storms.
                 self.assign_displacements(old_frame, frame)
 
-                self.find_overlaps(old_frame, frame)
+                storm_idxs = self.find_overlaps(old_frame, frame)
 
-                self.check_multiple_merges(frame, wasnum)
+                self.check_multiple_merges(frame, storm_idxs)
+
+            self.write_output(init_time, frame, file_id)
             old_frame = frame
 
     def calc_corr_velocities(self, old_frame, frame, fftpixels, num_dt, squarehalf, tukey_window, ):
@@ -338,7 +350,7 @@ class StormTracker:
         for i in range(frame.numstorms):
             storm_label_idx = i + 1  # first storm is labelled 1, but python indeces start at 0.
             frame.storm_data.append(
-                Storm(self.new_storm_idx, storm_label_idx, frame, self.num_dt, self.under_t, storm_history=False, ))
+                Storm(self.new_storm_idx, storm_label_idx, frame, self.num_dt, self.under_t, storm_history=True))
 
             # check overlap with qhist
             # if no overlap, then
@@ -384,24 +396,22 @@ class StormTracker:
                     else:
                         kkmax = kmax[0][0]
                     kindex = np.squeeze(numlaps[0][kkmax])
-                    frame.storm_data[i].inherit_properties(storm_label_idx, old_frame.storm_data, kindex,
-                                                           frame.propagated_storm_labels, frame.storm_labels, qhist,
+                    frame.storm_data[i].inherit_properties(frame, storm_label_idx, old_frame.storm_data, kindex, qhist,
                                                            self.lapthresh, single_overlap=False)
-                # single overlap
                 else:
+                    # single overlap
                     zindex = np.squeeze(numlaps[0][0])
-                    frame.storm_data[i].inherit_properties(storm_label_idx, old_frame.storm_data, zindex,
-                                                           frame.propagated_storm_labels, frame.storm_labels, qhist,
+                    frame.storm_data[i].inherit_properties(frame, storm_label_idx, old_frame.storm_data, zindex, qhist,
                                                            self.lapthresh, single_overlap=True)
 
-            # if no overlap, then (new storm)
-            # - "was" set to current max label +1
-            # - update "life" and "track" and "wasdist" for a new storm
             else:
-                frame.storm_data[i].was = newwas
+                # if no overlap, then (new storm)
+                # - "storm_idx" set to current max label +1
+                # - update "life" for a new storm
+                frame.storm_data[i].storm_idx = self.new_storm_idx
                 frame.storm_data[i].life = 1
-                newwas = newwas + 1
-        wasnum = np.array([frame.storm_data[i].was for i in range(len(frame.storm_data))])
+                self.new_storm_idx += 1
+        storm_idxs = np.array([frame.storm_data[i].storm_idx for i in range(len(frame.storm_data))])
 
         # ensure that accreted should never be a value similar to existing storm id
         for i in range(len(frame.storm_data)):
@@ -409,7 +419,7 @@ class StormTracker:
                 continue
             else:
                 for acnum in range(np.size(frame.storm_data[i].accreted)):
-                    acind = np.where((wasnum - frame.storm_data[i].accreted[acnum]) == 0)
+                    acind = np.where((storm_idxs - frame.storm_data[i].accreted[acnum]) == 0)
                     if np.size(acind, 1) > 0:
                         frame.storm_data[i].accreted[acnum] = None  # TODO: ??
                 else:
@@ -421,8 +431,9 @@ class StormTracker:
                         frame.storm_data[i].accreted[acnum] = acnew[acindex]
                 else:
                     frame.storm_data[i].accreted = []
+        return storm_idxs
 
-    def check_multiple_merges(self, frame, wasnum):
+    def check_multiple_merges(self, frame, storm_idxs):
         # tracking merging breaking
         # multiple storms at t (storm_data) may have same label "was"
         # find storm with largest overlap at t+1 with advected Q(t)
@@ -430,12 +441,12 @@ class StormTracker:
         # "parent" vector with indices of new labels for "child" storms
         # storms with same was but futher from centroid are "child", value "parent"
         for i in range(len(frame.storm_data)):
-            if frame.storm_data[i].wasdist == [None]:
+            if frame.storm_data[i].wasdist is None:
                 continue
-            wasind = np.where(wasnum == wasnum[i])
+            wasind = np.where(storm_idxs == storm_idxs[i])
             wasseplength = 0
             for kkind in range(np.size(wasind)):
-                if frame.storm_data[wasind[0][kkind]].wasdist == [None]:
+                if frame.storm_data[wasind[0][kkind]].wasdist is None:
                     continue
                 else:
                     wasseplength = wasseplength + 1
@@ -443,7 +454,7 @@ class StormTracker:
             if np.size(wasind) > 1:
                 kkval = 0
                 for kkind in range(np.size(wasind)):
-                    if frame.storm_data[wasind[0][kkind]].wasdist == [None]:
+                    if frame.storm_data[wasind[0][kkind]].wasdist is None:
                         continue
                     else:
                         wassep[kkval] = frame.storm_data[wasind[0][kkind]].wasdist
@@ -458,13 +469,69 @@ class StormTracker:
             children = []
             for kkind in range(np.size(wassep)):
                 if not kkind == kkmax:
-                    frame.storm_data[wasind[0][kkind]].child = frame.storm_data[wasind[0][kkmax]].was
-                    frame.storm_data[wasind[0][kkind]].was = self.new_storm_idx
+                    frame.storm_data[wasind[0][kkind]].child = frame.storm_data[wasind[0][kkmax]].storm_idx
+                    frame.storm_data[wasind[0][kkind]].storm_idx = self.new_storm_idx
                     frame.storm_data[wasind[0][kkind]].life = frame.storm_data[wasind[0][kkmax]].life
                     self.new_storm_idx += 1
-                    wasnum[wasind[0][kkind]] = frame.storm_data[wasind[0][kkind]].was
-                    children.append(frame.storm_data[wasind[0][kkind]].was)
+                    storm_idxs[wasind[0][kkind]] = frame.storm_data[wasind[0][kkind]].storm_idx
+                    children.append(frame.storm_data[wasind[0][kkind]].storm_idx)
                     frame.storm_data[wasind[0][kkind]].wasdist = None
             # update parent storm with children
             if np.size(children) > 0:
                 frame.storm_data[wasind[0][kkmax]].parent = children
+
+    def write_output(self, init_time, frame, file_id):
+        if not (isdir(self.outdir)):
+            makedirs(self.outdir)
+        label_method = 'Rainfall rate > ' + str(int(self.threshold)) + 'mm/hr'
+        domain = 'chil_' if True else 'central_'
+        write_file_id = domain + 'S' + str(int(self.squarelength)) + '_T' + str(int(self.threshold)) + '_A' + str(int(self.minpixel)) + '_' + file_id
+
+        # print("images_dir + file_id +'.txt'=", images_dir + file_id +'.txt')
+        fw = open(self.outdir + 'history_' + write_file_id + '.txt', 'w')
+        fw.write('missing_value=' + str(-999) + '\r\n')
+        fw.write('Start date and time=' + init_time.strftime('%d/%m/%y-%H%M') + '\r\n')
+        fw.write('Current date and time=' + frame.time.strftime('%d/%m/%y-%H%M') + '\r\n')
+        fw.write('Label method=' + label_method + '\r\n')
+        fw.write('Squarelength=' + str(self.squarelength) + '\r\n')
+        fw.write('Rafraction=' + str(self.rafraction) + '\r\n')
+        fw.write('total number of tracked storms=' + str(self.new_storm_idx - 1) + '\r\n')
+        for ns in range(len(frame.storm_data)):
+            fw.write('storm ' + str(frame.storm_data[ns].storm_idx))
+            #       fw.write(' label=' + str(storm_data[ns].storm)) # Matches storm to label in mask. Actually no need for this as it is the same as it matches the order of the storms.
+            fw.write(' area=' + str(frame.storm_data[ns].area))
+            fw.write(' centroid=' + str(round(frame.storm_data[ns].centroidx, 2)) + ',' + str(
+                round(frame.storm_data[ns].centroidy, 2)))
+            fw.write(
+                ' box='
+                + str(frame.storm_data[ns].boxleft)
+                + ','
+                + str(frame.storm_data[ns].boxup)
+                + ','
+                + str(frame.storm_data[ns].boxwidth)
+                + ','
+                + str(frame.storm_data[ns].boxheight)
+            )
+            fw.write(' life=' + str(frame.storm_data[ns].life))
+            fw.write(' dx=' + str(round(frame.storm_data[ns].dx, 2)) + ' dy=' + str(round(frame.storm_data[ns].dy, 2)))
+
+            fw.write(' meanv=' + str(round(frame.storm_data[ns].meanfield, 2)))
+            fw.write(' extreme=' + str(round(frame.storm_data[ns].extreme, 2)) + ' accreted=')
+            if np.size(frame.storm_data[ns].accreted) > 0:
+                for acind in range(np.size(frame.storm_data[ns].accreted) - 1):
+                    fw.write(str(frame.storm_data[ns].accreted[acind]) + ',')
+                fw.write(str(frame.storm_data[ns].accreted[np.size(frame.storm_data[ns].accreted) - 1]) + ' parent=')
+            else:
+                fw.write(str(-999) + ' parent=')
+            child = frame.storm_data[ns].child
+            child_str = str(-999) if child is None else str(child)
+            fw.write(child_str + ' child=')
+            # fw.write(str(frame.storm_data[ns].child) + ' child=')
+            if np.size(frame.storm_data[ns].parent) > 0:
+                for acind in range(np.size(frame.storm_data[ns].parent) - 1):
+                    fw.write(str(frame.storm_data[ns].parent[acind]) + ',')
+                fw.write(str(frame.storm_data[ns].parent[np.size(frame.storm_data[ns].parent) - 1]) + '\r\n')
+            else:
+                fw.write(str(-999) + '\r\n')
+        fw.close()
+

@@ -25,10 +25,17 @@ def storm_tracker_driver(filelist, outdir):
 
 
 def nimrod_driver(filelist, outdir, tracking_method='orig'):
+    chilbolton_centred = True
+    loader = nimrod_user_functions.FileLoader(filelist, chilbolton_centred=chilbolton_centred)
+
     if tracking_method == 'orig':
         ot = object_tracking
     elif tracking_method == 'nimrod':
         ot = nimrod_object_tracking
+    elif tracking_method == 'class':
+        tracker = StormTracker(loader=loader, outdir=outdir)
+        tracker.track_storms()
+        return
 
     ##################################################################
     # THE FOLLOWING PARAMETERS SHOULD BE CHANGED BASED ON THE DATA (RESOLUTION ETC.)
@@ -135,9 +142,6 @@ def nimrod_driver(filelist, outdir, tracking_method='orig'):
     oldmask = []
     newmask = []
     num_dt = []
-
-    chilbolton_centred = True
-    loader = nimrod_user_functions.FileLoader(filelist, chilbolton_centred=chilbolton_centred)
 
     for nt, (var, file_id, now_time) in enumerate(loader.load_next()):
         if not start_time:
