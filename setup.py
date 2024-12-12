@@ -11,5 +11,6 @@ setup(
         'matplotlib',
         'networkx',
         'numpy',
+        'scipy',
     ]
 )
