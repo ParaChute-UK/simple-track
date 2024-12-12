@@ -11,6 +11,8 @@ setup(
         'matplotlib',
         'networkx',
         'numpy',
+        'pandas',
         'scipy',
+        'xarray',
     ]
 )
