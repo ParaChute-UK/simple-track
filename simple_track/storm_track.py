@@ -114,13 +114,6 @@ class Frame:
         self.propagated_storm_labels = None
 
 
-# TRACKING ALGORITHM
-# 1. Correlate previous and current time step to find (dx,dy) displacements.
-# 2. Propagate features from previous time step to current time step using (dx,dy) displacements.
-# 3. Iterate through objects to check for overlap and inherit object properties.
-# 4. Iterate through objects to check for splitting and merging events.
-
-
 class StormTracker:
     def __init__(
         self,
@@ -167,7 +160,10 @@ class StormTracker:
         self.squarehalf = int(squarelength / 2)
         self.fftpixels = squarelength**2 / int(1.0 / rafraction)
         self.halosq = halopixel**2
-        self.x, self.y = np.meshgrid(range(-400, 400), range(-300, 300))
+
+        lx = self.loader.maxx - self.loader.minx
+        ly = self.loader.maxy - self.loader.miny
+        self.x, self.y = np.meshgrid(range(-lx // 2, lx // 2), range(-ly // 2, ly // 2))
         xall = np.size(self.x, 0)  # Only used to check grid dimensions
         yall = np.size(self.x, 1)  # Only used to check grid dimensions
         if np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0:
@@ -181,8 +177,15 @@ class StormTracker:
         times = []
         frames = []
         for nt, (field, file_id, now_time) in enumerate(self.loader.load_next()):
-            if nt == 3:
+            # TRACKING ALGORITHM
+            # 0. Label storms.
+            # 1. Correlate previous and current time step to find (dx,dy) displacements.
+            # 2. Propagate features from previous time step to current time step using (dx,dy) displacements.
+            # 3. Iterate through objects to check for overlap and inherit object properties.
+            # 4. Iterate through objects to check for splitting and merging events.
+            if nt == 5:
                 break
+
             print(now_time)
             times.append(now_time)
             frame = Frame(now_time, field, self.x, self.y)
@@ -268,10 +271,10 @@ class StormTracker:
         print(df[df.storm_idx == 88])
 
         # print("images_dir + file_id +'.txt'=", images_dir + file_id +'.txt')
-        print(self.outdir + 'storm_labels.nc')
-        ds.to_netcdf(self.outdir + 'storm_labels.nc')
-        print(self.outdir + 'storm_data.hdf')
-        df.to_hdf(self.outdir + 'storm_data.hdf', key='storm_data')
+        print(self.outdir + f'storm_labels_{len(storm_times)}.nc')
+        ds.to_netcdf(self.outdir + f'storm_labels_{len(storm_times)}.nc')
+        print(self.outdir + f'storm_data_{len(storm_times)}.hdf')
+        df.to_hdf(self.outdir + f'storm_data_{len(storm_times)}.hdf', key='storm_data')
 
         # self.parent = []
         # self.child = None
@@ -501,17 +504,9 @@ class StormTracker:
             # if no overlap, then
             # generate (halo) km radius around centroid
             # check for overlap within (halo) km of centroid
-            qhist = (
-                np.histogram(frame.propagated_storm_labels[np.where(frame.storm_labels == storm_label_idx)], qbins)
-            )[0][:] / float(frame.storm_data[i].area) + (
-                np.histogram(frame.propagated_storm_labels[np.where(frame.storm_labels == storm_label_idx)], qbins)
-            )[
-                0
-            ][
-                :
-            ] / qarea[
-                :
-            ]
+            _hist = np.histogram(frame.propagated_storm_labels[np.where(frame.storm_labels == storm_label_idx)], qbins)
+            # TODO: should have / 2 ???
+            qhist = _hist[0] / float(frame.storm_data[i].area) + _hist[0] / qarea
 
             if np.max(qhist[1:]) < self.lapthresh:
                 newblob = 0 * frame.x
@@ -520,9 +515,8 @@ class StormTracker:
                     < self.halosq
                 )
                 newblob[blobind] = newblob[blobind] + 1
-                qhist = (np.histogram(frame.propagated_storm_labels[np.where(newblob == 1)], qbins))[0][:] / float(
-                    frame.storm_data[i].area
-                ) + (np.histogram(frame.propagated_storm_labels[np.where(newblob == 1)], qbins))[0][:] / qarea[:]
+                _hist = np.histogram(frame.propagated_storm_labels[np.where(newblob == 1)], qbins)
+                qhist = _hist[0] / float(frame.storm_data[i].area) + _hist[0] / qarea
             # if overlap, then
             # - inherit "was"
             # - update "life" and "track" and "wasdist"

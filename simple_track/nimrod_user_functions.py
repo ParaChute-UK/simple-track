@@ -13,17 +13,25 @@ class FileLoader(object):
         self.curr_file = 0
         self.curr_index = 0
         self.curr_da = xr.open_dataarray(self.filelist[0])
-        # Chilbolton coords in OSGB eastings/northings.
-        self.chil_idx = (np.abs(self.curr_da.eastings.data - 439285)).argmin()
-        self.chil_idy = (np.abs(self.curr_da.northings.data - 138620)).argmin()
         if self.chilbolton_centred:
-            self.curr_da = self.curr_da[
-               :,
-               self.chil_idy - 300: self.chil_idy + 300,
-               self.chil_idx - 400: self.chil_idx + 400
-            ]
+            # Chilbolton coords in OSGB eastings/northings.
+            self.chil_idx = (np.abs(self.curr_da.eastings.data - 439285)).argmin()
+            self.chil_idy = (np.abs(self.curr_da.northings.data - 138620)).argmin()
+            self.minx = self.chil_idx - 400
+            self.maxx = self.chil_idx + 400
+            self.miny = self.chil_idy - 300
+            self.maxy = self.chil_idy + 300
         else:
-            self.curr_da = self.curr_da[:, 750:1350, 600:1400]
+            self.minx = 600
+            self.maxx = 1400
+            self.miny = 750
+            self.maxy = 1350
+
+        self.curr_da = self.curr_da[
+            :,
+            self.miny : self.maxy,
+            self.minx : self.maxx,
+        ]
 
     def load_next(self):
         while True:
@@ -33,14 +41,11 @@ class FileLoader(object):
                 if self.curr_file >= len(self.filelist):
                     break
                 self.curr_da = xr.open_dataarray(self.filelist[self.curr_file])
-                if self.chilbolton_centred:
-                    self.curr_da = self.curr_da[
-                                   :,
-                                   self.chil_idy - 300: self.chil_idy + 300,
-                                   self.chil_idx - 400: self.chil_idx + 400
-                    ].load()
-                else:
-                    self.curr_da = self.curr_da[self.curr_index, 750:1350, 600:1400]
+                self.curr_da = self.curr_da[
+                    :,
+                    self.miny : self.maxy,
+                    self.minx : self.maxx,
+                ]
                 self.curr_index = 0
             time = pd.to_datetime(self.curr_da.time[self.curr_index].item())
             fidd = '{}_{}'.format(os.path.basename(self.filelist[self.curr_file]), f'{time.hour:02}{time.minute:02}')
