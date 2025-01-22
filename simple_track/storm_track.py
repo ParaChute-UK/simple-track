@@ -426,6 +426,7 @@ class StormTracker:
         self.struct2d = struct2d
         self.lapthresh = lapthresh
 
+        # Optical flow - classic vs skimage.
         self.tukey_window = 1
         self.squarehalf = int(squarelength / 2)
         self.fftpixels = squarelength**2 / int(1.0 / rafraction)
@@ -503,6 +504,8 @@ class StormTracker:
     def write_output(self, times, frames):
         storms = [storm for frame in frames for storm in frame.storm_data]
         storm_idxs = [s.storm_idx for s in storms]
+        # TODO: Not generic!
+        # northings and eastings.
         ds = xr.Dataset(
             data_vars={
                 'storm_labels': (['time', 'northings', 'eastings'], np.array([f.storm_labels for f in frames])),
