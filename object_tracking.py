@@ -3,7 +3,6 @@
 import numpy as np
 from scipy import interpolate
 import scipy.ndimage as ndimage
-from os.path import isdir
 from pathlib import Path
 import matplotlib.pyplot as plt
 import warnings
