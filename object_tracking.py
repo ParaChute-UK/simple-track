@@ -937,7 +937,7 @@ def write_storms(
     IMAGES_DIR,
 ):
     if not Path(IMAGES_DIR).exists():
-        Path.mkdir(IMAGES_DIR)
+        Path(IMAGES_DIR).mkdir(exist_ok=True)
     # print("IMAGES_DIR + file_ID +'.txt'=", IMAGES_DIR + file_ID +'.txt')
     fw = open(IMAGES_DIR + "history_" + file_ID + ".txt", "w")
     fw.write("missing_value=" + str(misval) + "\r\n")
