@@ -1,6 +1,7 @@
 #!/usr/local/sci/bin/python2.7
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy import interpolate
 import scipy.ndimage as ndimage
 from pathlib import Path
@@ -30,7 +31,7 @@ class StormS:
         under_threshold,
         extra_thresh=[],
         storm_history=False,
-        string=None,     # Input from previous txt file
+        string=None,  # Input from previous txt file
         rarray=[],
         azarray=[],
     ):
@@ -266,6 +267,18 @@ def track_storms(
     numstorms = StormLabels.max()
     print("numstorms = ", numstorms)
     StormData = []
+
+    # Check xmat and ymat have same shape
+    np.testing.assert_equal(
+        xmat.shape, ymat.shape, "xmat and ymat must have same shape"
+    )
+
+    # Check squarehalf input for validity. If it is too large compared to domain size, raise exception
+    min_domain_size = np.min((xmat.shape[0], xmat.shape[1]))
+    if squarehalf * 2 >= min_domain_size:
+        raise ValueError(
+            "squarehalf input is too large for domain size. Reduce squarehalf."
+        )
 
     if len(OldStormData) == 0:
         waslabels = []
@@ -821,17 +834,80 @@ def interpolate_speeds(xint, yint, xmat, ymat, buu):
 ###################################################
 
 
-def label_storms(bt, minarea, threshold, struct, under_threshold):
-    binbt = np.zeros_like(bt)
+def label_storms(
+    field: np.ndarray,
+    min_area: float,
+    threshold: float,
+    under_threshold: bool = False,
+    connectivity_structure: NDArray[np.bool] = np.ones((3, 3)),
+) -> NDArray[np.int_]:
+    """
+    Label distinct regions in the input field that meet a specified threshold condition.
+
+    Args:
+        field (np.ndarray):
+            2D input array of data to be labelled
+        min_area (float):
+            Minimum area (in number of grid points) for a region to be considered valid
+        threshold (float):
+            Threshold value for identifying regions
+        under_threshold (bool, optional):
+            If True, regions under the threshold are considered;
+            if False, regions over the threshold are considered.
+            Defaults to False.
+        connectivity_structure (NDArray, optional):
+            Boolean array defining connectivity for region labelling.
+            Default is 8-way connectivity, meaning all cardinal AND diagonal neighbours that
+            meet the threshold condition are considered part of the same region.
+            An alternative arrangement would be 4-way connectivity (diagonals omitted), defined as:
+            np.array([[0, 1, 0],
+                      [1, 1, 1],
+                      [0, 1, 0]])
+            See scipy.ndimage.label documentation for more details.
+            Defaults to np.ones((3, 3)).
+
+    Raises:
+        TypeError: field must be a numpy ndarray
+        ValueError: min_area must be a non-negative number
+        ValueError: threshold must be a number"
+        TypeError: under_threshold must be a boolean
+        ValueError: field must be a 2D array
+
+    Returns:
+        NDArray[np.int_]: 2D Integer field of labelled regions, same shape as input field
+    """
+
+    # Check input types
+    if not isinstance(field, np.ndarray):
+        raise TypeError("field must be a numpy ndarray")
+    if not isinstance(min_area, (int, float)) or min_area < 0:
+        raise ValueError("min_area must be a non-negative number")
+    if not isinstance(threshold, (int, float)):
+        raise ValueError("threshold must be a number")
+    if not isinstance(under_threshold, bool):
+        raise TypeError("under_threshold must be a boolean")
+
+    # Check the input field is 2D
+    if field.ndim != 2:
+        raise ValueError("field must be a 2D array")
+
+    # Construct feature field using threshold and threshold condition
+    # Grid points meeting the condition are set to 1, others to 0
     if under_threshold:
-        binbt[np.where(bt < threshold)] = 1
+        feature_field = np.where(field < threshold, 1, 0)
     else:
-        binbt[np.where(bt > threshold)] = 1
-    id_regions, num_ids = ndimage.label(binbt, structure=struct)
-    id_sizes = np.array(ndimage.sum(binbt, id_regions, range(num_ids + 1)))
-    area_mask = id_sizes < minarea
-    binbt[area_mask[id_regions]] = 0
-    id_regions, num_ids = ndimage.label(binbt, structure=struct)
+        feature_field = np.where(field > threshold, 1, 0)
+
+    # Identify and label distinct regions in the feature field
+    id_regions, num_ids = ndimage.label(feature_field, structure=connectivity_structure)
+
+    # Remove any regions smaller than min_area by inspecting sizes.
+    # Any regions smaller than the min_area are removed from the feature field
+    # before re-running feature labelling
+    id_sizes = np.array(ndimage.sum(feature_field, id_regions, range(num_ids + 1)))
+    area_mask = id_sizes < min_area
+    feature_field[area_mask[id_regions]] = 0
+    id_regions, num_ids = ndimage.label(feature_field, structure=connectivity_structure)
     print("num_ids = ", num_ids)
 
     return id_regions

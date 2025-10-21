@@ -8,6 +8,8 @@ import user_functions
 # THE FOLLOWING PARAMETERS SHOULD BE CHANGED BASED ON THE DATA (RESOLUTION ETC.)
 ##################################################################
 
+# TODO: move some of these values to a config file (.conf file). Others can be derived from the inputs.
+
 # Integer number (dimensions user-defined) to identify MINIMUM time difference between consecutive data files
 # Example 1: Radar data 5-minutes apart with time stamp in filename, dt = 5
 # Example 2: Satellite brightness temperatures hourly with time stamp in filename, dt = 1
@@ -35,6 +37,7 @@ flagplottest = (
     False  ## For plotting fft correlations (testing only, very slow, lots of plots)
 )
 
+# TODO: Don't need to define this here, put this in the plotting function.
 if flagplot or flagplottest:
     plot_type = ".png"
     if plot_type == ".eps":
@@ -59,6 +62,9 @@ lapthresh = 0.6  ## Minimum fraction of overlap (0.6 in TITAN)
 # halosq: To identify if new cell is nearby existing cell
 ##################################################################
 
+# TODO: don't need all of these variables to be defined here (or in some cases at all really)
+# Can simplify this somewhat
+
 squarehalf = int(squarelength / 2)
 areastr = str(int(minpixel))
 thr_str = str(int(threshold))
@@ -79,6 +85,7 @@ label_method = "Rainfall rate > " + thr_str + "mm/hr"
 # !!!TEST: MAKE SURE xall AND yall DIVIDE IN squarelength!!!
 ##################################################################
 
+# TODO: can go in the init of the main function/object for managing the tracking.
 xmat, ymat = np.meshgrid(range(-200, 200), range(-150, 150))
 xall = np.size(xmat, 0)  # Only used to check grid dimensions
 yall = np.size(xmat, 1)  # Only used to check grid dimensions
@@ -100,6 +107,8 @@ if np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0:
 # DATA_DIR = './data/'
 # IMAGES_DIR = './output/'
 #################################################################
+
+# TODO: move to config
 DATA_DIR = "./data/"
 IMAGES_DIR = "./output/"
 filelist = os.listdir(DATA_DIR)
@@ -133,8 +142,9 @@ for nt in range(len(filelist)):
     print(file_ID)
     write_file_ID = "S" + sql_str + "_T" + thr_str + "_A" + areastr + "_" + file_ID
     NewLabels = object_tracking.label_storms(
-        var, minpixel, threshold, struct2d, under_t
+        var, minpixel, threshold, under_t, struct2d
     )
+
     # oldmask, newmask, USED FOR DERIVING (dx,dy)
     # THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks, if displacement information is contained in structures within objects)
     # !!! NB If raw data are used (i.e. not zeros and ones) then fftpixels needs to be changed to remain sensible !!!
