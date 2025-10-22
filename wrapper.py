@@ -129,24 +129,26 @@ newwas = 1
 plot_vectors = False
 
 start_time = datetime.datetime(2012, 8, 25, 14, 5, 0, 0)
+prev_features, current_features = [], []
 oldhourval = []
 oldminval = []
-oldmask = []
-newmask = []
 num_dt = []
 
 for nt in range(len(filelist)):
     # Load new image
     now_time = start_time + datetime.timedelta(seconds=300.0 * nt)
-    var, file_ID, hourval, minval = user_functions.loadfile(DATA_DIR + filelist[nt])
+    field, file_ID, hourval, minval = user_functions.loadfile(DATA_DIR + filelist[nt])
     print(file_ID)
     write_file_ID = "S" + sql_str + "_T" + thr_str + "_A" + areastr + "_" + file_ID
+
+    # Label storms in new image
     NewLabels = object_tracking.label_storms(
-        var, minpixel, threshold, under_t, struct2d
+        field, minpixel, threshold, under_t, struct2d
     )
 
     # oldmask, newmask, USED FOR DERIVING (dx,dy)
-    # THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks, if displacement information is contained in structures within objects)
+    # THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks,
+    # if displacement information is contained in structures within objects)
     # !!! NB If raw data are used (i.e. not zeros and ones) then fftpixels needs to be changed to remain sensible !!!
     if len(OldLabels) > 1:
         # CHECK TIME DIFFERENCE BETWEEN CONSECUTIVE IMAGES
@@ -158,8 +160,9 @@ for nt in range(len(filelist)):
             newwas = 1
             plot_vectors = False
             continue
-        oldmask = np.where(OldLabels >= 1, 1, 0)
-        newmask = np.where(NewLabels >= 1, 1, 0)
+        prev_features = np.where(OldLabels >= 1, 1, 0)
+        current_features = np.where(NewLabels >= 1, 1, 0)
+
     # Call object tracking routine
     # NewData = list of objects and properties
     # newwas = final label number
@@ -170,7 +173,7 @@ for nt in range(len(filelist)):
     NewData, newwas, NewLabels, newumat, newvmat, wasarray, lifearray = (
         object_tracking.track_storms(
             OldData,
-            var,
+            field,
             newwas,
             NewLabels,
             OldLabels,
@@ -180,8 +183,8 @@ for nt in range(len(filelist)):
             dd_tolerance,
             halosq,
             squarehalf,
-            oldmask,
-            newmask,
+            prev_features,
+            current_features,
             num_dt,
             lapthresh,
             misval,
@@ -212,7 +215,7 @@ for nt in range(len(filelist)):
         user_functions.plot_example(
             write_file_ID,
             nt,
-            var,
+            field,
             xmat,
             ymat,
             newumat,
@@ -227,7 +230,7 @@ for nt in range(len(filelist)):
     # Save tracking information in preparation for next image
     OldData = NewData
     OldLabels = NewLabels
-    oldvar = var
+    oldvar = field
     oldhourval = hourval
     oldminval = minval
     plot_vectors = True
