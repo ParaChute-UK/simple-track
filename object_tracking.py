@@ -22,7 +22,7 @@ class StormS:
         var,
         xmat,
         ymat,
-        newwas,
+        newwas,  # Still don't know what this is!!
         newumat,
         newvmat,
         num_dt,
@@ -58,8 +58,8 @@ class StormS:
                 self.dx = np.mean(newumat[C]) / num_dt
                 self.dy = np.mean(newvmat[C]) / num_dt
             else:  # First image to be considered, so no dx or dy or previous label
-                self.was = newwas
-                self.dx = 0
+                self.was = newwas  # Still don't know what this is!!
+                self.dx = 0.0
                 self.dy = 0
             self.parent = [misval]
             self.child = misval
@@ -951,7 +951,9 @@ def label_storms(
     if not isinstance(threshold, (int, float)):
         raise ValueError("threshold must be a number")
     if not isinstance(under_threshold, bool):
-        raise TypeError("under_threshold must be a boolean")
+        raise TypeError(
+            f"under_threshold must be a boolean, got {type(under_threshold)}"
+        )
 
     # Check the input field is 2D
     if field.ndim != 2:
