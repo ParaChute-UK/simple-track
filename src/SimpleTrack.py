@@ -3,7 +3,7 @@ Run the SimpleTrack algorithm to track objects through a sequence of images
 """
 
 import sys
-from configparser import ConfigParser
+from yaml import safe_load
 from pathlib import Path
 
 from Event import EventTimeline, Event
@@ -18,8 +18,8 @@ class SimpleTrack:
             config_path (str):
                 Path to the configuration file
         """
-        self.config = ConfigParser(inline_comment_prefixes="#")
-        self.config.read(config_path)
+        with open(config_path, "r") as input:
+            self.config = safe_load(input)
         self.start_time = self.config["DATETIME"]["start_time"]
         self.filenames = self.__get_files_from_input_path(self.config["PATH"]["data"])
 

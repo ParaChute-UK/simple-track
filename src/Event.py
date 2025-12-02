@@ -68,7 +68,9 @@ class Event:
             feature_coords = np.array(np.where(self.feature_field == feature_id))
 
             # Add this to the list of features
-            self.features[feature_id] = Feature(id=feature_id, feature_coords=feature_coords)
+            self.features[feature_id] = Feature(
+                id=feature_id, feature_coords=feature_coords
+            )
 
 
 class RadarEvent(Event):
@@ -85,7 +87,9 @@ class EventTimeline:
             raise TypeError(f"Expected type Event, got {type(event)}")
         self.timeline[event.get_time()] = event
 
-    def purge_old_events(self, )
+    def purge_old_events(self, max_events: int = 2) -> None:
+        # Remove any events that aren't needed anymore, as defined by max_events
+        pass
 
 
 def label_features(
