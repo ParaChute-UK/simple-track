@@ -7,6 +7,7 @@ import scipy.ndimage as ndimage
 from pathlib import Path
 import matplotlib.pyplot as plt
 import warnings
+from skimage.registration import phase_cross_correlation
 
 ###################################################################
 # Initiate StormS class with object properties. Can be adjusted to store additional object properties.
@@ -324,6 +325,7 @@ def track_storms(
     flagplot,
     rarray=[],
     azarray=[],
+    nt=0,
 ):
     ###############################################################
     # PARAMETERS FOR FUTURE FUNCTIONALITY
@@ -399,7 +401,10 @@ def track_storms(
     bvv = np.full(xint.shape, np.nan)
     bww = np.full(xint.shape, np.nan)
 
-    for corx in range(0, int(np.size(xint, 0))):
+    # TODO: corx is actually the 1 dimension, not the 0 dimension
+    # TODO: can probably do some sort of permutation to get these iterables
+    # rather than nested for loops.
+    for corx in range(0, xint.shape[0]):
         if flagplot:
             nij = -3
             # fig, axs = plt.subplots(np.size(xint,1),3, figsize=(6,2*np.size(xint,1)), facecolor='w', edgecolor='k')
@@ -412,7 +417,7 @@ def track_storms(
             )
             axs = axs.ravel()
 
-        for cory in range(0, int(np.size(xint, 1))):
+        for cory in range(0, xint.shape[1]):
             if flagplot:
                 nij = nij + 3
                 # What is this logic??
@@ -433,13 +438,17 @@ def track_storms(
                 bww[corx, cory] = np.nan
 
             else:
+                # So, dx and dy are the indices of maximum fft motion field
+                # amp is the maximum value normalised by... a certain pre-fft value (cartesian distance?)
+                # ffv is the full fft motion field
                 dx, dy, amplitude, corrval = ffttrack(
                     oldsquare, newsquare, tukey_window
                 )
+
                 ## indices are upside down so need minus to get real-world dy-velocity
                 buu[corx, cory] = dx
                 bvv[corx, cory] = dy
-                bww[corx, cory] = amplitude
+                # bww[corx, cory] = amplitude
                 if flagplot:
                     # print(corx)
                     # print(cory)
@@ -448,7 +457,7 @@ def track_storms(
                     axs[nij].set_title(str(int(np.sum(oldsquare))))
                     axs[nij + 1].pcolormesh(newsquare)
                     axs[nij + 1].set_title(str(int(np.sum(newsquare))))
-                    axs[nij + 2].pcolormesh(corrval)
+                    # axs[nij + 2].pcolormesh(corrval)
                     axs[nij + 2].set_title("(" + str(dx) + "," + str(dy) + ")")
 
         if flagplot:
@@ -457,53 +466,119 @@ def track_storms(
             )
             plt.close()
 
-    # CHECK NEIGHBOURING VALUES FOR SMOOTHNESS
-    # Ignore warnings about mean over empty array in this section
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", category=RuntimeWarning)
-        for corx in range(0, int(np.size(xint, 0))):
-            for cory in range(0, int(np.size(xint, 1))):
-                bu_nb = np.nan
-                bv_nb = np.nan
-                if np.isnan(buu[corx, cory]) and np.isnan(bvv[corx, cory]):
-                    continue
-                if corx == 0:
-                    if cory == 0:
-                        bu_nb = np.nanmean([buu[0, 1], buu[1, 0], buu[1, 1]])
-                        bv_nb = np.nanmean([bvv[0, 1], bvv[1, 0], bvv[1, 1]])
-                    elif cory == int(np.size(xint, 1)) - 1:
-                        bu_nb = np.nanmean(
-                            [buu[0, cory - 1], buu[1, cory], buu[1, cory - 1]]
-                        )
-                        bv_nb = np.nanmean(
-                            [bvv[0, cory - 1], bvv[1, cory], bvv[1, cory - 1]]
-                        )
-                    else:
+    old_filter_method = False
+
+    if old_filter_method:
+        include_missing_case = True
+        # CHECK NEIGHBOURING VALUES FOR SMOOTHNESS
+        # Ignore warnings about mean over empty array in this section
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            # Loop over all subdomains again, this time with knowledge of where to find
+            # the dx and dy motion vectors
+            # Uses the dx and dy indices to check neighbouring values
+            # with any values on boundaries handled differently
+            # So, here, corx and cory are subdomain locations
+            for corx in range(0, int(np.size(xint, 0))):
+                for cory in range(0, int(np.size(xint, 1))):
+                    bu_nb = np.nan
+                    bv_nb = np.nan
+                    if np.isnan(buu[corx, cory]) and np.isnan(bvv[corx, cory]):
+                        continue
+                    if corx == 0:
+                        if cory == 0:
+                            # Lower left corner
+                            bu_nb = np.nanmean([buu[0, 1], buu[1, 0], buu[1, 1]])
+                            bv_nb = np.nanmean([bvv[0, 1], bvv[1, 0], bvv[1, 1]])
+                        elif cory == int(np.size(xint, 1)) - 1:
+                            # lower right corner
+                            bu_nb = np.nanmean(
+                                [buu[0, cory - 1], buu[1, cory], buu[1, cory - 1]]
+                            )
+                            bv_nb = np.nanmean(
+                                [bvv[0, cory - 1], bvv[1, cory], bvv[1, cory - 1]]
+                            )
+                        else:
+                            # Lower boundary, not corners
+                            bu_nb = np.nanmean(
+                                [
+                                    buu[0, cory + 1],
+                                    buu[0, cory - 1],
+                                    buu[1, cory - 1],
+                                    buu[1, cory],
+                                    buu[1, cory + 1],
+                                ]
+                            )
+                            bv_nb = np.nanmean(
+                                [
+                                    bvv[0, cory + 1],
+                                    bvv[0, cory - 1],
+                                    bvv[1, cory - 1],
+                                    bvv[1, cory],
+                                    bvv[1, cory + 1],
+                                ]
+                            )
+                    elif corx == int(np.size(xint, 0)) - 1:
+                        if cory == 0:
+                            bu_nb = np.nanmean(
+                                [buu[corx, 1], buu[corx - 1, 0], buu[corx - 1, 1]]
+                            )
+                            bv_nb = np.nanmean(
+                                [bvv[corx, 1], bvv[corx - 1, 0], bvv[corx - 1, 1]]
+                            )
+                        elif cory == int(np.size(xint, 1)) - 1:
+                            bu_nb = np.nanmean(
+                                [
+                                    buu[corx, cory - 1],
+                                    buu[corx - 1, cory],
+                                    buu[corx - 1, cory - 1],
+                                ]
+                            )
+                            bv_nb = np.nanmean(
+                                [
+                                    bvv[corx, cory - 1],
+                                    bvv[corx - 1, cory],
+                                    bvv[corx - 1, cory - 1],
+                                ]
+                            )
+                        else:
+                            bu_nb = np.nanmean(
+                                [
+                                    buu[corx, cory + 1],
+                                    buu[corx, cory - 1],
+                                    buu[corx - 1, cory - 1],
+                                    buu[corx - 1, cory],
+                                    buu[corx - 1, cory + 1],
+                                ]
+                            )
+                            bv_nb = np.nanmean(
+                                [
+                                    bvv[corx, cory + 1],
+                                    bvv[corx, cory - 1],
+                                    bvv[corx - 1, cory - 1],
+                                    bvv[corx - 1, cory],
+                                    bvv[corx - 1, cory + 1],
+                                ]
+                            )
+                    elif include_missing_case and cory == 0:
+                        # TODO: Added in possibly missing case?
                         bu_nb = np.nanmean(
                             [
-                                buu[0, cory + 1],
-                                buu[0, cory - 1],
-                                buu[1, cory - 1],
-                                buu[1, cory],
-                                buu[1, cory + 1],
+                                buu[corx, cory + 1],
+                                buu[corx - 1, cory],
+                                buu[corx - 1, cory + 1],
+                                buu[corx + 1, cory + 1],
+                                buu[corx + 1, cory],
                             ]
                         )
                         bv_nb = np.nanmean(
                             [
-                                bvv[0, cory + 1],
-                                bvv[0, cory - 1],
-                                bvv[1, cory - 1],
-                                bvv[1, cory],
-                                bvv[1, cory + 1],
+                                bvv[corx, cory + 1],
+                                bvv[corx - 1, cory],
+                                bvv[corx - 1, cory + 1],
+                                bvv[corx + 1, cory + 1],
+                                bvv[corx + 1, cory],
                             ]
-                        )
-                elif corx == int(np.size(xint, 0)) - 1:
-                    if cory == 0:
-                        bu_nb = np.nanmean(
-                            [buu[corx, 1], buu[corx - 1, 0], buu[corx - 1, 1]]
-                        )
-                        bv_nb = np.nanmean(
-                            [bvv[corx, 1], bvv[corx - 1, 0], bvv[corx - 1, 1]]
                         )
                     elif cory == int(np.size(xint, 1)) - 1:
                         bu_nb = np.nanmean(
@@ -511,6 +586,8 @@ def track_storms(
                                 buu[corx, cory - 1],
                                 buu[corx - 1, cory],
                                 buu[corx - 1, cory - 1],
+                                buu[corx + 1, cory - 1],
+                                buu[corx + 1, cory],
                             ]
                         )
                         bv_nb = np.nanmean(
@@ -518,6 +595,8 @@ def track_storms(
                                 bvv[corx, cory - 1],
                                 bvv[corx - 1, cory],
                                 bvv[corx - 1, cory - 1],
+                                bvv[corx + 1, cory - 1],
+                                bvv[corx + 1, cory],
                             ]
                         )
                     else:
@@ -528,6 +607,9 @@ def track_storms(
                                 buu[corx - 1, cory - 1],
                                 buu[corx - 1, cory],
                                 buu[corx - 1, cory + 1],
+                                buu[corx + 1, cory - 1],
+                                buu[corx + 1, cory],
+                                buu[corx + 1, cory + 1],
                             ]
                         )
                         bv_nb = np.nanmean(
@@ -537,61 +619,46 @@ def track_storms(
                                 bvv[corx - 1, cory - 1],
                                 bvv[corx - 1, cory],
                                 bvv[corx - 1, cory + 1],
+                                bvv[corx + 1, cory - 1],
+                                bvv[corx + 1, cory],
+                                bvv[corx + 1, cory + 1],
                             ]
                         )
-                elif cory == int(np.size(xint, 1)) - 1:
-                    bu_nb = np.nanmean(
-                        [
-                            buu[corx, cory - 1],
-                            buu[corx - 1, cory],
-                            buu[corx - 1, cory - 1],
-                            buu[corx + 1, cory - 1],
-                            buu[corx + 1, cory],
-                        ]
-                    )
-                    bv_nb = np.nanmean(
-                        [
-                            bvv[corx, cory - 1],
-                            bvv[corx - 1, cory],
-                            bvv[corx - 1, cory - 1],
-                            bvv[corx + 1, cory - 1],
-                            bvv[corx + 1, cory],
-                        ]
-                    )
-                else:
-                    bu_nb = np.nanmean(
-                        [
-                            buu[corx, cory + 1],
-                            buu[corx, cory - 1],
-                            buu[corx - 1, cory - 1],
-                            buu[corx - 1, cory],
-                            buu[corx - 1, cory + 1],
-                            buu[corx + 1, cory - 1],
-                            buu[corx + 1, cory],
-                            buu[corx + 1, cory + 1],
-                        ]
-                    )
-                    bv_nb = np.nanmean(
-                        [
-                            bvv[corx, cory + 1],
-                            bvv[corx, cory - 1],
-                            bvv[corx - 1, cory - 1],
-                            bvv[corx - 1, cory],
-                            bvv[corx - 1, cory + 1],
-                            bvv[corx + 1, cory - 1],
-                            bvv[corx + 1, cory],
-                            bvv[corx + 1, cory + 1],
-                        ]
-                    )
-                if np.abs(buu[corx, cory] - bu_nb) > dd_tolerance * num_dt:
-                    buu[corx, cory] = np.nan
-                if np.abs(bvv[corx, cory] - bv_nb) > dd_tolerance * num_dt:
-                    bvv[corx, cory] = np.nan
+                    if np.abs(buu[corx, cory] - bu_nb) > dd_tolerance * num_dt:
+                        buu[corx, cory] = np.nan
+                    if np.abs(bvv[corx, cory] - bv_nb) > dd_tolerance * num_dt:
+                        bvv[corx, cory] = np.nan
+
+    else:
+        # footprint excludes current index.
+        footprint = np.ones((3, 3))
+        footprint[1, 1] = 0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            bu_nb = ndimage.generic_filter(
+                buu, np.nanmean, footprint=footprint, mode="constant", cval=np.nan
+            )
+            bv_nb = ndimage.generic_filter(
+                bvv, np.nanmean, footprint=footprint, mode="constant", cval=np.nan
+            )
+        buu[np.abs(buu - bu_nb) > dd_tolerance * num_dt] = np.nan
+        bvv[np.abs(bvv - bv_nb) > dd_tolerance * num_dt] = np.nan
 
     ## ACTUAL DISPLACEMENT
     # Interpolate these displacements onto the full grid
-    newumat = interpolate_speeds(xint, yint, xmat, ymat, buu)
-    newvmat = interpolate_speeds(xint, yint, xmat, ymat, bvv)
+    # newumat = interpolate_speeds(xint, yint, xmat, ymat, buu)
+    # newvmat = interpolate_speeds(xint, yint, xmat, ymat, bvv)
+    print(f"xmat_shape: {xmat.shape}")
+    print(f"field shape: {field.shape}")
+
+    newumat = interpolate_subdomain_flows(yint, xint, buu, xmat.shape)
+    newvmat = interpolate_subdomain_flows(yint, xint, bvv, xmat.shape)
+
+    with open(f"{IMAGES_DIR}/umat_{nt}.npy", "xb") as f:
+        np.save(f, newumat)
+
+    with open(f"{IMAGES_DIR}/vmat_{nt}.npy", "xb") as f:
+        np.save(f, newvmat)
 
     # Assign displacement to each of the old storms.
     newlabel = np.zeros(OldStormLabels.shape)
@@ -876,7 +943,9 @@ def interpolate_speeds(xint, yint, xmat, ymat, buu):
     values = buu[valid_mask]
     if np.size(values) >= 4:
         it = interpolate.LinearNDInterpolator(coords, values, fill_value=0)
+        print(f"it: {it}")
         filled = it(list(np.ndindex(buu.shape))).reshape(buu.shape)
+        print(f"filled: {filled}")
 
         # interp2d deprecated in newer version of scipy.
         # For functionally identical replacement, use RectBivariateSpline
@@ -889,6 +958,41 @@ def interpolate_speeds(xint, yint, xmat, ymat, buu):
         newumat = fu(xmat[0, :], ymat[:, 0]).T
     else:
         newumat = np.zeros(np.shape(OldStormLabels))
+    return newumat
+
+
+def interpolate_subdomain_flows(
+    y_subdomain_bounds, x_subdomain_bounds, subdomain_flows, full_domain_shape
+) -> NDArray:
+    valid_mask = ~np.isnan(subdomain_flows)
+    coords = np.array(np.nonzero(valid_mask)).T
+    values = subdomain_flows[valid_mask]
+    xmat, ymat = np.meshgrid(
+        range(int(full_domain_shape[1] / -2), int(full_domain_shape[1] / 2)),
+        range(int(full_domain_shape[0] / -2), int(full_domain_shape[0] / 2)),
+    )
+    # TODO: the below doesn't work becuase this is then on a different
+    # coord system to x/y_subdomain_bounds. Would need to shift these to be
+    # on the same coord system to get the correct flow.
+    # xmat, ymat = np.meshgrid(range(full_domain_shape[0]), full_domain_shape[1])
+    # print(f"xmat inside function shape: {xmat.shape}")
+    if np.size(values) >= 4:
+        it = interpolate.LinearNDInterpolator(coords, values, fill_value=0)
+        filled = it(list(np.ndindex(subdomain_flows.shape))).reshape(
+            subdomain_flows.shape
+        )
+
+        # interp2d deprecated in newer version of scipy.
+        # For functionally identical replacement, use RectBivariateSpline
+        # with kx=3, ky=3 for cubic spline interpolation, and additional transposing.
+        # https://scipy.github.io/devdocs/tutorial/interpolate/interp_transition_guide.html
+        # fu = interpolate.interp2d(xint[0, :], yint[:, 0], filled, kind="cubic")
+        fu = interpolate.RectBivariateSpline(
+            x_subdomain_bounds[0, :], y_subdomain_bounds[:, 0], filled.T, kx=3, ky=3
+        )
+        newumat = fu(xmat[0, :], ymat[:, 0]).T
+    else:
+        newumat = np.zeros(full_domain_shape)
     return newumat
 
 
@@ -1037,8 +1141,22 @@ def ffttrack(s1, s2, method):
 
     normval = np.sqrt(np.sum(m1**2) * np.sum(m2**2))
 
-    # ffv = signal.fftconvolve(s1,s2,mode='same')
-    ffv = np.real(np.fft.ifft2(np.fft.fft2(m2) * (np.fft.fft2(m1)).conj()))
+    # # ffv = signal.fftconvolve(s1,s2,mode='same')
+    # ffv = np.real(np.fft.ifft2(np.fft.fft2(m2) * (np.fft.fft2(m1)).conj()))
+
+    phase_corr = phase_cross_correlation(
+        m1,
+        m2,
+        space="real",
+        overlap_ratio=0.6,
+        normalization=None,
+        upsample_factor=1,
+        disambiguate=False,
+    )
+
+    dy, dx = phase_corr[0] * -1
+
+    return dx, dy, 0, 0
 
     val = np.max(ffv)
     ind = np.where(ffv == val)
