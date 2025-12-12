@@ -5,8 +5,10 @@ Run the SimpleTrack algorithm to track objects through a sequence of images
 import sys
 from yaml import safe_load
 from pathlib import Path
+import multiprocessing as mp
 
-from Event import EventTimeline, Event
+from Frame import Timeline, Frame
+from OpticalFlowSolver import OpticalFlowSolver
 
 
 class SimpleTrack:
@@ -22,17 +24,55 @@ class SimpleTrack:
             self.config = safe_load(input)
         self.start_time = self.config["DATETIME"]["start_time"]
         self.filenames = self.__get_files_from_input_path(self.config["PATH"]["data"])
+        self.timeline = Timeline()
 
-        self.events = EventTimeline()
+    def run(self, filenames=None):
+        # If filesnames is provided, iterate only over these files.
+        # This is useful for parallel processing.
+        # Otherwise, iterate over all files in self.filenames
+        if filenames is None:
+            filenames = self.filenames
 
-    def run(self):
+        print(f"Hello from process {mp.current_process().name} with arg {filenames}\n")
+
         # Run the things
-        for filename in self.filenames:
-            # Load the data
-            event = Event()
-            event.load_data(filename)
-            event.identify_features(self.config["FEATURE"])
-            self.events.add_to_timelime(event)
+        for filename in filenames:
+            frame = Frame()
+            frame.load_data(filename)
+            frame.identify_features(**self.config["FEATURE"])
+            self.timeline.add_to_timelime(frame)
+            print(frame)
+
+            # If this is the first frame, skip tracking
+            if len(self.timeline.timeline) == 1:
+                continue
+
+            # Now run optical flow between previous and current event
+            prev_frame = self.timeline.get_previous_frame(frame.get_time())
+            of_solver = OpticalFlowSolver(**self.config["TRACKING"])
+            y_flow, x_flow = of_solver.analyse_flow(prev_frame, frame)
+
+            # Update Event and feature displacements with u and v fields
+
+    def run_parallel(self, processes=4):
+        # Split filenames into chunks for each process
+        chunk_size = len(self.filenames) // processes
+        filename_chunks = [
+            self.filenames[i : i + chunk_size]
+            for i in range(0, len(self.filenames), chunk_size)
+        ]
+
+        with mp.Pool(processes=processes) as pool:
+            pool.map(self.run, filename_chunks)
+
+        # TODO: then need a way to make the results consistent between
+        # different chunks.
+        # I.e., if the last event of chunk 1 contains a storm that is
+        # also present in the first event of chunk 2, then the chunk 2
+        # storm needs to have a consistent ID, needs to have updated lifetimes
+        # etc.
+        # This is apparently already solved in Will Keats/Callum Scullion MO
+        # code so don't need to reinvent the wheel here.
 
     def __get_files_from_input_path(self, input_path: str) -> list:
         supported_filetypes = [".nc"]
@@ -49,6 +89,8 @@ class SimpleTrack:
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         raise Exception("Running SimpleTrack requires path to config")
+
+    # For parallelisation, may need to setup the filenames here instead??
 
     config_path = sys.argv[1]
     SimpleTrack(config_path).run()

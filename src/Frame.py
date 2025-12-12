@@ -7,7 +7,7 @@ import scipy.ndimage as ndimage
 from Feature import Feature
 
 
-class Event:
+class Frame:
     def __init__(self):
         self.file_id = None
         self.time = None
@@ -16,8 +16,16 @@ class Event:
         self.feature_field = None
         self.features = {}
 
+    def __repr__(self) -> str:
+        repr_str = f"Event file_id: {self.file_id}, time: {self.time}, "
+        repr_str += f"num_features: {len(self.features)}"
+        return repr_str
+
     def get_time(self):
         return self.time
+
+    def get_feature_field(self) -> NDArray[np.integer]:
+        return self.feature_field
 
     # TODO: add functionality for user-definable loading functions
     def load_data(self, filename: str) -> None:
@@ -37,28 +45,28 @@ class Event:
         self.file_id = file_id
         self.time = datetime.time(hour=int(file_id[0:2]), minute=int(file_id[2:4]))
 
-    def identify_features(self, feature_config: dict) -> None:
+    def identify_features(
+        self, min_size: int, threshold: float, under_threshold: bool
+    ) -> None:
         """
         Call the "label_storms" function to identify distinct regions in the input field
         that meet a specified threshold condition.
         Then, analyses each of the identified features to find properties
 
         Args:
-            feature_config (dict):
-                Dict of properties determining definition of features that includes:
-                - min_size (float): Minimum area (in number of grid points) for a region to be considered valid
-                - threshold (float): Threshold value for identifying regions
-                - under_threshold (bool): If True, regions under the threshold are considered;
-                  if False, regions over the threshold are considered.
+            - min_size (float): Minimum area (in number of grid points) for a region to be considered valid
+            - threshold (float): Threshold value for identifying regions
+            - under_threshold (bool): If True, regions under the threshold are considered;
+                if False, regions over the threshold are considered.
         """
         if self.raw_field is None:
             raise Exception("Data has not been loaded into Event.")
 
         self.feature_field = label_features(
             field=self.raw_field,
-            min_area=float(feature_config["min_size"]),
-            threshold=float(feature_config["threshold"]),
-            under_threshold=bool(feature_config["under_threshold"]),
+            min_area=min_size,
+            threshold=threshold,
+            under_threshold=under_threshold,
         )
 
         max_feature_id = int(np.max(self.feature_field))
@@ -73,22 +81,21 @@ class Event:
             )
 
 
-class RadarEvent(Event):
-    def __init__(self):
-        super().__init__()
-
-
-class EventTimeline:
+class Timeline:
     def __init__(self):
         self.timeline = {}
 
-    def add_to_timelime(self, event: Event):
-        if not isinstance(event, Event):
-            raise TypeError(f"Expected type Event, got {type(event)}")
-        self.timeline[event.get_time()] = event
+    def add_to_timelime(self, frame: Frame):
+        if not isinstance(frame, Frame):
+            raise TypeError(f"Expected type Frame, got {type(frame)}")
+        self.timeline[frame.get_time()] = frame
 
-    def purge_old_events(self, max_events: int = 2) -> None:
-        # Remove any events that aren't needed anymore, as defined by max_events
+    def get_previous_frame(self, current_time: datetime.time) -> Frame:
+        # Return the event prior to the event at current_time
+        pass
+
+    def purge_old_frame(self, max_frames: int = 2) -> None:
+        # Remove any frames that aren't needed anymore, as defined by max_frames
         pass
 
 
@@ -165,6 +172,5 @@ def label_features(
     area_mask = id_sizes < min_area
     feature_field[area_mask[id_regions]] = 0
     id_regions, num_ids = ndimage.label(feature_field, structure=connectivity_structure)
-    print("num_ids = ", num_ids)
 
     return id_regions

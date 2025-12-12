@@ -122,7 +122,3 @@ class Feature:
 
     def get_y_extent(self) -> int:
         return self.get_y_max() - self.get_y_min()
-
-
-class RadarFeature(Feature):
-    pass

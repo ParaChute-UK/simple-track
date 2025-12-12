@@ -110,7 +110,7 @@ if np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0:
 
 # TODO: move to config
 DATA_DIR = "./data/"
-IMAGES_DIR = "./output/"
+IMAGES_DIR = "./output_new_subdomain_interp_func_plus_coord_shift/"
 filelist = os.listdir(DATA_DIR)
 filelist = np.sort(filelist)
 if doradar:
@@ -193,6 +193,7 @@ for nt in range(len(filelist)):
             IMAGES_DIR,
             write_file_ID,
             flagplottest,
+            nt=nt,
         )
     )
     # Write tracked storm information (see object_tracking.write_storms)
