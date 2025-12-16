@@ -1,9 +1,12 @@
 from numpy.typing import NDArray
 import numpy as np
+import datetime as dt
 
 
 class Feature:
-    def __init__(self, id: int, feature_coords: NDArray[np.integer] = None) -> None:
+    def __init__(
+        self, id: int, feature_coords: NDArray[np.integer], time: dt.datetime
+    ) -> None:
         if feature_coords.shape[0] != 2 or feature_coords.ndim != 2:
             exc_str = "Expected a 2D array with first dimension of size 2 "
             exc_str += f"got {feature_coords.ndim} array with first dimension"
@@ -12,13 +15,13 @@ class Feature:
 
         self._id = id
         self._feature_coords = feature_coords
+        self._time = time
         self._centroid = None
         self._lifetime = 1
         self._accreted = None
         self._parent = None
         self._child = None
-        self._dx = 0
-        self._dy = 0
+        self._dydx = ()
 
     @property
     def id(self) -> int:
@@ -29,6 +32,10 @@ class Feature:
         if self._centroid is None:
             self._centroid = self.calculate_centroid()
         return self._centroid
+
+    @property
+    def time(self) -> dt.datetime:
+        return self._time
 
     @property
     def coords(self) -> NDArray[np.integer]:
@@ -51,12 +58,14 @@ class Feature:
         return self._child
 
     @property
-    def dx(self) -> float:
-        return self._dx
+    def dydx(self) -> tuple:
+        """
+        Feature displacement valid at the given Frame time
 
-    @property
-    def dy(self) -> float:
-        return self._dy
+        Returns:
+            tuple: (dy, dx)
+        """
+        return self._dydx
 
     @coords.setter
     def coords(self, new_coords: NDArray[np.integer]) -> None:
@@ -67,13 +76,9 @@ class Feature:
     def parent(self, parent_id: int) -> None:
         self._parent = parent_id
 
-    @dx.setter
-    def dx(self, delta_x: float) -> None:
-        self._dx = delta_x
-
-    @dy.setter
-    def dy(self, delta_y: float) -> None:
-        self._dy = delta_y
+    @dydx.setter
+    def dydx(self, dy_dx: tuple) -> None:
+        self._dydx = dy_dx
 
     def increment_lifetime(self) -> None:
         self._lifetime += 1
@@ -82,6 +87,19 @@ class Feature:
         y_centroid = np.mean(self._feature_coords[0, :])
         x_centroid = np.mean(self._feature_coords[1, :])
         return (y_centroid, x_centroid)
+
+    def get_advected_centroid(self) -> tuple:
+        current_centroid = self.calculate_centroid()
+        advected_centroid = (
+            coord + int(round(delta))
+            for coord, delta in zip(current_centroid, self._dydx_post_frame)
+        )
+        return advected_centroid
+
+    def get_advected_coords(self) -> NDArray[np.integer]:
+        # For advection, need to round dydx to integers
+        rounded_dydx = (int(round(delta)) for delta in self._dydx_post_frame)
+        return self.coords + np.array(rounded_dydx)
 
     def accretes(self, feature_ids: int | list[int]) -> None:
         if self._accreted is None:
@@ -122,3 +140,6 @@ class Feature:
 
     def get_y_extent(self) -> int:
         return self.get_y_max() - self.get_y_min()
+
+    def get_size(self) -> int:
+        return len(self.centroid[0])

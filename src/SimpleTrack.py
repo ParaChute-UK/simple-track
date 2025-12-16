@@ -8,6 +8,7 @@ from pathlib import Path
 import multiprocessing as mp
 
 from Frame import Timeline, Frame
+from FrameTracker import FrameTracker
 from OpticalFlowSolver import OpticalFlowSolver
 
 
@@ -25,6 +26,7 @@ class SimpleTrack:
         self.start_time = self.config["DATETIME"]["start_time"]
         self.filenames = self.__get_files_from_input_path(self.config["PATH"]["data"])
         self.timeline = Timeline()
+        self.of_solver = OpticalFlowSolver(**self.config["TRACKING"])
 
     def run(self, filenames=None):
         # If filesnames is provided, iterate only over these files.
@@ -38,6 +40,9 @@ class SimpleTrack:
         # Run the things
         for filename in filenames:
             frame = Frame()
+            # TODO: change this procedure to a Loader class instead.
+            # TODO: but, also want to offer a BasicLoader that can be interacted
+            # with purely through the config file
             frame.load_data(filename)
             frame.identify_features(**self.config["FEATURE"])
             self.timeline.add_to_timelime(frame)
@@ -49,10 +54,14 @@ class SimpleTrack:
 
             # Now run optical flow between previous and current event
             prev_frame = self.timeline.get_previous_frame(frame.get_time())
-            of_solver = OpticalFlowSolver(**self.config["TRACKING"])
-            y_flow, x_flow = of_solver.analyse_flow(prev_frame, frame)
+            y_flow, x_flow = self.of_solver.analyse_flow(prev_frame, frame)
 
-            # Update Event and feature displacements with u and v fields
+            # Update the previous Frame with these displacements which is
+            # needed for tracking Features
+            prev_frame.assign_displacements(y_flow, x_flow)
+
+            # Track Features between difference Frames
+            FrameTracker(prev_frame, frame)
 
     def run_parallel(self, processes=4):
         # Split filenames into chunks for each process

@@ -1,31 +1,54 @@
-import datetime
+import datetime as dt
 from netCDF4 import Dataset as ncfile
 import numpy as np
 from numpy.typing import NDArray
 import scipy.ndimage as ndimage
-
+from typing import Union
 from Feature import Feature
 
 
 class Frame:
     def __init__(self):
         self.file_id = None
+        # TODO: make time an input in init, remove set_time as an option
         self.time = None
 
         self.raw_field = None
         self.feature_field = None
+        self.lifetime_field = None
         self.features = {}
+
+        # TODO: decide whether this is still necessary... it probably isn't
+        # So, make the assumption that the flow as analysed between the previous
+        # and the current frame is valid at the current frame.
+        self.y_flow = None
+        self.x_flow = None
 
     def __repr__(self) -> str:
         repr_str = f"Event file_id: {self.file_id}, time: {self.time}, "
         repr_str += f"num_features: {len(self.features)}"
         return repr_str
 
+    def set_time(self, time: dt.datetime):
+        self.time = time
+
     def get_time(self):
         return self.time
 
     def get_feature_field(self) -> NDArray[np.integer]:
         return self.feature_field
+
+    def get_feature(self, feature_id: int) -> Feature:
+        return self.features[feature_id]
+
+    def get_features(self) -> dict:
+        return self.features
+
+    def get_flow(self) -> Union[NDArray, None]:
+        return self.y_flow, self.x_flow
+
+    def set_feature_field(self, feature_field: NDArray) -> None:
+        self.feature_field = feature_field
 
     # TODO: add functionality for user-definable loading functions
     def load_data(self, filename: str) -> None:
@@ -43,7 +66,7 @@ class Frame:
 
         file_id = str(filename)[-9:-5]
         self.file_id = file_id
-        self.time = datetime.time(hour=int(file_id[0:2]), minute=int(file_id[2:4]))
+        self.time = dt.time(hour=int(file_id[0:2]), minute=int(file_id[2:4]))
 
     def identify_features(
         self, min_size: int, threshold: float, under_threshold: bool
@@ -68,7 +91,9 @@ class Frame:
             threshold=threshold,
             under_threshold=under_threshold,
         )
+        self.populate_features()
 
+    def populate_features(self) -> None:
         max_feature_id = int(np.max(self.feature_field))
         for feature_id in range(max_feature_id):
             # Get the pixel locations of the feature in the field
@@ -77,8 +102,43 @@ class Frame:
 
             # Add this to the list of features
             self.features[feature_id] = Feature(
-                id=feature_id, feature_coords=feature_coords
+                id=feature_id, feature_coords=feature_coords, time=self.time
             )
+
+    def assign_displacements(self, y_flow: NDArray, x_flow: NDArray) -> None:
+        """
+        Add flow field to frame. Use input y_flow and x_flow fields to assign
+        dy and dx displacements to each Feature in the Frame
+
+        Args:
+            y_flow (NDArray): _description_
+            x_flow (NDArray): _description_
+        """
+        if self.feature_field is None or not self.features:
+            raise Exception(
+                "Features have not been loaded into this Frame. Cannot assign displacements"
+            )
+
+        if not all(isinstance(flow, NDArray) for flow in [y_flow, x_flow]):
+            raise ValueError("Inputs must be NDarrays")
+
+        if not all(isinstance(flow.ndim == 2) for flow in [y_flow, x_flow]):
+            raise ValueError("Inputs must be 2D arrays")
+
+        if not all(flow.shape == self.feature_field.shape for flow in [y_flow, x_flow]):
+            raise ValueError("Input flow must have same shape as self.feature_field")
+
+        self.y_flow = y_flow
+        self.x_flow = x_flow
+
+        # Assign these displacements to each Feature in the Frame using
+        # mean of flow field for each grid point spanning the Feature
+        for feature_id, feature in self.features.items():
+            feature_mask = self.feature_field == feature_id
+            feature_dy = np.mean(y_flow[feature_mask])
+            feature_dx = np.mean(x_flow[feature_mask])
+
+            feature.dydx = (feature_dy, feature_dx)
 
 
 class Timeline:
@@ -90,7 +150,7 @@ class Timeline:
             raise TypeError(f"Expected type Frame, got {type(frame)}")
         self.timeline[frame.get_time()] = frame
 
-    def get_previous_frame(self, current_time: datetime.time) -> Frame:
+    def get_previous_frame(self, current_time: dt.time) -> Frame:
         # Return the event prior to the event at current_time
         pass
 

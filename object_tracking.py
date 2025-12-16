@@ -646,33 +646,54 @@ def track_storms(
 
     ## ACTUAL DISPLACEMENT
     # Interpolate these displacements onto the full grid
-    # newumat = interpolate_speeds(xint, yint, xmat, ymat, buu)
-    # newvmat = interpolate_speeds(xint, yint, xmat, ymat, bvv)
-    print(f"xmat_shape: {xmat.shape}")
-    print(f"field shape: {field.shape}")
+    newumat = interpolate_speeds(xint, yint, xmat, ymat, buu)
+    newvmat = interpolate_speeds(xint, yint, xmat, ymat, bvv)
+    # print(f"xmat_shape: {xmat.shape}")
+    # print(f"field shape: {field.shape}")
 
-    newumat = interpolate_subdomain_flows(yint, xint, buu, xmat.shape)
-    newvmat = interpolate_subdomain_flows(yint, xint, bvv, xmat.shape)
+    # newumat = interpolate_subdomain_flows(yint, xint, buu, xmat.shape)
+    # newvmat = interpolate_subdomain_flows(yint, xint, bvv, xmat.shape)
 
-    with open(f"{IMAGES_DIR}/umat_{nt}.npy", "xb") as f:
-        np.save(f, newumat)
+    # with open(f"{IMAGES_DIR}/umat_{nt}.npy", "xb") as f:
+    #     np.save(f, newumat)
 
-    with open(f"{IMAGES_DIR}/vmat_{nt}.npy", "xb") as f:
-        np.save(f, newvmat)
+    # with open(f"{IMAGES_DIR}/vmat_{nt}.npy", "xb") as f:
+    #     np.save(f, newvmat)
 
     # Assign displacement to each of the old storms.
+
+    # Setup a field of new labels
     newlabel = np.zeros(OldStormLabels.shape)
+
+    # Loop over all OldStormData to populate the newlabel array
     for ns in range(len(OldStormData)):
+        # get the label for the storm
         jj = OldStormData[ns].storm
+        # Find idxs of this storm in old data
         labelind = np.where(OldStormLabels == jj)
+        # Use these idxs to get dx and dy
+        # TODO: is this the most sensible way of doing this?
+        # E.g., storms that are between subdomain boundaries might advect in slightly
+        # different ways, but this doesn't really acknowldge the spatial heteogenity of
+        # wind field. Instead, it advects all pixels by the same amount...
         dx = np.mean(newumat[labelind])
         dy = np.mean(newvmat[labelind])
+        # If dx and dy == 0, newlabel locations are provisionally set
+        # to the old one
         if dx == 0.0 and dy == 0.0:
             newlabel[labelind] = jj
         else:
+            # Loop over all coords in the Feature, where ii is an index
+            # for the coord in the list labelind, not the coord itself
             for ii in range(np.size(labelind, 1)):
+                # Ummm... this seems like the wrong way around???
+                # newyindex has dx added rather than dy?
+                # Probably a quick fix for the row-ordered np approach and inconsistent
+                # definitions of yx and dy dx.
                 newyind = labelind[1][ii] + int(np.around(dx))
                 newxind = labelind[0][ii] + int(np.around(dy))
+                # Check for Feature coord going OOB?
+                # If it does, no further investigation in this loop
                 if (
                     newxind > np.size(newlabel, 0) - 1
                     or newyind > np.size(newlabel, 1) - 1
@@ -680,18 +701,34 @@ def track_storms(
                     or newyind < 0
                 ):
                     continue
+                # If there is already a label assigned to this coord from a previous Feature
                 elif newlabel[newxind, newyind] > 0:
+                    # Decide whether to replace the existing label with the current label
+                    # Oh, nq is 1 - the label that is currently at the coord
+                    # and ns is the current label
+                    # TODO: But why is this looking at 1 - label? why is this useful?
+                    # Presumbaly this is because this label is 0 ordered or something??
                     nq = int(newlabel[newxind, newyind] - 1)
+                    # Check whether distance between the current iterating label, or the exisitng
+                    # label is closer to the older data?
+                    # This logic does theoretically mean that a pixel/coord in the new frame may
+                    # be assigned to a different feature than all other pixels in this ns loop
                     olddist = (
                         xmat[newxind, newyind] - OldStormData[nq].centroidx
                     ) ** 2 + (ymat[newxind, newyind] - OldStormData[nq].centroidy) ** 2
                     newdist = (
                         xmat[newxind, newyind] - OldStormData[ns].centroidx
                     ) ** 2 + (ymat[newxind, newyind] - OldStormData[ns].centroidy) ** 2
+                    # If the new label is closer, replace the coordinate
                     if newdist < olddist:
                         newlabel[newxind, newyind] = jj
                 else:
                     newlabel[newxind, newyind] = jj
+
+    # So, now, newlabel or QuvL is the list of advected labels
+    # Now, populate AdvectedStorms array with new labels and sizes of the Feature
+    # which may have changed given the above logic.
+    # TODO: this is important to be aware of in my code.
     QuvL = newlabel
     AdvectedStorms = np.zeros([len(OldStormData), 3])
     for ns in range(len(OldStormData)):
@@ -702,23 +739,42 @@ def track_storms(
         else:
             AdvectedStorms[ns][0] = np.mean(xmat[centrind])
             AdvectedStorms[ns][1] = np.mean(ymat[centrind])
+            # Only need to check one axis, since np.where produces a tuple of x,y coords
+            # so the 1 axis is the same as he 0 axis, and size is looking at the number of
+            # grid points included in the storm.
             AdvectedStorms[ns][2] = int(np.size(centrind, 1))
 
     ###################################################
     # NOW LOOP THROUGH StormData AND CHECK FOR OVERLAP WITH
     # ADVECTED OldStormData STORMS
     ###################################################
-    wasnum = np.zeros(len(StormData))
-    qbins = range(int(np.max(OldStormLabels)) + 2)
-    qarea = np.ones([int(np.max(OldStormLabels)) + 1])
-    qlife = np.ones([int(np.max(OldStormLabels)) + 1])
+    # Construct some containing arrays TODO: figure out what these are
+    wasnum = np.zeros(len(StormData))  # Same size as current storm data
+    qbins = range(int(np.max(OldStormLabels)) + 2)  # from 0 to max(OldStormData + 2)
+    qarea = np.ones(
+        [int(np.max(OldStormLabels)) + 1]
+    )  # from 0 to max(OldStormData + 1)
+    qlife = np.ones(
+        [int(np.max(OldStormLabels)) + 1]
+    )  # from 0 to max(OldStormData + 1)
+
+    # Loop over all OLD storms
     for qq in range(len(OldStormData)):
+        # If size of advected storm (no of pixels) > 0
+        # Then add this area to the qarea array
+        # TODO: qarea is set up as np.ones, so if size == 0, then its area will actually be set to 1.
+        # Is this intended??
         if AdvectedStorms[qq, 2] > 0:
             qarea[qq + 1] = AdvectedStorms[qq, 2]
+        # Add the lifetime from the old storm to this lifetime array
         qlife[qq + 1] = OldStormData[qq].life
+
+    # Loop over IDXS for the current storms
     for ns in range(numstorms):
         jj = ns + 1  # first storm is labelled 1, but python indeces start at 0.
+        # 'C' are the tuple of coords with this storm label
         C = np.where(StormLabels == jj)
+        # StormData is just an empty list until the first iteration
         StormData += [
             StormS(
                 jj,
@@ -740,6 +796,11 @@ def track_storms(
                 azarray=azarray,
             )
         ]
+        # These arrays also just contain 0 until they are filled here
+        # They are the same size as input field
+        # It seems like wasarray is just storm label field again??? We'll see.
+        # Lifetime array shows the number of conseuctive timesteps that
+        # a feature was present at that pixel
         wasarray[C] = int(jj)
         lifearray[C] = 1
 
@@ -755,7 +816,15 @@ def track_storms(
         # if nt==35 and jj==131:
         #   raise ValueError("Check storm 131 (or 120)")
 
+        # Then check for overlaps by looking at MAX from idx 1 onwards (i.e., ignore 0 since this is the fill value
+        # TODO: this check does not guarantee that the overlap is being compared with the correct label
+        # I.e., could there be a situation where there is not enough overlap in the expected label,
+        # but there is in a different label?
+        # this might be okay if it will be handled in the next section of code.
+        # All this cares about is whether there is at least ONE label with sufficient overlap
         if np.max(qhist[1:]) < lapthresh:
+            # If the overlap isn't met, then construct a new mask that instead is a halo/nbhood around the advected storm
+            # to use as the histogram for future use.
             newblob = 0 * xmat
             blobind = np.where(
                 (xmat - StormData[ns].centroidx) ** 2
@@ -766,13 +835,17 @@ def track_storms(
             qhist = (np.histogram(QuvL[np.where(newblob == 1)], qbins))[0][:] / float(
                 StormData[ns].area
             ) + (np.histogram(QuvL[np.where(newblob == 1)], qbins))[0][:] / qarea[:]
+
         ###################################################
         # IF OVERLAP, THEN
         # - INHERIT "WAS"
         # - UPDATE "LIFE" AND "TRACK" AND "WASDIST"
         # - INHERIT "dx" AND "dy" (ONLY UPDATE IF SINGLE OVERLAP)
         ###################################################
+        # If there is at least one label that contains sufficient overlap between advected and current storms, then
+        # enter this loop.
         if np.max(qhist[1:]) >= lapthresh:
+            # Get the number of overlaps that satisfy the overlap condition
             numlaps = np.where(qhist[1:] >= lapthresh)
             ###################################################
             # IF MORE THAN ONE GOOD OVERLAP
@@ -780,26 +853,42 @@ def track_storms(
             # IF MORE THAN ONE LARGEST, KEEP NEAREST IN CENTROID
             ###################################################
             if np.size(numlaps, 1) > 1:
+                # Setup arrays with size of the number of good overlaps
                 lapdist = np.zeros([np.size(numlaps, 1)])
                 sectlap = np.zeros([np.size(numlaps, 1)])
+
+                # Loop from 0 -> number of overlaps - 1
                 for kkind in range(np.size(numlaps, 1)):
+                    # Get the label for this iterator
                     qindex = np.squeeze(numlaps[0][kkind])
+                    # Look at centroid
                     lapdist[kkind] = np.sqrt(
                         (StormData[ns].centroidx - AdvectedStorms[qindex, 0]) ** 2
                         + (StormData[ns].centroidy - AdvectedStorms[qindex, 1]) ** 2
                     )
+                    # look at overlap
                     sectlap[kkind] = np.size(
                         np.where((QuvL == qindex + 1) & (StormLabels == jj)), 1
                     )
+
+                # get label of largest overlap
                 kmax = np.where(sectlap == np.max(sectlap))
+
+                # If there are multiple labels with equal overlap
                 if np.size(kmax, 1) > 1:
+                    # This gets the minimum centroid distance from current label
                     kkmax = kmax[0][
                         np.where(lapdist[kmax[0][:]] == np.min(lapdist[kmax[0][:]]))
                     ]
+                    # If the above still doesn't find a storm, then just choose the first one.
                     if np.size(kkmax) > 1:
                         kkmax = kmax[0][kkmax[0]]
+                # Otherwise, there is only one label with largest overlap, so use this.
                 else:
                     kkmax = kmax[0][0]
+
+                # idx of the label to use as largest overlap for assigning to this storm.
+                # Update the current storm data object with these details, then go to merging/splitting
                 kindex = np.squeeze(numlaps[0][kkmax])
                 StormData[ns].inherit_properties(
                     jj,
@@ -812,8 +901,10 @@ def track_storms(
                     misval,
                     single_overlap=False,
                 )
+                # Update these arrays
                 wasarray[C] = OldStormData[kindex].was
                 lifearray[C] = StormData[ns].life
+
             ###################################################
             # SINGLE OVERLAP
             ###################################################
@@ -848,6 +939,7 @@ def track_storms(
             StormData[ns].life = 1
             lifearray[C] = 1
             newwas = newwas + 1
+
     wasnum = np.array([StormData[ns].was for ns in range(len(StormData))])
     ###################################################
     # QUICK SANITY CHECK
@@ -870,6 +962,7 @@ def track_storms(
                     StormData[ns].accreted[acnum] = acnew[acindex]
             else:
                 StormData[ns].accreted = [misval]
+
     ###################################################
     # TRACKING MERGING BREAKING
     # MULTIPLE STORMS AT T (StormData) MAY HAVE SAME LABEL "WAS"
@@ -878,10 +971,17 @@ def track_storms(
     # "PARENT" VECTOR WITH INDICES OF NEW LABELS FOR "CHILD" STORMS
     # STORMS WITH SAME WAS BUT FUTHER FROM CENTROID ARE "CHILD", VALUE "PARENT"
     ###################################################
+
+    # Loop over all storms
     for ns in range(len(StormData)):
         jj = StormData[ns].storm
+
+        # If there is no "was" associated with this storm, then continue.
+        # I.e., if it does not seem like there was a previous storm associated with this one
         if StormData[ns].wasdist == [misval]:
             continue
+
+        # get the storm
         wasind = np.where(wasnum == wasnum[ns])
         wasseplength = 0
         for kkind in range(np.size(wasind)):
@@ -923,6 +1023,7 @@ def track_storms(
                 wasnum[wasind[0][kkind]] = StormData[wasind[0][kkind]].was
                 children.append(StormData[wasind[0][kkind]].was)
                 StormData[wasind[0][kkind]].wasdist = misval
+
         ###################################################
         # UPDATE PARENT STORM WITH CHILDREN
         ###################################################

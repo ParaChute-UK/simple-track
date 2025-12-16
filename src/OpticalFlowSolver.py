@@ -247,6 +247,8 @@ class OpticalFlowSolver:
         # TODO: will probably need scientific references or more justification
         # for the processes in this bit of code
 
+        # TODO: need to make this dependent on the exact shape of the field, not
+        # just use the max side length
         max_length = max(np.shape(field1))
 
         # TODO: make this "method" arg thing mean something
