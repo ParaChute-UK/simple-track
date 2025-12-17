@@ -78,16 +78,12 @@ class FrameTracker:
         """
         # Create feature mask using current feature field, or expand mask using a nbhood
         # if this is flagged in input
+        feature_mask = np.where(current_feature_field == feature_id, True, False)
         if nbhood:
             centroid = get_centroid(current_feature_field, feature_id)
-            temp_y = np.arange(current_feature_field.shape[1])
-            temp_x = np.arange(current_feature_field.shape[0])
-
-            y_centroid_dist = (temp_y[:, np.newaxis] - centroid[1]) ** 2
-            x_centroid_dist = (temp_x[np.newaxis, :] - centroid[0]) ** 2
-            feature_mask = y_centroid_dist + x_centroid_dist < nbhood**2
-        else:
-            feature_mask = np.where(current_feature_field == feature_id)
+            feature_mask += generate_radial_mask(
+                current_feature_field, centroid, nbhood
+            )
 
         # Setup bins for comparing feature fields using histogram
         # TODO: is it important whether advected or current feature field is used here?
@@ -210,6 +206,31 @@ def advect_field_using_motion_vectors(
                 advected_field[advected_y_coord, advected_x_coord] = feature_id
 
     return advected_field
+
+
+def generate_radial_mask(field: NDArray, coord: NDArray, mask_radius: int) -> NDArray:
+    """
+    Creates a radial mask of the same shape as the input field, centered on the (y,x) coord
+    with radius equal to the mask radius.
+
+    Args:
+        field (NDArray):
+            Field to generate mask for. Output will be the same shape
+        coord (NDArray):
+            Coordinate to centre the mask on
+        mask_radius (int):
+            Radius of values to include in circular mask.
+
+    Returns:
+        NDArray: Mask of values.
+    """
+    temp_y = np.arange(field.shape[0])
+    temp_x = np.arange(field.shape[1])
+
+    y_centroid_dist = (temp_y[:, np.newaxis] - coord[0]) ** 2
+    x_centroid_dist = (temp_x[np.newaxis, :] - coord[1]) ** 2
+    mask = (y_centroid_dist + x_centroid_dist) < mask_radius**2
+    return mask
 
 
 # TODO: replace this with the centroid calculation function in Feature?
