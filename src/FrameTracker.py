@@ -1,7 +1,9 @@
 import numpy as np
 from numpy.typing import NDArray
+from typing import Union
 
 from Frame import Frame
+from Feature import Feature
 
 
 class FrameTracker:
@@ -26,9 +28,15 @@ class FrameTracker:
         advected_feature_field = advected_frame.get_feature_field()
         current_feature_field = current_frame.get_feature_field().copy()
 
+        # Initialise lifetime containing array
+        lifetime_field = np.zeros_like(current_feature_field)
+
         # Compare features in the advected frame and current frame by looping over
         # all features in current frame
         for feature_id, current_feature in current_frame.get_features().items():
+            if not isinstance(current_feature, Feature):
+                raise TypeError(f"Expected Feature, got {type(current_feature)}")
+
             # Count the ids contained in advected_feature_field that are in the same
             # position as the feature_id in the current_feature_field (normalised by
             # the feature sizes)
@@ -37,9 +45,8 @@ class FrameTracker:
             )
 
             # If the maximum overlap is not achieved, rerun with a nbhood surrouding the
-            # feature centroid. Only look from index 1 onwards since 0 is treated as the background
-            max_overlap = np.max(overlap_hist[1:])
-            if max_overlap < self.overlap_threshold:
+            # feature centroid.
+            if np.max(overlap_hist) < self.overlap_threshold:
                 overlap_hist = self.calculate_overlap_histogram(
                     advected_feature_field,
                     current_feature_field,
@@ -47,9 +54,107 @@ class FrameTracker:
                     nbhood=self.overlap_nbhood,
                 )
 
-            # Now, check number of sufficient overlaps.
-            # len_overlaps = overlap_hist[1:] >=
-            # If there are no overlaps, this is a new Feature and needs a new id
+            # Get the closest matching feature id to advected field, and information about
+            # whether this is a new feature.
+            matching_id = self.find_id_of_closest_overlap(
+                overlap_hist, advected_feature_field, current_feature_field, feature_id
+            )
+
+            # Constuct mask for assigning feature properties to fields
+            feature_mask = current_feature_field == feature_id
+
+            # If a matching feature couldn't be found, this is a new Feature
+            if matching_id is None:
+                matching_id = np.max(current_feature_field) + 1
+                current_feature.lifetime = 1
+                lifetime_field[feature_mask] = 1
+            else:
+                # Inherit lifetime from matching feature
+                matching_feature = prev_frame.get_feature(matching_id)
+                current_feature.lifetime = matching_feature.lifetime + 1
+                lifetime_field[feature_mask] = matching_feature.lifetime + 1
+                # TODO: any other values to inherit here?
+
+            current_feature.id = matching_id
+            current_feature_field[feature_mask] = matching_id
+
+    def find_id_of_closest_overlap(
+        self,
+        overlap_hist: NDArray,
+        advected_feature_field: NDArray,
+        current_feature_field: NDArray,
+        current_feature_id: int,
+    ) -> Union[int, None]:
+        """
+        Use overlap histogram to find the closest matching feature id for the current_feature_id
+        in the current_field with the advected_field.
+
+        - If there are no sufficient overlaps, return None
+
+        - If there is one sufficient overlap, return the label of the matching Feature
+        from the advected field
+
+        - If there is more than one sufficient overlap, find the Feature label with the maximum overlap
+        If there is more than one Feature with a maximum overlap, find the Feature from these that is
+        closest to the centroid of the current Feature. If there is still more than one suitable
+        Feature, choose the one with the smallest label
+
+        Args:
+            overlap_hist (NDArray):
+                Histogram of overlaps produced using calculate_overlap_histogram
+            advected_feature_field (NDArray):
+                Feature field from previous timestep advected by flow
+            current_feature_field (NDArray):
+                Feature field from current timestep
+            current_feature_id (int):
+                Feature ID in the current field to match with the previous field
+
+        Returns:
+            Union[int, None]:
+                The new label to assign to the Feature. If None, there is no overlap
+        """
+
+        # Check number of sufficient overlaps.
+        sufficient_overlaps = overlap_hist >= self.overlap_threshold
+        len_sufficient_overlaps = np.count_nonzero(sufficient_overlaps)
+
+        if len_sufficient_overlaps == 0:
+            matching_id = None
+
+        if len_sufficient_overlaps == 1:
+            matching_id = np.argmax(overlap_hist)
+
+        # If there is more than one sufficient overlap, keep the properties of the feature
+        # with the largest overlap. If multiple have overlaps, keep nearest in centroid
+        if len_sufficient_overlaps > 1:
+            # Check for number of ids that share a maximum overlap
+            max_overlaps = np.argwhere(overlap_hist == np.max(overlap_hist)).squeeze()
+            print(max_overlaps)
+
+            if max_overlaps.size == 1:
+                matching_id = np.argmax(overlap_hist)
+            else:
+                # Get the closest centroid for each feature sharing a maximum overlap
+                current_feature_centroid = get_centroid(
+                    current_feature_field, current_feature_id
+                )
+                centroid_distances = []
+
+                for overlap_id in max_overlaps:
+                    overlap_id_centroid = get_centroid(
+                        advected_feature_field, overlap_id
+                    )
+                    distance = np.linalg.norm(
+                        current_feature_centroid - overlap_id_centroid
+                    )
+                    centroid_distances.append(distance)
+
+                # Find the feature that has the minimum distance. If there are still more
+                # than 1 possible options at this stage, argmin returns the first instance
+                min_distance_idx = np.argmin(centroid_distances)
+                matching_id = max_overlaps[min_distance_idx]
+
+        return matching_id
 
     def calculate_overlap_histogram(
         self,
@@ -86,20 +191,21 @@ class FrameTracker:
             )
 
         # Setup bins for comparing feature fields using histogram
-        # TODO: is it important whether advected or current feature field is used here?
-        bins = np.arange(int(np.max(advected_feature_field)) + 2)
+        # Need to find max value among both input fields
+        input_fields = [advected_feature_field, current_feature_field]
+        max_val = np.max(input_fields)
+        bins = np.arange(int(max_val) + 2)
 
         # Find overlap between two feature fields by finding histogram of points
         # using mask of current features applied to the advected feature field
         overlap_hist = np.histogram(advected_feature_field[feature_mask], bins)[0]
 
-        # Get size (number of pixels) of each feature for normalisation
-        advected_feature_size = np.count_nonzero(advected_feature_field == feature_id)
-        current_feature_size = np.count_nonzero(current_feature_field == feature_id)
+        # Set the first value of the hist to 0, since this represents the background
+        overlap_hist[0] = 0
 
-        overlap_normed = overlap_hist / advected_feature_size
-        overlap_normed += overlap_hist / current_feature_size
-        return overlap_normed / 2
+        sizes = [np.count_nonzero(field == feature_id) for field in input_fields]
+        overlap_normed = [overlap_hist / fsize for fsize in sizes if fsize != 0]
+        return np.mean(overlap_normed, axis=0)
 
     def advect_frame(self, frame: Frame) -> Frame:
         """
@@ -129,7 +235,6 @@ class FrameTracker:
         )
 
         advected_frame = Frame()
-        advected_frame.set_time(frame.get_time())
         advected_frame.set_feature_field(advected_feature_field)
         advected_frame.populate_features()
 

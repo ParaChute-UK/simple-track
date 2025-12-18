@@ -80,6 +80,10 @@ class Feature:
     def dydx(self, dy_dx: tuple) -> None:
         self._dydx = dy_dx
 
+    @id.setter
+    def id(self, id: int) -> None:
+        self._id = id
+
     def increment_lifetime(self) -> None:
         self._lifetime += 1
 
