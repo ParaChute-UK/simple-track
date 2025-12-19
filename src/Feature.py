@@ -84,9 +84,6 @@ class Feature:
     def id(self, id: int) -> None:
         self._id = id
 
-    def increment_lifetime(self) -> None:
-        self._lifetime += 1
-
     def calculate_centroid(self) -> tuple:
         y_centroid = np.mean(self._feature_coords[0, :])
         x_centroid = np.mean(self._feature_coords[1, :])

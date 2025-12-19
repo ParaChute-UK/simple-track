@@ -96,7 +96,3 @@ def test_advect_field_with_feature_conflict():
 
 
 # TODO: add tests for junk inputs
-
-if __name__ == "__main__":
-    test_advect_field()
-    test_advect_field_with_feature_conflict()

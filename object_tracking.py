@@ -202,10 +202,12 @@ class StormS:
     ):
         self.was = OldStormData[kindex].was
         self.life = OldStormData[kindex].life + 1
+        # As far as I can tell, this is not used for anything!
         self.wasdist = np.size(np.where((QuvL == kindex + 1) & (StormLabels == jj)), 1)
         qind = kindex + 1
         # Code below is only required when multiple clouds overlap
         if not (single_overlap):
+            # This is also wrong: by looking at [1:], the actual idx you want is 1+np.where...
             alllaps = np.where(qhist[1:] >= lapthresh)
             for kkind in range(np.size(alllaps, 1)):
                 allindex = np.squeeze(alllaps[0][kkind])

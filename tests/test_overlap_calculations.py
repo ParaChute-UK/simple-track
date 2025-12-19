@@ -214,7 +214,7 @@ def test_find_id_of_closest_overlap_with_single_label_overlap():
         hist = FrameTracker().calculate_overlap_histogram(
             test_field1, test_field2, feature_id=id, nbhood=0
         )
-        matching_id = FrameTracker().find_id_of_closest_overlap(
+        matching_id, others = FrameTracker().find_ids_of_closest_overlaps(
             hist, test_field1, test_field2, id
         )
         err_msg = "Test failed: matching id was not found to be equal to input id"
@@ -228,11 +228,14 @@ def test_find_id_of_closest_overlap_with_no_overlap():
     hist = FrameTracker().calculate_overlap_histogram(
         test_field1, test_field3, feature_id=1, nbhood=0
     )
-    matching_id = FrameTracker().find_id_of_closest_overlap(
+    matching_id, others = FrameTracker().find_ids_of_closest_overlaps(
         hist, test_field1, test_field3, 1
     )
     if matching_id is not None:
         raise ValueError(f"Test failed: Expected no matching id, got {matching_id}")
+
+    if others is not None:
+        raise ValueError(f"Test failed: Expected no other ids, got {others}")
 
 
 def test_find_id_of_closest_overlap_with_multiple_overlaps_but_only_one_sufficient():
@@ -242,10 +245,15 @@ def test_find_id_of_closest_overlap_with_multiple_overlaps_but_only_one_sufficie
     hist = FrameTracker().calculate_overlap_histogram(
         test_field4, test_field2, feature_id=2, nbhood=0
     )
-    val = FrameTracker().find_id_of_closest_overlap(hist, test_field4, test_field2, 2)
+    val, others = FrameTracker().find_ids_of_closest_overlaps(
+        hist, test_field4, test_field2, 2
+    )
     expected_val = 3
     err_msg = f"Test failed: expected to find label {expected_val}, got {val}"
     np.testing.assert_equal(val, expected_val, err_msg)
+
+    if others is not None:
+        raise ValueError(f"Test failed: Expected no other ids, got {others}")
 
 
 def test_find_id_of_closest_overlap_with_multiple_unequal_sufficient_overlaps():
@@ -258,12 +266,18 @@ def test_find_id_of_closest_overlap_with_multiple_unequal_sufficient_overlaps():
     hist = FrameTracker().calculate_overlap_histogram(
         test_field4, test_field2, feature_id=2, nbhood=0
     )
-    val = FrameTracker(overlap_threshold=0.1).find_id_of_closest_overlap(
+    val, others = FrameTracker(overlap_threshold=0.1).find_ids_of_closest_overlaps(
         hist, test_field4, test_field2, 2
     )
     expected_val = 3
     err_msg = f"Test failed: expected to find label {expected_val}, got {val}"
     np.testing.assert_equal(val, expected_val, err_msg)
+
+    expected_others = np.array(4)
+    err_msg = (
+        f"Test failed: expected to find other label {expected_others}, got {others}"
+    )
+    np.testing.assert_array_equal(others, expected_others, err_msg)
 
 
 def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps():
@@ -309,12 +323,18 @@ def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps():
     hist = FrameTracker().calculate_overlap_histogram(
         test_field5, test_field2, feature_id=2, nbhood=0
     )
-    val = FrameTracker(overlap_threshold=0.3).find_id_of_closest_overlap(
+    val, others = FrameTracker(overlap_threshold=0.3).find_ids_of_closest_overlaps(
         hist, test_field5, test_field2, 2
     )
     expected_val = 4
     err_msg = f"Test failed: expected to find label {expected_val}, got {val}"
     np.testing.assert_equal(val, expected_val, err_msg)
+
+    expected_others = np.array(3)
+    err_msg = (
+        f"Test failed: expected to find other label {expected_others}, got {others}"
+    )
+    np.testing.assert_array_equal(others, expected_others, err_msg)
 
 
 def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps_and_equal_centroid_distances():
@@ -357,10 +377,16 @@ def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps_an
     hist = FrameTracker().calculate_overlap_histogram(
         test_field6, test_field2, feature_id=2, nbhood=0
     )
-    val = FrameTracker(overlap_threshold=0.3).find_id_of_closest_overlap(
+    val, others = FrameTracker(overlap_threshold=0.3).find_ids_of_closest_overlaps(
         hist, test_field6, test_field2, 2
     )
 
     expected_val = 3
     err_msg = f"Test failed: expected to find label {expected_val}, got {val}"
     np.testing.assert_equal(val, expected_val, err_msg)
+
+    expected_others = np.array(4)
+    err_msg = (
+        f"Test failed: expected to find other label {expected_others}, got {others}"
+    )
+    np.testing.assert_array_equal(others, expected_others, err_msg)
