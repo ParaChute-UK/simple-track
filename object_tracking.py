@@ -202,19 +202,21 @@ class StormS:
     ):
         self.was = OldStormData[kindex].was
         self.life = OldStormData[kindex].life + 1
-        # As far as I can tell, this is not used for anything!
+        # Find the number of points in common between advected and new fields, matched by id...?
         self.wasdist = np.size(np.where((QuvL == kindex + 1) & (StormLabels == jj)), 1)
         qind = kindex + 1
         # Code below is only required when multiple clouds overlap
         if not (single_overlap):
-            # This is also wrong: by looking at [1:], the actual idx you want is 1+np.where...
             alllaps = np.where(qhist[1:] >= lapthresh)
             for kkind in range(np.size(alllaps, 1)):
                 allindex = np.squeeze(alllaps[0][kkind])
+                # Don't do anything if the overlaps are just the matched id
                 if allindex == kindex:
                     continue
+                # Replace misval if it is there
                 if self.accreted[-1] == misval:
                     self.accreted[-1] = OldStormData[allindex].was
+                # Or, append to existing list. Does this get accessed??
                 else:
                     self.accreted.append(OldStormData[allindex].was)
 
@@ -912,10 +914,10 @@ def track_storms(
             ###################################################
             else:
                 zindex = np.squeeze(numlaps[0][0])
-                lapdist = np.sqrt(
-                    (StormData[ns].centroidx - OldStormData[zindex].centroidx) ** 2
-                    + (StormData[ns].centroidy - OldStormData[zindex].centroidy) ** 2
-                )
+                # lapdist = np.sqrt(
+                #     (StormData[ns].centroidx - OldStormData[zindex].centroidx) ** 2
+                #     + (StormData[ns].centroidy - OldStormData[zindex].centroidy) ** 2
+                # )
                 StormData[ns].inherit_properties(
                     jj,
                     OldStormData,
@@ -978,12 +980,14 @@ def track_storms(
     for ns in range(len(StormData)):
         jj = StormData[ns].storm
 
-        # If there is no "was" associated with this storm, then continue.
-        # I.e., if it does not seem like there was a previous storm associated with this one
+        # wasdist = np.size(np.where((QuvL == kindex + 1) & (StormLabels == jj)), 1)
+        # i.e., size of exact overlap between advected feature and current feature
+        # initialised as default misval if it has not inherited properties, ie, is a new storm
         if StormData[ns].wasdist == [misval]:
             continue
 
-        # get the storm
+        # get idxs of all storms in wasnum with the same value as current value
+        # wasnum = np.array([StormData[ns].was for ns in range(len(StormData))])
         wasind = np.where(wasnum == wasnum[ns])
         wasseplength = 0
         for kkind in range(np.size(wasind)):
@@ -991,6 +995,7 @@ def track_storms(
                 continue
             else:
                 wasseplength = wasseplength + 1
+
         wassep = np.zeros(wasseplength)
         if np.size(wasind) > 1:
             kkval = 0
@@ -1002,6 +1007,7 @@ def track_storms(
                     kkval = kkval + 1
         else:
             wassep = StormData[wasind[0][0]].wasdist
+
         ########################################
         # WASSEP NOW CONTAINS ALL NON-ZERO OVERLAP VALUES
         # FIND THE MAXIMUM (THIS WILL BE THE PARENT)
@@ -1012,6 +1018,7 @@ def track_storms(
         kmax = np.where(wassep == np.max(wassep))
         kkmax = np.min(kmax)
         children = []
+        # This bit finds children that have spawned, gives them a new id...
         for kkind in range(np.size(wassep)):
             if not kkind == kkmax:
                 StormData[wasind[0][kkind]].child = StormData[wasind[0][kkmax]].was

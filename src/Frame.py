@@ -50,6 +50,9 @@ class Frame:
     def set_feature_field(self, feature_field: NDArray) -> None:
         self.feature_field = feature_field
 
+    def replace_features(self, new_features: dict) -> None:
+        self.features = new_features
+
     # TODO: add functionality for user-definable loading functions
     def load_data(self, filename: str) -> None:
         """

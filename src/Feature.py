@@ -22,6 +22,7 @@ class Feature:
         self._parent = None
         self._child = None
         self._dydx = ()
+        self._previous_frame_id = None
 
     @property
     def id(self) -> int:
@@ -58,6 +59,10 @@ class Feature:
         return self._child
 
     @property
+    def previous_frame_id(self) -> int:
+        return self._previous_frame_id
+
+    @property
     def dydx(self) -> tuple:
         """
         Feature displacement valid at the given Frame time
@@ -83,6 +88,10 @@ class Feature:
     @id.setter
     def id(self, id: int) -> None:
         self._id = id
+
+    @previous_frame_id.setter
+    def previous_frame_id(self, id: int) -> None:
+        self._previous_frame_id = id
 
     def calculate_centroid(self) -> tuple:
         y_centroid = np.mean(self._feature_coords[0, :])
