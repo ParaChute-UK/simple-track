@@ -1,7 +1,6 @@
 import numpy as np
 from numpy.typing import NDArray
 from typing import Union
-from collections import defaultdict
 from Frame import Frame
 from Feature import Feature
 
@@ -35,64 +34,96 @@ class FrameTracker:
         # These features will now have the same ids. Find these ids and distinguish the most appropriate
         # match (to retain the id) from the other matches (which will be designated as children and
         # given a new id.)
-        self.identify_parent_and_child_features(advected_frame, current_frame)
+        self.resolve_provisional_id_conflicts(advected_frame, current_frame)
 
         # Step 4: Now that there is self consistent data in current frame, use this to
         # produce updated fields
-        self.produce_fields(current_frame)
+        current_frame.update_fields_using_provisional_ids()
 
-    def identify_parent_and_child_features(
+        # Step 5: Promote provisional ids to final ids in current frame
+        current_frame.promote_provisional_ids()
+
+    def resolve_provisional_id_conflicts(
         self, advected_frame: Frame, current_frame: Frame
     ) -> None:
-        # TODO: rewrite the below! it is super convoluted
-        # Instead, do a hist of matched_ids using all_matched_ids.values()
-        # Then, do a {matched_id: no_of_matches} and retain all with no_of_matches > 1
-        # Then loop over
+        # First, list all provisional ids
+        all_features = current_frame.get_features.values()
+        all_provisional_ids = [feature.provisional_id for feature in all_features]
 
-        # The temporary id keys in current_frame.get_features() are likely mismatched with the id
-        # of their Feature, but do serve as unique identifiers for them.
-        # So, can still match Features with the same id
-        # E.g. {0:8, 1:4, 2:8, 3:6} where temp_id:matched_id
-        all_matched_ids = {
-            temp_id: feature.id
-            for temp_id, feature in current_frame.get_features().items()
-        }
+        # Find all provisional ids that are repeated
+        unique_ids, counts = np.unique(all_provisional_ids, return_counts=True)
+        repeated_ids = unique_ids[counts > 1]
 
-        # Flip this dictionary so that each matched_id is now a key, and each value is now a list of
-        # dict keys (temp_ids) for finding that feature in the get_features() dict
-        # E.g {4:[1], 6:[3], 8:[0,2]}
-        matched_id_key_temp_id_val = defaultdict(list)
-        for val, key in all_matched_ids:
-            matched_id_key_temp_id_val[key].append(val)
+        # Loop over all Features with repeated provisional ids and designate parent/child
+        for repeated_id in repeated_ids:
+            # Find all Features with this provisional id
+            matching_features = [
+                feature
+                for feature in all_features
+                if feature.provisional_id == repeated_id
+            ]
 
-        # Filter dict to retain only matched ids with multiple temp ids
-        # E.g. {8:[0,2]}
-        matched_ids_with_multiple_temp_ids = {
-            key: vals
-            for key, vals in matched_id_key_temp_id_val.items()
-            if len(vals) > 1
-        }
+            if not all(isinstance(feature, Feature) for feature in matching_features):
+                raise TypeError("Expected all matching features to be of type Feature")
 
-        # Loop over all matched ids to determine which Feature should retain this matched id
-        # and which should be designated as children
-        for matched_id, temp_id_list in matched_ids_with_multiple_temp_ids.items():
-            pass
-            # Check the overlap between the matched id in the advected frame and each
-            # feature that matched to it in the current frame using the temp_id_list
+            # Get parent and child features
+            parent_feature, child_features = self.identify_parent_and_child_features(
+                repeated_id,
+                matching_features,
+                advected_frame.get_feature_field(),
+                current_frame.get_feature_field(),
+            )
 
-    def produce_fields(self, frame: Frame) -> None:
-        feature_field = frame.get_feature_field()
-        updated_feature_field = np.zeros_like(feature_field)
-        updated_feature_dict = {}
+            # Preserve provisional id for the parent feature
+            # All child features need new ids and are assigned the repeated id as parent
+            for feature in child_features:
+                feature.parent = repeated_id
+                feature.provisional_id = current_frame.get_next_available_feature_id()
 
-        # Initialise lifetime containing array
-        lifetime_field = np.zeros_like(feature_field)
+            # Update parent feature to include child ids
+            parent_feature.children = [
+                feature.provisional_id for feature in child_features
+            ]
 
-        # # Construct fields
-        # # Constuct mask for assigning feature properties to fields
-        # feature_mask = current_feature_field == feature_id
-        # lifetime_field[feature_mask] = current_feature.lifetime
-        # updated_feature_field[feature_mask] = current_feature.id
+    def identify_parent_and_child_features(
+        self,
+        parent_id: int,
+        matching_features: list[Feature],
+        advected_feature_field: NDArray,
+        current_feature_field: NDArray,
+    ) -> list[Feature, list[Feature]]:
+        # First, check the parent_id is present in the advected feature field
+        if not np.isin(parent_id, advected_feature_field):
+            raise ValueError(
+                f"Parent id {parent_id} not found in advected feature field"
+            )
+
+        # Find the feature that has the largest overlap with the advected feature
+        # For this, need to match the locations of the repeated "provisional_id"
+        # from the advetced feature field with the unique "id" in the current x
+        # feature field
+        overlap_sizes = []
+        for feature in matching_features:
+            overlap_size = np.size(
+                np.where(
+                    (advected_feature_field == parent_id)
+                    & (current_feature_field == feature.id)
+                ),
+                1,
+            )
+            overlap_sizes.append(overlap_size)
+
+        if all(size == 0 for size in overlap_sizes):
+            raise ValueError(
+                f"No overlapping features found for provisional id {parent_id}"
+            )
+
+        # Pop feature with max overlap to be the parent feature,
+        # If multiple features share max overlap, first instance is chosen.
+        max_overlap_idx = np.argmax(overlap_sizes)
+        parent_feature = matching_features.pop(max_overlap_idx)
+        # The remaining features are the child features
+        return parent_feature, matching_features
 
     def match_advected_and_current_frame_features(
         self, advected_frame: Frame, current_frame: Frame
@@ -101,13 +132,12 @@ class FrameTracker:
         advected_feature_field = advected_frame.get_feature_field()
         current_feature_field = current_frame.get_feature_field()
 
-        # Initiliase the id to set for a new feature
-        new_feature_id = np.max(current_feature_field) + 1
-
         # Attempt to match features in the advected frame with current frame
-        for feature_id, current_feature in current_frame.get_features().items():
+        for current_feature in current_frame.get_features().values():
             if not isinstance(current_feature, Feature):
                 raise TypeError(f"Expected Feature, got {type(current_feature)}")
+
+            feature_id = current_feature.id
 
             # Count the ids contained in advected_feature_field that are in the same
             # position as the feature_id in the current_feature_field (normalised by
@@ -134,8 +164,7 @@ class FrameTracker:
 
             # If a matching feature couldn't be found, this is a new Feature
             if matching_id is None:
-                matching_id = new_feature_id
-                new_feature_id += 1
+                matching_id = current_frame.get_next_available_feature_id()
                 current_feature.lifetime = 1
             else:
                 # Inherit lifetime from matching feature
@@ -143,8 +172,8 @@ class FrameTracker:
                 current_feature.lifetime = matching_feature.lifetime + 1
                 # TODO: any other values to inherit here?
 
-            # Assign the matching_id to this feature
-            current_feature.id = matching_id
+            # Provisionally assign the matching_id to this feature
+            current_feature.provisional_id = matching_id
 
             # Determine whether this Feature has accreted other Features from the previous Frame
             if other_sufficient_ids is not None:
@@ -426,7 +455,6 @@ def generate_radial_mask(field: NDArray, coord: NDArray, mask_radius: int) -> ND
     return mask
 
 
-# TODO: replace this with the centroid calculation function in Feature?
 def get_centroid(field: NDArray, value: int) -> NDArray:
     """
     From an input field, get the centroid location of a value of contiguous data

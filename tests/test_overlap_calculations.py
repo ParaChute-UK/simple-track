@@ -105,7 +105,7 @@ def construct_test_fields():
 
 def test_generate_radial_mask():
     """
-    Tests the geenrate_radial_mask function in FrameTracker
+    Tests the generate_radial_mask function in FrameTracker
     """
     test_field, __, __, __ = construct_test_fields()
 
@@ -131,6 +131,9 @@ def test_generate_radial_mask():
 
 
 def test_get_centroid():
+    """
+    Test the get_centroid function using test field
+    """
     test_field, __, __, __ = construct_test_fields()
     # Find centroid for value 1
     expected_centroid = np.array((4, 2.5))
@@ -164,6 +167,11 @@ def test_overlap_histogram():
 
 
 def test_overlap_histogram_with_nbhood():
+    """
+    Tests whether the calculate_overlap_histogram produces the correct degree of overlap
+    when a nbhood is used to expand the mask around the first input.
+    """
+
     test_field, test_field2, __, __ = construct_test_fields()
 
     # Using a mask of radius 3 pixels around each feature, we now expect
@@ -189,6 +197,10 @@ def test_overlap_histogram_with_nbhood():
 
 
 def test_overlap_histogram_with_multiple_overlaps_and_different_labels():
+    """
+    Test calculate_overlap_histogram when there are multiple overlapping labels
+    for the requested feature id
+    """
     __, test_field2, __, test_field4 = construct_test_fields()
 
     # Use test_field4 as the advected field (containing multiple overlap labels)
@@ -207,6 +219,9 @@ def test_overlap_histogram_with_multiple_overlaps_and_different_labels():
 
 
 def test_find_id_of_closest_overlap_with_single_label_overlap():
+    """
+    Test the find_ids_of_closest_overlaps function when there is a single overlapping label
+    """
     # Test should find the same id is the best overlap between fields
     test_field1, test_field2, __, __ = construct_test_fields()
 
@@ -222,6 +237,9 @@ def test_find_id_of_closest_overlap_with_single_label_overlap():
 
 
 def test_find_id_of_closest_overlap_with_no_overlap():
+    """
+    Test the find_ids_of_closest_overlaps function when there is no overlapping label
+    """
     # test should find no overlap between fields
     test_field1, __, test_field3, __ = construct_test_fields()
 
@@ -239,6 +257,10 @@ def test_find_id_of_closest_overlap_with_no_overlap():
 
 
 def test_find_id_of_closest_overlap_with_multiple_overlaps_but_only_one_sufficient():
+    """
+    Test the find_ids_of_closest_overlaps function when there are multiple overlapping labels
+    but only one meets the overlap threshold
+    """
     # Using same data as test_overlap_histogram_with_multiple_overlaps_and_different_labels():
     # From this test, we expect the function to choose label 3 as the best overlap
     __, test_field2, __, test_field4 = construct_test_fields()
@@ -257,6 +279,10 @@ def test_find_id_of_closest_overlap_with_multiple_overlaps_but_only_one_sufficie
 
 
 def test_find_id_of_closest_overlap_with_multiple_unequal_sufficient_overlaps():
+    """
+    Test the find_ids_of_closest_overlaps function when there are multiple overlapping labels
+    that each exceed the overlap threshold, but one is clearly more overlapping than the other
+    """
     # can use the same test_fields as test_find_id_of_closest_overlap_with_multiple_overlaps_but_only_one_sufficient():
     # but can lower the overlap_threshold to make both feature sufficient
     # Since label 3 still has a much larger overlap it should still be chosen
@@ -281,6 +307,10 @@ def test_find_id_of_closest_overlap_with_multiple_unequal_sufficient_overlaps():
 
 
 def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps():
+    """
+    Test the find_ids_of_closest_overlaps function when there are multiple overlapping labels
+    that each exceed the overlap threshold by the same degree, but one is closer in centroid distance
+    """
     # For multiple equally sufficient overlaps, need to construct a new test field
     # enforce overlap of 6 pixels with label 2 of test_field2 for each of the new labels
     # But, make feature 3 much larger than feature 4 so its centroid is further from the label 2 centroid
@@ -338,6 +368,11 @@ def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps():
 
 
 def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps_and_equal_centroid_distances():
+    """
+    Test the find_ids_of_closest_overlaps function when there are multiple overlapping labels
+    that each exceed the overlap threshold by the same degree, AND have the same centroid distance.
+    This should therefore return the label with the lowest value.
+    """
     # Now, construct symmetric features so that they have the same overlap and the same centroid distance
     # We expect code to therefore choose the feature with the lower value
     __, test_field2, __, __ = construct_test_fields()

@@ -203,6 +203,7 @@ class StormS:
         self.was = OldStormData[kindex].was
         self.life = OldStormData[kindex].life + 1
         # Find the number of points in common between advected and new fields, matched by id...?
+        # I.e., the overlap between advected previous feautre and current feature
         self.wasdist = np.size(np.where((QuvL == kindex + 1) & (StormLabels == jj)), 1)
         qind = kindex + 1
         # Code below is only required when multiple clouds overlap

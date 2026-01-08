@@ -14,19 +14,28 @@ class Feature:
             raise TypeError(exc_str)
 
         self._id = id
+        self._provisional_id = None
         self._feature_coords = feature_coords
         self._time = time
         self._centroid = None
         self._lifetime = 1
         self._accreted = None
         self._parent = None
-        self._child = None
+        self._children = None
         self._dydx = ()
-        self._previous_frame_id = None
+
+    def __repr__(self) -> str:
+        repr_str = f"Feature id: {self.id} (provisionally {self.provisional_id}), "
+        repr_str += f"lifetime: {self.lifetime} timestep(s) at time: {self.time}"
+        return repr_str
 
     @property
     def id(self) -> int:
         return self._id
+
+    @property
+    def provisional_id(self) -> int:
+        return self._provisional_id
 
     @property
     def centroid(self) -> tuple:
@@ -55,12 +64,8 @@ class Feature:
         return self._parent
 
     @property
-    def child(self) -> list[int]:
-        return self._child
-
-    @property
-    def previous_frame_id(self) -> int:
-        return self._previous_frame_id
+    def children(self) -> list[int]:
+        return self._children
 
     @property
     def dydx(self) -> tuple:
@@ -81,6 +86,15 @@ class Feature:
     def parent(self, parent_id: int) -> None:
         self._parent = parent_id
 
+    @children.setter
+    def children(self, child_ids: list[int]) -> None:
+        if isinstance(child_ids, int):
+            self._children = [child_ids]
+        elif isinstance(child_ids, list):
+            self._children = child_ids
+        else:
+            raise TypeError("children must be set to an int or list of ints")
+
     @dydx.setter
     def dydx(self, dy_dx: tuple) -> None:
         self._dydx = dy_dx
@@ -89,9 +103,9 @@ class Feature:
     def id(self, id: int) -> None:
         self._id = id
 
-    @previous_frame_id.setter
-    def previous_frame_id(self, id: int) -> None:
-        self._previous_frame_id = id
+    @provisional_id.setter
+    def provisional_id(self, id: int) -> None:
+        self._provisional_id = id
 
     def calculate_centroid(self) -> tuple:
         y_centroid = np.mean(self._feature_coords[0, :])

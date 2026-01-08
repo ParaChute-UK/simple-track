@@ -16,11 +16,9 @@ class Frame:
         self.raw_field = None
         self.feature_field = None
         self.lifetime_field = None
+        self.max_id = None
         self.features = {}
 
-        # TODO: decide whether this is still necessary... it probably isn't
-        # So, make the assumption that the flow as analysed between the previous
-        # and the current frame is valid at the current frame.
         self.y_flow = None
         self.x_flow = None
 
@@ -28,6 +26,11 @@ class Frame:
         repr_str = f"Event file_id: {self.file_id}, time: {self.time}, "
         repr_str += f"num_features: {len(self.features)}"
         return repr_str
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Frame):
+            return False
+        return self.time == other.time
 
     def set_time(self, time: dt.datetime):
         self.time = time
@@ -94,9 +97,14 @@ class Frame:
             threshold=threshold,
             under_threshold=under_threshold,
         )
+        self.max_id = int(np.max(self.feature_field))
         self.populate_features()
 
     def populate_features(self) -> None:
+        # Check for existing features dict
+        if self.features:
+            self.features = {}
+
         max_feature_id = int(np.max(self.feature_field))
         for feature_id in range(max_feature_id):
             # Get the pixel locations of the feature in the field
@@ -142,6 +150,59 @@ class Frame:
             feature_dx = np.mean(x_flow[feature_mask])
 
             feature.dydx = (feature_dy, feature_dx)
+
+    def get_next_available_feature_id(self) -> int:
+        """
+        Get the next available feature ID for this Frame.
+        Used when new features are created via splitting.
+
+        Returns:
+            int: new id
+        """
+        if self.max_id is None:
+            self.max_id = 0
+        self.max_id += 1
+        return self.max_id
+
+    def promote_provisional_ids(self) -> None:
+        """
+        Promote provisional ids to final ids for all features in this Frame.
+        """
+        # Construct updated features dictionary with new ids as keys
+        new_features_dict = {}
+
+        for feature in self.features.values():
+            if feature.provisional_id is not None:
+                feature.id = feature.provisional_id
+                feature.provisional_id = None
+            else:
+                feature.id = feature.id
+            new_features_dict[feature.id] = feature
+
+        self.features = new_features_dict
+
+    def update_fields_using_provisional_ids(self) -> None:
+        """
+        Update the feature_field to reflect provisional ids.
+        """
+        if self.feature_field is None:
+            raise Exception(
+                "Feature field is not set. Cannot update using provisional ids."
+            )
+
+        updated_feature_field = np.zeros_like(self.feature_field)
+        updated_lifetime_field = np.zeros_like(self.feature_field)
+
+        for feature in self.features.values():
+            feature_mask = self.feature_field == feature.id
+            updated_lifetime_field[feature_mask] = feature.lifetime
+            if feature.provisional_id is not None:
+                updated_feature_field[feature_mask] = feature.provisional_id
+            else:
+                updated_feature_field[feature_mask] = feature.id
+
+        self.feature_field = updated_feature_field
+        self.lifetime_field = updated_lifetime_field
 
 
 class Timeline:
