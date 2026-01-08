@@ -27,6 +27,10 @@ class SimpleTrack:
         self.filenames = self.__get_files_from_input_path(self.config["PATH"]["data"])
         self.timeline = Timeline()
         self.of_solver = OpticalFlowSolver(**self.config["TRACKING"])
+        self.frame_tracker = FrameTracker(
+            overlap_nbhood=self.config["TRACKING"]["overlap_nbhood"],
+            overlap_threshold=self.config["TRACKING"]["overlap_threshold"],
+        )
 
     def run(self, filenames=None):
         # If filesnames is provided, iterate only over these files.
@@ -58,10 +62,11 @@ class SimpleTrack:
 
             # Update the previous Frame with these displacements which is
             # needed for tracking Features
+            # TODO:: is this actually needed??
             prev_frame.assign_displacements(y_flow, x_flow)
 
             # Track Features between difference Frames
-            FrameTracker(prev_frame, frame)
+            self.frame_tracker.run(prev_frame, frame)
 
     def run_parallel(self, processes=4):
         # Split filenames into chunks for each process
