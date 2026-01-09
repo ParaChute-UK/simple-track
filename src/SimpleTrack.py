@@ -26,11 +26,8 @@ class SimpleTrack:
         self.start_time = self.config["DATETIME"]["start_time"]
         self.filenames = self.__get_files_from_input_path(self.config["PATH"]["data"])
         self.timeline = Timeline()
-        self.of_solver = OpticalFlowSolver(**self.config["TRACKING"])
-        self.frame_tracker = FrameTracker(
-            overlap_nbhood=self.config["TRACKING"]["overlap_nbhood"],
-            overlap_threshold=self.config["TRACKING"]["overlap_threshold"],
-        )
+        self.of_solver = OpticalFlowSolver(**self.config["OF_SOLVER"])
+        self.frame_tracker = FrameTracker(**self.config["TRACKING"])
 
     def run(self, filenames=None):
         # If filesnames is provided, iterate only over these files.
@@ -47,7 +44,8 @@ class SimpleTrack:
             # TODO: change this procedure to a Loader class instead.
             # TODO: but, also want to offer a BasicLoader that can be interacted
             # with purely through the config file
-            frame.load_data(filename)
+            frame.load_mwe_data(filename)
+            # frame.load_data(filename)
             frame.identify_features(**self.config["FEATURE"])
             self.timeline.add_to_timelime(frame)
             print(frame)
@@ -89,7 +87,7 @@ class SimpleTrack:
         # code so don't need to reinvent the wheel here.
 
     def __get_files_from_input_path(self, input_path: str) -> list:
-        supported_filetypes = [".nc"]
+        supported_filetypes = [".nc", ".npy"]
         filenames = sorted(
             [
                 p

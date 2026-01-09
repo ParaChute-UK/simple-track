@@ -4,67 +4,54 @@ from numpy.lib.stride_tricks import sliding_window_view
 from scipy.interpolate import LinearNDInterpolator, RectBivariateSpline
 from Frame import Frame
 from typing import Union
+from utils import check_arrays
 import itertools
-from collections.abc import Iterable
 from skimage.registration import phase_cross_correlation
 
 
 class OpticalFlowSolver:
     def __init__(
         self,
-        squarelength=None,
-        rafraction=0.01,
+        subdomain_size=None,
+        min_fractional_coverage=0.01,
         dd_tolerance=3,
-        halopixel=5,
         overlap_threshold=0.6,
     ) -> None:
-        self.squarelength = squarelength
-        self.rafraction = rafraction
+        self.subdomain_size = subdomain_size
+        self.min_fractional_coverage = min_fractional_coverage
         self.dd_tolerance = dd_tolerance
-        self.halopixel = halopixel
         self.overlap_threshold = overlap_threshold
-        # Not currently set in a config
-        self.tukey_window = 1  # Used for doing the FFT
+        self.zero_pad_subdomains = True
 
-    def _check_inputs(self, arr1: NDArray, arr2: NDArray) -> None:
+    def _check_inputs(self, arr1: NDArray, arr2: NDArray) -> bool:
+        arr1, arr2 = check_arrays(arr1, arr2, ndim=2, dtype=int)
+
         # Check both fields have features
         if not np.count_nonzero(arr1) and not np.count_nonzero(arr2):
             print("No features detected in both fields. Skipping optical flow.")
-            return None
+            return False, False
 
         # If there are too few features, don't proceed with optical flow
-        if np.sum(arr1) < self.fftpixels or np.sum(arr2) < self.fftpixels:
+        min_feature_coverage = self.subdomain_size**2 * self.min_fractional_coverage
+        if np.sum(arr1) < min_feature_coverage or np.sum(arr2) < min_feature_coverage:
             print(f"Threshold for running optical flow: {self.fftpixels}")
             print(f"Number of pixels above treshold in arr1: {np.sum(arr1)}")
             print(f"Number of pixels above treshold in arr2: {np.sum(arr2)}")
             print("Number of features in arr1 and/or arr2 less than threshold. ")
             print("Skipping optical flow")
-            return None
+            return False, False
 
-        # Check input fields are same shape
-        if arr1.shape != arr2.shape:
-            raise ValueError(
-                f"Input fields must have the same shape. Got {arr1.shape} and {arr2.shape}"
-            )
-
-        # Check for 2D input
-        if arr1.ndim != 2:
-            raise ValueError(
-                f"Requires 2D arrays as input, got arrays with {arr1.ndim} dims"
-            )
-
-    def setup_arrays(self):
-        # Use this to produce xmat, ymat etc...
-        return
+        return arr1, arr2
 
     def analyse_flow(
         self, prev_field: Union[Frame, NDArray], current_field: Union[Frame, NDArray]
     ) -> NDArray:
-        # TODO: better names for these!
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
             prev_features = prev_field.get_feature_field()
             current_features = current_field.get_feature_field()
-        elif isinstance(prev_field, NDArray) and isinstance(current_field, NDArray):
+        elif isinstance(prev_field, np.ndarray) and isinstance(
+            current_field, np.ndarray
+        ):
             prev_features = prev_field
             current_features = current_field
         else:
@@ -72,28 +59,26 @@ class OpticalFlowSolver:
                 "prev_field and current_field must both be of type Frame or NDArray"
             )
 
-        # Determine a squarelength if not provided.
-        # TODO: this is entirely arbitrary. Check if this is sensible. It probably isnt
-        # TODO: also need checks that this will divide the domain sensibly.
-        # TODO: what if domain is an odd shape?? What then??
-        # TODO: probably needs a separate method to determine this tbh, this logic
-        # is probably too simple.
-        # TODO: need to also check that prev and current features have same shape before
-        # this step?
-        if self.squarelength is None:
-            self.squarelength = (
-                max(prev_features.shape[0], prev_features.shape[1]) // 10
+        # Check input fields are same shape
+        check_arrays(prev_features, current_features, equal_shape=True)
+
+        # Determine a subdomain size if not provided
+        if self.subdomain_size is None:
+            self.subdomain_size = self.determine_sufficient_subdomain_size(
+                prev_features.shape
             )
 
-        # TODO: what is this?? rename!
-        self.fftpixels = self.squarelength**2 / int(1.0 / self.rafraction)
-
-        # Check inputs meet criteria
-        if self._check_inputs(prev_features, current_features) is None:
-            return None
+        # Check inputs, return None if inputs aren't validated
+        prev_features, current_features = self._check_inputs(
+            prev_features, current_features
+        )
+        if not prev_features:
+            return None, None
 
         # Get subdomains to calculate FFT over
-        subdomain_shape = np.array([self.squarelength, self.squarelength])
+        subdomain_shape = np.array(
+            [self.subdomain_size, self.subdomain_size], dtype=int
+        )
         subdomain_step = subdomain_shape / 2
 
         # Get tuple of indices of subdomains to iterate over
@@ -118,21 +103,20 @@ class OpticalFlowSolver:
 
         # Initialise containing array for holding subdomain dy, dx
         # Shape is number of subdomains in each direction * 2 for overlaps
-        subdomain_dy = np.full(
-            shape=(prev_features.shape // subdomain_shape) * 2, fill_value=np.nan
-        )
-        subdomain_dx = np.full_like(subdomain_dy, fill_value=np.nan)
+        containing_shape = (prev_features.shape // subdomain_shape) * 2
+        subdomain_dy = np.full(shape=containing_shape, fill_value=np.nan)
+        subdomain_dx = np.full(shape=containing_shape, fill_value=np.nan)
 
         for y_bounds, x_bounds in subdomain_bounds:
             # Construct subdomain mask from bounds
             y_slice = slice(y_bounds[0], y_bounds[1])
             x_slice = slice(x_bounds[0], x_bounds[1])
-            subdomain_mask = tuple(y_slice, x_slice)
+            subdomain_mask = (y_slice, x_slice)
 
-            dx, dy = self.track_subdomain_flow(
+            dy, dx = self.track_subdomain_flow(
                 field1=prev_features[subdomain_mask],
                 field2=current_features[subdomain_mask],
-                method=self.tukey_window,
+                zero_pad=self.zero_pad_subdomains,
             )
 
             # Use first bounds to get idx for dy and dx subdomain
@@ -149,6 +133,35 @@ class OpticalFlowSolver:
         )
 
         return y_flow, x_flow
+
+    def determine_sufficient_subdomain_size(self, feature_field_shape):
+        # TODO: figure out some logic here for getting a good sd size
+        # if none is provided.
+        # Use this for now, but it won't work in all cases!
+        # TODO: this is entirely arbitrary. Check if this is sensible. It probably isnt
+        # TODO: also need checks that this will divide the domain sensibly.
+        # TODO: what if domain is an odd shape?? What then??
+        return max(feature_field_shape[0], feature_field_shape[1]) // 5
+
+    def check_subdomain_size_fits_in_full_domain(
+        self, feature_field_shape: NDArray, subdomain_shape: NDArray
+    ) -> bool:
+        # Check that there an exact number of overlapping subdomains that can fit in the full field
+        # First, check if subdomain shape/2 is an integer
+        feature_field_shape, subdomain_shape = check_arrays(
+            feature_field_shape, subdomain_shape, dtype=int, shape=(2,)
+        )
+
+        if not np.all(subdomain_shape % 2 == 0):
+            return False
+
+        subdomain_check = [
+            dim % sd_shape / 2
+            for dim, sd_shape in zip(feature_field_shape, subdomain_shape)
+        ]
+        if any([remainder != 0 for remainder in subdomain_check]):
+            return False
+        return True
 
     def get_overlapping_subdomains(
         self, feature_field: NDArray, subdomain_shape: NDArray
@@ -191,11 +204,12 @@ class OpticalFlowSolver:
 
     def get_overlapping_subdomain_idxs(
         self, feature_field_shape: NDArray, subdomain_shape: NDArray
-    ) -> Iterable[tuple]:
+    ) -> tuple[tuple]:
         """
         Get indices of subdomain bounds of the requested shape that will fit into
-        the requested feature field. These subdomains overlap halfway.
-        Returns an iterator of tuples giving bounds as ((y0, y1), (x0, x1))
+        the requested feature field. These subdomains overlap halfway, meaning that
+        the requirement for an exact fit is that HALF the subdomain shape must fit.
+        Returns tuples giving bounds as ((y0, y1), (x0, x1))
 
         Args:
             feature_field_shape (NDArray):
@@ -207,38 +221,36 @@ class OpticalFlowSolver:
             ValueError: If requested subdomain cannot fit exactly into input field
 
         Returns:
-            Iterable(tuple): overlapping subdomain bounds in form ((y0, y1), (x0, x1))
+            tuple(tuple): overlapping subdomain bounds in form ((y0, y1), (x0, x1))
         """
-        # Check that there an exact number of subdomains that can fit in the full field
-        subdomain_check = [
-            dim % sd_shape
-            for dim, sd_shape in zip(feature_field_shape, subdomain_shape)
-        ]
 
-        for dim, subdomain_remainder in enumerate(subdomain_check):
-            if subdomain_remainder != 0:
-                print(f"Input feature field dim size: {feature_field_shape[dim]}")
-                print(f"Requested subdomain shape: {subdomain_shape[dim]}")
-                msg = f"Could not fit exact number of subdomains in dimension {dim}"
-                raise ValueError(msg)
+        feature_field_shape, subdomain_shape = check_arrays(
+            feature_field_shape, subdomain_shape, dtype=int, shape=(2,)
+        )
 
-        # TODO: add check for input types
-        # TODO: add check for whether subdomain shape size is even for division by 2
-        # TODO: check for 2d input fields and subdomain shapes
+        if not self.check_subdomain_size_fits_in_full_domain(
+            feature_field_shape, subdomain_shape
+        ):
+            print(f"Input feature field dim size: {feature_field_shape}")
+            print(f"Requested subdomain shape: {subdomain_shape}")
+            msg = "Could not fit exact number of subdomains in feauture_field"
+            raise ValueError(msg)
 
         # Now, get idxs of subdomain bounds to iterate over (with overlap)
         step = (subdomain_shape / 2).astype(int)
         y_subdomain_idxs = np.arange(
-            start=0, stop=feature_field_shape[0] + step, step=step
+            start=0, stop=feature_field_shape[0] + step[0], step=step[0]
         )
 
         x_subdomain_idxs = np.arange(
-            start=0, stop=feature_field_shape[1] + step, step=step
+            start=0, stop=feature_field_shape[1] + step[1], step=step[1]
         )
 
         return y_subdomain_idxs, x_subdomain_idxs
 
-    def track_subdomain_flow(self, field1: NDArray, field2: NDArray, method=1):
+    def track_subdomain_flow(
+        self, field1: NDArray, field2: NDArray, zero_pad: bool = True
+    ):
         # TODO: if this becomes a func rather than a method, will need to add
         # some input checking. For now though, can assume inputs are okay
         # e.g., will need to check inputs are square, 2d, np arrays with
@@ -254,7 +266,7 @@ class OpticalFlowSolver:
         # TODO: make this "method" arg thing mean something
         # Seems to be whether to apply a sponge region to the hann1 array...
         # Note: this is actually a window function to reduce edge effects
-        if method == 1:
+        if zero_pad:
             # ???
             alpha = max(0.1, 10.0 / max_length)
 
@@ -308,6 +320,8 @@ class OpticalFlowSolver:
         # Remember, field1 and field2 are binary
         # TODO: check if this is correct: field1 is 2D while hann2 is 1D!
         # So, hann2 is applied along all *rows* of elements, but not columns
+        print(field1.shape)
+        print(hann2.shape)
         b1 = field1 * hann2
         b2 = field2 * hann2
 
@@ -330,12 +344,13 @@ class OpticalFlowSolver:
             disambiguate=False,
         )
         dy, dx = cross_corr[0] * -1
-        return dx, dy
+        return dy, dx
 
     def interpolate_subdomain_flows(
         self, y_subdomain_bounds, x_subdomain_bounds, subdomain_flows, full_domain_shape
     ) -> NDArray:
         # TODO: tidy and document this once it is working.
+        # TODO: also need to include dd_tolerance here somehow??
         valid_mask = ~np.isnan(subdomain_flows)
         coords = np.array(np.nonzero(valid_mask)).T
         values = subdomain_flows[valid_mask]

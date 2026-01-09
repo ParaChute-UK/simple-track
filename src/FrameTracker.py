@@ -337,13 +337,13 @@ class FrameTracker:
         if not isinstance(frame, Frame):
             raise TypeError(f"Expected 'Frame', got {type(frame)}")
 
+        # If there is no flow field, return the un-advected frame
         y_flow, x_flow = frame.get_flow()
         if y_flow is None or x_flow is None:
             print(f"y_flow: {y_flow}")
             print(f"x_flow: {x_flow}")
-            raise ValueError(
-                "y_flow and/or x_flow not defined. Cannot calculate advected Frame"
-            )
+            print("Continuing with unadvected Frame")
+            return frame
 
         feature_field = frame.get_feature_field()
         advected_feature_field = advect_field_using_motion_vectors(

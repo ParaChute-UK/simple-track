@@ -1,11 +1,11 @@
 # Test config file for reading Chilbolton data
 
 PATH:
-  data: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/data
+  data: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/tests/mwe_test_files
   output: ./output
 
 OUTPUT:
-  experiment_name: chilbolton_test
+  experiment_name: mwe_test
   save_data: true
   save_plots: true
   plot_format: png
@@ -20,13 +20,13 @@ RADAR:
   is_radar: False
 
 FEATURE:
-  threshold: 3 ## Threshold used to identify objects (with value of variable greater than this threshold)
+  threshold: 0.5 ## Threshold used to identify objects (with value of variable greater than this threshold)
   under_threshold: false ## True = labelling areas *under* the threshold (e.g. brightness temperature), False = labelling areas *above* threshold (e.g. rainfall)
   min_size: 4 # Minimum size of feature to be tracked (in pixels)
 
 OF_SOLVER:
   overlap_threshold: 0.6 ## Minimum fraction of overlap (0.6 in TITAN)
-  subdomain_size: 100 ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
+  subdomain_size: 20 ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
   rafraction: 0.01  ## Minimum fractional cover of objects required for fft to obtain (dx,dy) displacement
   dd_tolerance: 3.0  # Maximum difference in displacement values between adjacent squares (to remove spurious values) - scaled by num_dt if necessary
   zero_pad_subdomains: true

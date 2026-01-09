@@ -74,6 +74,14 @@ class Frame:
         self.file_id = file_id
         self.time = dt.time(hour=int(file_id[0:2]), minute=int(file_id[2:4]))
 
+    def load_mwe_data(self, filename):
+        base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
+        data = np.load(filename)
+        self.raw_field = data
+        self.file_id = str(filename)
+        mwe_idx = str(filename)[-5]
+        self.time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
+
     def identify_features(
         self, min_size: int, threshold: float, under_threshold: bool
     ) -> None:
@@ -215,8 +223,11 @@ class Timeline:
         self.timeline[frame.get_time()] = frame
 
     def get_previous_frame(self, current_time: dt.time) -> Frame:
-        # Return the event prior to the event at current_time
-        pass
+        prev_times = [time for time in self.timeline.keys() if time < current_time]
+        closest_time = max(prev_times) if prev_times else None
+        if closest_time is None:
+            raise ValueError("No previous frame found in timeline")
+        return self.timeline[closest_time]
 
     def purge_old_frame(self, max_frames: int = 2) -> None:
         # Remove any frames that aren't needed anymore, as defined by max_frames
