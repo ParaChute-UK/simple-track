@@ -1,4 +1,5 @@
 import sys
+import pytest
 
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track"
@@ -9,15 +10,13 @@ sys.path.append(
 from src.OpticalFlowSolver import OpticalFlowSolver
 import numpy as np
 
+of_solver = OpticalFlowSolver()
+
 
 def test_overlapping_subdomain_bounds_with_perfect_fit():
     """
     Test that the overlapping subdomain bounds are calculated correctly.
     """
-
-    # Create an OpticalFlowSolver instance with a squarelength that does not
-    # divide the feature field shape exactly
-    of_solver = OpticalFlowSolver()
 
     # Create a dummy feature field of shape (12, 16)
     feature_field_shape = (12, 16)
@@ -48,10 +47,6 @@ def test_overlapping_subdomain_bounds_with_odd_subdomain():
     Test that the overlapping subdomain bounds returns error with odd-shaped subdomain.
     """
 
-    # Create an OpticalFlowSolver instance with a squarelength that does not
-    # divide the feature field shape exactly
-    of_solver = OpticalFlowSolver()
-
     # Create a dummy feature field of shape (12, 16)
     feature_field_shape = (12, 16)
 
@@ -76,10 +71,6 @@ def test_overlapping_subdomain_bounds_without_fit():
     does not fit exactly within the full domain.
     """
 
-    # Create an OpticalFlowSolver instance with a squarelength that does not
-    # divide the feature field shape exactly
-    of_solver = OpticalFlowSolver()
-
     # Create a dummy feature field of shape (12, 16)
     feature_field_shape = (12, 16)
 
@@ -103,7 +94,6 @@ def test_check_subdomain_size_fits_in_full_domain_with_odd_shape():
     Test that the check_subdomain_size_fits_in_full_domain returns
     False if an odd subdomain dimension is provided
     """
-    of_solver = OpticalFlowSolver()
     feature_field_shape = (12, 16)
     sd_shape = (3, 4)
 
@@ -119,7 +109,6 @@ def check_subdomain_size_fits_in_full_domain_with_even_incorrect_shape():
     Test that the check_subdomain_size_fits_in_full_domain returns
     False if an odd subdomain dimension is provided
     """
-    of_solver = OpticalFlowSolver()
     feature_field_shape = (12, 16)
     sd_shape = (8, 10)
 
@@ -135,7 +124,6 @@ def check_subdomain_size_fits_in_full_domain_with_even_correct_shape():
     Test that the check_subdomain_size_fits_in_full_domain returns
     False if an odd subdomain dimension is provided
     """
-    of_solver = OpticalFlowSolver()
     feature_field_shape = (12, 16)
     sd_shape = (3, 4)
 
@@ -144,3 +132,28 @@ def check_subdomain_size_fits_in_full_domain_with_even_correct_shape():
     )
     if not result:
         raise Exception("Test should have returned True")
+
+
+@pytest.mark.parametrize(
+    "feature_field_shape, subdomain_shape, expected_result",
+    [
+        [(100, 100), (10, 10), True],
+        [(50, 50), (10, 10), True],
+        [(100, 100), (25, 25), False],  # Cannot be odd, overlap is not at a grid point
+        [(100, 100), (30, 30), False],  # Does not fit in domain
+        [(-10, -10), (2, 2), False],  # Does not accept negative values
+        [(100, 100), (5.5, 5.5), False],  # Does not accept floats
+        [("abc", "abc"), (5, 5), False],  # Does not accept strings
+        [(100, 100, 100), (50, 50, 50), False],  # Does not accept 3d fields
+        [(100,), (50,), False],  # Does not accept 1D fields
+    ],
+)
+def test_check_sufficient_subdomain_size(
+    feature_field_shape, subdomain_shape, expected_result
+):
+    test_result = of_solver.check_subdomain_size_fits_in_full_domain(
+        feature_field_shape, subdomain_shape
+    )
+    assert test_result == expected_result, (
+        f"Expected {expected_result}, got {test_result}"
+    )

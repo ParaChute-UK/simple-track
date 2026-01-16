@@ -1,7 +1,9 @@
 import numpy as np
 
 
-def check_arrays(*args, shape=None, ndim=None, dtype=None, equal_shape=False):
+def check_arrays(
+    *args, shape=None, ndim=None, dtype=None, equal_shape=False, non_negative=True
+):
     # Check inputs args are array like, convert to numpy array if possible,
     # otherwise return TypeError
     modified_args = []
@@ -39,8 +41,14 @@ def check_arrays(*args, shape=None, ndim=None, dtype=None, equal_shape=False):
     # Check each input array is equal size
     if equal_shape:
         arr0_shape = args[0].shape
-        if not all([arr.shape == arr0_shape for arr in args]):
+        if not all([arr.shape == arr0_shape for arr in modified_args]):
             msg = f"Input array shapes differ: {[arr.shape for arr in args]}"
+            raise ValueError(msg)
+
+    # Check all values are positive
+    if non_negative:
+        if not all([np.all(arr >= 0) for arr in modified_args]):
+            msg = "Expected inputs to contain non-negative values"
             raise ValueError(msg)
 
     # Don't want to return a single arg input as a list

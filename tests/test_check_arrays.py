@@ -117,3 +117,16 @@ def test_check_arrays_against_incorrect_str_dtype():
         check_arrays(test_arr1, test_arr2, dtype=expected_dtype)
     except TypeError:
         pass
+
+
+def test_check_arrays_with_non_negative_values():
+    test_arr1 = np.arange(-5, 5)
+    try:
+        check_arrays(test_arr1, non_negative=True)
+    except ValueError:
+        pass
+
+
+def test_check_arrays_with_no_non_negative_values():
+    test_arr1 = np.arange(0, 10)
+    check_arrays(test_arr1, non_negative=True)

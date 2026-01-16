@@ -43,7 +43,27 @@ class OpticalFlowSolver:
 
     def analyse_flow(
         self, prev_field: Union[Frame, NDArray], current_field: Union[Frame, NDArray]
-    ) -> NDArray:
+    ) -> list[NDArray, NDArray]:
+        """
+        Analyses previous field and current field to identify flow field. Uses phase
+        cross correlation over a series of overlapping subdomains to stitch together
+        a full field, where the flow is constant within each subdomain. Subdomain size
+        is controlled by OpticalFlowSolver init, but is estimated from inputs if not
+        provided.
+
+        Input feature fields must be of the same size and contain sufficient feature
+        coverage, as determined by min_feactional_coverage in init. Otherwise, solver
+        will return None for the flow fields.
+
+        Args:
+            prev_field (Union[Frame, NDArray]):
+                Feature field from previous timestep
+            current_field (Union[Frame, NDArray]):
+                Feature field from current timestep
+
+        Returns:
+            list[NDArray, NDarray]: y_flow, x_flow
+        """
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
             prev_features = prev_field.get_feature_field()
             current_features = current_field.get_feature_field()
@@ -146,12 +166,33 @@ class OpticalFlowSolver:
     def check_subdomain_size_fits_in_full_domain(
         self, feature_field_shape: NDArray, subdomain_shape: NDArray
     ) -> bool:
-        # Check that there an exact number of overlapping subdomains that can fit in the full field
-        # First, check if subdomain shape/2 is an integer
-        feature_field_shape, subdomain_shape = check_arrays(
-            feature_field_shape, subdomain_shape, dtype=int, shape=(2,)
-        )
+        """
+        Determines whether the subdomain shape is suitable for the feature field
+        shape. Subdomain is suitable only if it fits an equal number of times
+        into the feature field in each dimension
 
+        Args:
+            feature_field_shape (NDArray):
+                1D array describing shape of feature field
+            subdomain_shape (NDArray):
+                1d array describing shape of requested subdomain
+
+        Returns:
+            bool: True if subdomain shape fits exactly in feature field shape, False otherwise
+        """
+        # Check inputs, only except errors related to contents of inputs
+        try:
+            feature_field_shape, subdomain_shape = check_arrays(
+                feature_field_shape,
+                subdomain_shape,
+                dtype=int,
+                shape=(2,),
+                non_negative=True,
+            )
+        except ValueError:
+            return False
+
+        # First, check if subdomain shape/2 is an integer
         if not np.all(subdomain_shape % 2 == 0):
             return False
 
@@ -234,7 +275,7 @@ class OpticalFlowSolver:
         """
         # Check inputs are equally shaped 2D arrays containing ints
         field1, field2 = check_arrays(
-            field1, field2, ndim=2, equal_shape=True, dtype=int
+            field1, field2, ndim=2, equal_shape=True, dtype=int, non_negative=True
         )
 
         # Filter inputs if flagged
@@ -261,7 +302,7 @@ class OpticalFlowSolver:
         )
 
         dy, dx = cross_corr[0]
-        error = cross_corr[1]
+        # error = cross_corr[1]
         return dy, dx
 
     def get_2d_tukey_window(self, arr_shape: NDArray) -> NDArray:
@@ -296,8 +337,29 @@ class OpticalFlowSolver:
         return np.outer(*filters)
 
     def interpolate_subdomain_flows(
-        self, y_subdomain_bounds, x_subdomain_bounds, subdomain_flows, full_domain_shape
+        self,
+        y_subdomain_bounds: tuple,
+        x_subdomain_bounds: tuple,
+        subdomain_flows: NDArray,
+        full_domain_shape: NDArray,
     ) -> NDArray:
+        """
+        Takes the subdomain flows found from track_subdomain_flow and stitches them
+        together using 2d interpolation via RectBivariateSpline
+
+        Args:
+            y_subdomain_bounds (tuple):
+                bounds of y subdomains
+            x_subdomain_bounds (tuple):
+                bounds of x subdomains
+            subdomain_flows (NDArray):
+                subdomain flows
+            full_domain_shape (NDArray):
+                Shape of full domain to create flow field for
+
+        Returns:
+            NDArray: Interpolated flow field for the full domain
+        """
         # TODO: tidy and document this once it is working.
         # TODO: also need to include dd_tolerance here somehow??
         valid_mask = ~np.isnan(subdomain_flows)
