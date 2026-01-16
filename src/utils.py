@@ -32,7 +32,7 @@ def check_arrays(*args, shape=None, ndim=None, dtype=None, equal_shape=False):
     # Check each array has the required dtype
     if dtype is not None:
         for arr in modified_args:
-            if not all(np.issubdtype(i, dtype) for i in arr):
+            if not all(np.issubdtype(i, dtype) for i in arr.copy().flatten()):
                 msg = f"Argument with dtype {arr.dtype} does not have required dtype {dtype}"
                 raise TypeError(msg)
 
@@ -43,4 +43,8 @@ def check_arrays(*args, shape=None, ndim=None, dtype=None, equal_shape=False):
             msg = f"Input array shapes differ: {[arr.shape for arr in args]}"
             raise ValueError(msg)
 
-    return modified_args
+    # Don't want to return a single arg input as a list
+    if len(modified_args) == 1:
+        return modified_args[0]
+    else:
+        return modified_args

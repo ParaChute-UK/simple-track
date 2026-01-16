@@ -8,6 +8,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import warnings
 from skimage.registration import phase_cross_correlation
+from scipy.signal.windows import hann
 
 ###################################################################
 # Initiate StormS class with object properties. Can be adjusted to store additional object properties.
@@ -335,7 +336,7 @@ def track_storms(
     ###############################################################
     # PARAMETERS FOR FUTURE FUNCTIONALITY
     ###################################################################
-    tukey_window = 1
+    tukey_window = 2
     extra_thresh = []
 
     ###############################################################
@@ -659,11 +660,11 @@ def track_storms(
     # newumat = interpolate_subdomain_flows(yint, xint, buu, xmat.shape)
     # newvmat = interpolate_subdomain_flows(yint, xint, bvv, xmat.shape)
 
-    # with open(f"{IMAGES_DIR}/umat_{nt}.npy", "xb") as f:
-    #     np.save(f, newumat)
+    with open(f"{IMAGES_DIR}/umat_{nt}.npy", "xb") as f:
+        np.save(f, newumat)
 
-    # with open(f"{IMAGES_DIR}/vmat_{nt}.npy", "xb") as f:
-    #     np.save(f, newvmat)
+    with open(f"{IMAGES_DIR}/vmat_{nt}.npy", "xb") as f:
+        np.save(f, newvmat)
 
     # Assign displacement to each of the old storms.
 
@@ -1237,6 +1238,8 @@ def ffttrack(s1, s2, method):
             )
         )
         hann2 = hann1.conj().transpose() * hann1
+    elif method == 2:
+        hann2 = hann(leno)
     else:
         xhan = np.array(np.arange(0.5, leno + 0.5))
         hann1 = np.ones([np.size(xhan)])
@@ -1264,7 +1267,7 @@ def ffttrack(s1, s2, method):
         upsample_factor=1,
         disambiguate=False,
     )
-
+    # Note: dy, dx are vectors going from m2 -> m1, so multiply -1
     dy, dx = phase_corr[0] * -1
 
     return dx, dy, 0, 0

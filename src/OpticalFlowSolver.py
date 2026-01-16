@@ -1,12 +1,12 @@
 import numpy as np
 from numpy.typing import NDArray
-from numpy.lib.stride_tricks import sliding_window_view
 from scipy.interpolate import LinearNDInterpolator, RectBivariateSpline
 from Frame import Frame
 from typing import Union
 from utils import check_arrays
 import itertools
 from skimage.registration import phase_cross_correlation
+from scipy.signal.windows import tukey
 
 
 class OpticalFlowSolver:
@@ -21,11 +21,9 @@ class OpticalFlowSolver:
         self.min_fractional_coverage = min_fractional_coverage
         self.dd_tolerance = dd_tolerance
         self.overlap_threshold = overlap_threshold
-        self.zero_pad_subdomains = True
+        self.apply_tukey_filtering = True
 
     def _check_inputs(self, arr1: NDArray, arr2: NDArray) -> bool:
-        arr1, arr2 = check_arrays(arr1, arr2, ndim=2, dtype=int)
-
         # Check both fields have features
         if not np.count_nonzero(arr1) and not np.count_nonzero(arr2):
             print("No features detected in both fields. Skipping optical flow.")
@@ -60,7 +58,9 @@ class OpticalFlowSolver:
             )
 
         # Check input fields are same shape
-        check_arrays(prev_features, current_features, equal_shape=True)
+        prev_features, current_features = check_arrays(
+            prev_features, current_features, equal_shape=True, ndim=2, dtype=int
+        )
 
         # Determine a subdomain size if not provided
         if self.subdomain_size is None:
@@ -68,7 +68,7 @@ class OpticalFlowSolver:
                 prev_features.shape
             )
 
-        # Check inputs, return None if inputs aren't validated
+        # Check inputs, don't proceeed if not validated
         prev_features, current_features = self._check_inputs(
             prev_features, current_features
         )
@@ -90,7 +90,7 @@ class OpticalFlowSolver:
         # Combine these idxs pairwise to define the subdomain bounds as a tuple
         # E.g., for subdomain size of 20 in y, produces [0, 10, 20, 30...]
         # and for subdomain size of 30 in x, produces [0, 15, 30, 45...]
-        # this produces ((0, 10), (10, 20), ...) for y
+        # this operation then produces ((0, 10), (10, 20), ...) for y
         # and ((0, 15), (15, 30)...) for x
         y_subdomain_bounds_tuple = itertools.pairwise(y_subdomain_bounds)
         x_subdomain_bounds_tuple = itertools.pairwise(x_subdomain_bounds)
@@ -116,7 +116,7 @@ class OpticalFlowSolver:
             dy, dx = self.track_subdomain_flow(
                 field1=prev_features[subdomain_mask],
                 field2=current_features[subdomain_mask],
-                zero_pad=self.zero_pad_subdomains,
+                tukey_filtering=self.apply_tukey_filtering,
             )
 
             # Use first bounds to get idx for dy and dx subdomain
@@ -162,45 +162,6 @@ class OpticalFlowSolver:
         if any([remainder != 0 for remainder in subdomain_check]):
             return False
         return True
-
-    def get_overlapping_subdomains(
-        self, feature_field: NDArray, subdomain_shape: NDArray
-    ) -> NDArray:
-        """
-        Generate list/NDArray? of subdomains with overlapping boundaries
-
-        Args:
-            feature_field_shape (NDArray): _description_
-            subdomain_shape (NDArray): _description_
-        """
-
-        # Check that there an exact number of subdomains that can fit in the full field
-        subdomain_check = [
-            dim % sd_shape
-            for dim, sd_shape in zip(feature_field.shape, subdomain_shape)
-        ]
-
-        for dim, subdomain_remainder in enumerate(subdomain_check):
-            if subdomain_remainder != 0:
-                print(f"Input feature field dim size: {feature_field.shape[dim]}")
-                print(f"Requested subdomain shape: {subdomain_shape[dim]}")
-                msg = f"Could not fit exact number of subdomains in dimension {dim}"
-                raise ValueError(msg)
-
-        # TODO: add check for input types
-        # TODO: add check for whether subdomain shape size is even for division by 2
-
-        # Note there is overlap between the subdomains, hence divison by 2 in bounds
-        stride = (subdomain_shape / 2).astype(int)
-
-        # TODO: do I actually want the masks/different views, or do I want the bounds??
-        # Use sliding_window to get subdomain masks
-        # This function slides window by 1 idx, so use stride to select windows
-        subdomains = sliding_window_view(feature_field, subdomain_shape)[
-            ::stride, ::stride, ...
-        ]
-
-        return subdomains
 
     def get_overlapping_subdomain_idxs(
         self, feature_field_shape: NDArray, subdomain_shape: NDArray
@@ -249,102 +210,90 @@ class OpticalFlowSolver:
         return y_subdomain_idxs, x_subdomain_idxs
 
     def track_subdomain_flow(
-        self, field1: NDArray, field2: NDArray, zero_pad: bool = True
-    ):
-        # TODO: if this becomes a func rather than a method, will need to add
-        # some input checking. For now though, can assume inputs are okay
-        # e.g., will need to check inputs are square, 2d, np arrays with
-        # fields that are binary
+        self, field1: NDArray, field2: NDArray, tukey_filtering: bool = True
+    ) -> list[int]:
+        """
+        Uses FFT to identify most likely dy, dx motion vectors that translate field1
+        to field 2. This is largely handled by skimage.registration.phase_cross_correlation
+        but with additional pre-processing to avoid spurious correlations. E.g., if
+        tukey_smoothing flag is enabled, applies a filter to the edges of each field
+        that tapers to zero, which avoids spectral leakage.
 
-        # TODO: will probably need scientific references or more justification
-        # for the processes in this bit of code
+        Args:
+            field1 (NDArray):
+                Previous timestep binary field
+            field2 (NDArray):
+                Current timestep binary field
+            tukey_filtering (bool, optional):
+                Whether to apply tukey filter to input fields to prevent wrap-around
+                disparities occuring during FFT transformations.
+                Defaults to True.
 
-        # TODO: need to make this dependent on the exact shape of the field, not
-        # just use the max side length
-        max_length = max(np.shape(field1))
+        Returns:
+            list[int]: [dy, dx] motion vectors for subdomain flow
+        """
+        # Check inputs are equally shaped 2D arrays containing ints
+        field1, field2 = check_arrays(
+            field1, field2, ndim=2, equal_shape=True, dtype=int
+        )
 
-        # TODO: make this "method" arg thing mean something
-        # Seems to be whether to apply a sponge region to the hann1 array...
-        # Note: this is actually a window function to reduce edge effects
-        if zero_pad:
-            # ???
-            alpha = max(0.1, 10.0 / max_length)
+        # Filter inputs if flagged
+        if tukey_filtering:
+            domain_filter = self.get_2d_tukey_window(field1.shape)
+            field1 = field1 * domain_filter
+            field2 = field2 * domain_filter
 
-            # midpoints between data, assuming square subdomains so can use the same midpoints
-            # for x and y
-            xhan = np.array(np.arange(0.5, max_length + 0.5))
+        # Subtracting the mean from binary fields before cross correlation centres each
+        # field around zero and improves accuracy of correlation peak
+        m1 = field1 - np.mean(field1)
+        m2 = field2 - np.mean(field2)
 
-            # Construct array of ones of same shape as midpoint array
-            # This is a weights array? The following code changes weights at the start and end
-            # so that weights go from 0 -> 1 -> 0 in a sponge region around the ones.
-            # Weights are defined following a cos function.
-            hann1 = np.ones_like(xhan)
-
-            # Apply special consideration to upper and lower values
-            # TODO: why does this define the sponge region limits?
-            lower_limit = alpha * max_length / 2.0
-            upper_limit = max_length - lower_limit
-
-            lower_mask = xhan < lower_limit
-            upper_mask = xhan > upper_limit
-
-            # TODO: science reason for these sponge values and definitions.
-            lower_sponge_vals = 0.5 * (
-                1 + np.cos(np.pi * (2 * xhan[lower_mask] / (alpha * max_length) - 1))
-            )
-
-            # This appears to be just the lower_sponge_vals reversed: can this be simplified?
-            upper_sponge_vals = 0.5 * (
-                1
-                + np.cos(
-                    np.pi
-                    * (2 * xhan[upper_mask] / (alpha * max_length) - 2.0 / alpha + 1)
-                )
-            )
-
-            hann1[lower_mask] = lower_sponge_vals
-            hann1[upper_mask] = upper_sponge_vals
-
-        else:
-            xhan = np.array(np.arange(0.5, max_length + 0.5))
-            hann1 = np.ones([np.size(xhan)])
-
-        # Then, take complex conjugate, transpose this, and multiply by hann1
-        # TODO: For these 1D arrays, the conj and transpose doesn't do anything
-        # So, hann2 is just hann1 squared... Is this correct?
-        hann2 = hann1.conj().transpose() * hann1
-
-        ## FIND CONVOLUTION S1, S2 USING FFT
-
-        # b1, b2 are just the hann2 weights applied to field1, field2
-        # Remember, field1 and field2 are binary
-        # TODO: check if this is correct: field1 is 2D while hann2 is 1D!
-        # So, hann2 is applied along all *rows* of elements, but not columns
-        print(field1.shape)
-        print(hann2.shape)
-        b1 = field1 * hann2
-        b2 = field2 * hann2
-
-        # Standardise by the mean of the arrays, remembering field1 and field2 are binary
-        # and likely filled with many zeros
-        m1 = b1 - np.mean(b1)
-        m2 = b2 - np.mean(b2)
-
-        # get the fft wind. These end up being large values that need renormalising.
-        # ffv = signal.fftconvolve(s1,s2,mode='same')
-
-        # TODO: write explanation for these parameters and for *-1
+        # Since image registration finds the vector that translates the second arg to the
+        # first, need to reverse input order
         cross_corr = phase_cross_correlation(
-            m1,
             m2,
+            m1,
             space="real",
             overlap_ratio=self.overlap_threshold,
             normalization=None,
             upsample_factor=1,
             disambiguate=False,
         )
-        dy, dx = cross_corr[0] * -1
+
+        dy, dx = cross_corr[0]
+        error = cross_corr[1]
         return dy, dx
+
+    def get_2d_tukey_window(self, arr_shape: NDArray) -> NDArray:
+        """
+        Creates a 2D tukey filter for an array of the requested input shape.
+        Uses scipy.signal.windows.tukey to create a 1D filter for each dimension,
+        then constructs the 2D filter using outer product of each 1D filter.
+
+        A Tukey window is a tapered cosine combination of a rectangular and
+        Hanning window which provides a good balance between preventing spectral
+        leakage and maintaining good frequency resolution.
+
+        Args:
+            arr_shape (NDArray):
+                Shape with which to create the Tukey filter
+
+
+        Returns:
+            NDArray: 2D filter array of requested shape
+        """
+        # Checks that the arr_shape input describes dimensions of a 2D array
+        arr_shape = check_arrays(arr_shape, shape=(2,), dtype=int)
+
+        # Create a 1D Tukey filter for each dimension. Alpha sets the degree to which
+        # the filter resembles either a rectangular window (alpha=0) or a Hanning window
+        # (alpha=1). We want to retain a lot of points if the subdomain is small, but for
+        # larger subdomains we can apply more smoothing.
+        filters = [
+            tukey(dim_size, alpha=max(0.1, 10.0 / dim_size)) for dim_size in arr_shape
+        ]
+
+        return np.outer(*filters)
 
     def interpolate_subdomain_flows(
         self, y_subdomain_bounds, x_subdomain_bounds, subdomain_flows, full_domain_shape

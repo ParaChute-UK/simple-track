@@ -110,7 +110,7 @@ if np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0:
 
 # TODO: move to config
 DATA_DIR = "./data/"
-IMAGES_DIR = "./output_baseline/"
+IMAGES_DIR = "./output_new_hann_window/"
 filelist = os.listdir(DATA_DIR)
 filelist = np.sort(filelist)
 if doradar:
