@@ -89,51 +89,6 @@ def test_overlapping_subdomain_bounds_without_fit():
         pass
 
 
-def test_check_subdomain_size_fits_in_full_domain_with_odd_shape():
-    """
-    Test that the check_subdomain_size_fits_in_full_domain returns
-    False if an odd subdomain dimension is provided
-    """
-    feature_field_shape = (12, 16)
-    sd_shape = (3, 4)
-
-    result = of_solver.check_subdomain_size_fits_in_full_domain(
-        feature_field_shape, sd_shape
-    )
-    if result:
-        raise Exception("Test should have returned False")
-
-
-def check_subdomain_size_fits_in_full_domain_with_even_incorrect_shape():
-    """
-    Test that the check_subdomain_size_fits_in_full_domain returns
-    False if an odd subdomain dimension is provided
-    """
-    feature_field_shape = (12, 16)
-    sd_shape = (8, 10)
-
-    result = of_solver.check_subdomain_size_fits_in_full_domain(
-        feature_field_shape, sd_shape
-    )
-    if result:
-        raise Exception("Test should have returned False")
-
-
-def check_subdomain_size_fits_in_full_domain_with_even_correct_shape():
-    """
-    Test that the check_subdomain_size_fits_in_full_domain returns
-    False if an odd subdomain dimension is provided
-    """
-    feature_field_shape = (12, 16)
-    sd_shape = (3, 4)
-
-    result = of_solver.check_subdomain_size_fits_in_full_domain(
-        feature_field_shape, sd_shape
-    )
-    if not result:
-        raise Exception("Test should have returned True")
-
-
 @pytest.mark.parametrize(
     "feature_field_shape, subdomain_shape, expected_result",
     [
