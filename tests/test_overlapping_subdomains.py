@@ -142,8 +142,8 @@ def check_subdomain_size_fits_in_full_domain_with_even_correct_shape():
         [(100, 100), (25, 25), False],  # Cannot be odd, overlap is not at a grid point
         [(100, 100), (30, 30), False],  # Does not fit in domain
         [(-10, -10), (2, 2), False],  # Does not accept negative values
-        [(100, 100), (5.5, 5.5), False],  # Does not accept floats
-        [("abc", "abc"), (5, 5), False],  # Does not accept strings
+        [(100, 100), (5.5, 5.5), TypeError],  # Does not accept floats
+        [("abc", "abc"), (5, 5), TypeError],  # Does not accept strings
         [(100, 100, 100), (50, 50, 50), False],  # Does not accept 3d fields
         [(100,), (50,), False],  # Does not accept 1D fields
     ],
@@ -151,9 +151,12 @@ def check_subdomain_size_fits_in_full_domain_with_even_correct_shape():
 def test_check_sufficient_subdomain_size(
     feature_field_shape, subdomain_shape, expected_result
 ):
-    test_result = of_solver.check_subdomain_size_fits_in_full_domain(
-        feature_field_shape, subdomain_shape
-    )
-    assert test_result == expected_result, (
-        f"Expected {expected_result}, got {test_result}"
-    )
+    try:
+        test_result = of_solver.check_subdomain_size_fits_in_full_domain(
+            feature_field_shape, subdomain_shape
+        )
+        assert test_result == expected_result, (
+            f"Expected {expected_result}, got {test_result}"
+        )
+    except expected_result:
+        pass
