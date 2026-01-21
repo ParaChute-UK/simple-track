@@ -115,3 +115,45 @@ def test_check_sufficient_subdomain_size(
         )
     except expected_result:
         pass
+
+
+def test_check_subdomain_variability_unchanged():
+    subdomain_vals = np.array([[5.0, 6.0, 7.0], [5.0, 6.0, 7.0], [5.0, 6.0, 7.0]])
+    of_solver = OpticalFlowSolver(subdomain_tolerance=3)
+    filtered_vals = of_solver.check_subdomain_variability(subdomain_vals)
+    np.testing.assert_array_equal(filtered_vals, subdomain_vals)
+
+
+def test_check_subdomain_variability_single_outlier():
+    subdomain_vals = np.array([[5.0, 6.0, 20.0], [5.0, 6.0, 7.0], [5.0, 6.0, 7.0]])
+    of_solver = OpticalFlowSolver(subdomain_tolerance=3)
+    filtered_vals = of_solver.check_subdomain_variability(subdomain_vals)
+    expected_vals = np.array([[5.0, 6.0, np.nan], [5.0, 6.0, 7.0], [5.0, 6.0, 7.0]])
+    np.testing.assert_array_equal(filtered_vals, expected_vals)
+
+
+def test_check_subdomain_variability_mutiple_outliers():
+    subdomain_vals = np.array([[20, 6.0, 7.0], [5.0, 6.0, 20], [5.0, 6.0, 7.0]])
+    of_solver = OpticalFlowSolver(subdomain_tolerance=3)
+    filtered_vals = of_solver.check_subdomain_variability(subdomain_vals)
+    expected_vals = np.array(
+        [[np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan], [5.0, 6.0, np.nan]]
+    )
+    np.testing.assert_array_equal(filtered_vals, expected_vals)
+
+
+def test_check_subdomain_variability_mutiple_neighbouring_outliers():
+    subdomain_vals = np.array([[5.0, 23, 23], [5.0, 6.0, 7.0], [5.0, 6.0, 7.0]])
+    of_solver = OpticalFlowSolver(subdomain_tolerance=3)
+    filtered_vals = of_solver.check_subdomain_variability(subdomain_vals)
+    expected_vals = np.array(
+        [[np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan], [5.0, 6.0, 7.0]]
+    )
+    np.testing.assert_array_equal(filtered_vals, expected_vals)
+
+
+def test_check_subdomain_variability_mutiple_neighbouring_outliers_higher_tolerance():
+    subdomain_vals = np.array([[5.0, 23, 23], [5.0, 6.0, 7.0], [5.0, 6.0, 7.0]])
+    of_solver = OpticalFlowSolver(subdomain_tolerance=10)
+    filtered_vals = of_solver.check_subdomain_variability(subdomain_vals)
+    np.testing.assert_array_equal(filtered_vals, subdomain_vals)

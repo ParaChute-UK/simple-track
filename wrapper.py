@@ -110,7 +110,7 @@ if np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0:
 
 # TODO: move to config
 DATA_DIR = "./data/"
-IMAGES_DIR = "./output_new_hann_window/"
+IMAGES_DIR = "./output_baseline_plot_steps/"
 filelist = os.listdir(DATA_DIR)
 filelist = np.sort(filelist)
 if doradar:
@@ -145,6 +145,8 @@ for nt in range(len(filelist)):
     NewLabels = object_tracking.label_storms(
         field, minpixel, threshold, under_t, struct2d
     )
+    with open(f"{IMAGES_DIR}/labels_{nt}.npy", "xb") as f:
+        np.save(f, NewLabels)
 
     # oldmask, newmask, USED FOR DERIVING (dx,dy)
     # THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks,

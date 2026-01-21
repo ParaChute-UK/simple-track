@@ -7,6 +7,8 @@ from utils import check_arrays
 import itertools
 from skimage.registration import phase_cross_correlation
 from scipy.signal.windows import tukey
+import scipy.ndimage as ndimage
+import warnings
 
 
 class OpticalFlowSolver:
@@ -14,14 +16,15 @@ class OpticalFlowSolver:
         self,
         subdomain_size=None,
         min_fractional_coverage=0.01,
-        dd_tolerance=3,
+        subdomain_tolerance=3,
         overlap_threshold=0.6,
+        apply_tukey_filtering=True,
     ) -> None:
         self.subdomain_size = subdomain_size
         self.min_fractional_coverage = min_fractional_coverage
-        self.dd_tolerance = dd_tolerance
+        self.subdomain_tolerance = subdomain_tolerance
         self.overlap_threshold = overlap_threshold
-        self.apply_tukey_filtering = True
+        self.apply_tukey_filtering = apply_tukey_filtering
 
     def _check_inputs(self, arr1: NDArray, arr2: NDArray) -> bool:
         # Check both fields have features
@@ -62,7 +65,7 @@ class OpticalFlowSolver:
                 Feature field from current timestep
 
         Returns:
-            list[NDArray, NDarray]: y_flow, x_flow
+            list[NDArray, NDArray]: y_flow, x_flow
         """
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
             prev_features = prev_field.get_feature_field()
@@ -123,6 +126,8 @@ class OpticalFlowSolver:
 
         # Initialise containing array for holding subdomain dy, dx
         # Shape is number of subdomains in each direction * 2 for overlaps
+        # E.g., for a 100x200 domain and a 20x20 subdomain size, shape of
+        # containing arrays will be 10x20
         containing_shape = (prev_features.shape // subdomain_shape) * 2
         subdomain_dy = np.full(shape=containing_shape, fill_value=np.nan)
         subdomain_dx = np.full(shape=containing_shape, fill_value=np.nan)
@@ -145,14 +150,69 @@ class OpticalFlowSolver:
             subdomain_dy[dy_idx, dx_idx] = dy
             subdomain_dx[dy_idx, dx_idx] = dx
 
+        # Check neighbouring subdomain values vary within acceptable tolerance
+        subdomain_dy = self.check_subdomain_variability(subdomain_dy)
+        subdomain_dx = self.check_subdomain_variability(subdomain_dx)
+
+        # Finally, interpolate values between subdomains.
+        # For this function, only need the interior subdomain bounds (not edge indices)
+        interior_y_subdom_bounds = y_subdomain_bounds[1:-1]
+        interior_x_subdom_bounds = x_subdomain_bounds[1:-1]
         y_flow = self.interpolate_subdomain_flows(
-            y_subdomain_bounds, x_subdomain_bounds, subdomain_dy, prev_features.shape
+            interior_y_subdom_bounds,
+            interior_x_subdom_bounds,
+            subdomain_dy,
+            prev_features.shape,
         )
         x_flow = self.interpolate_subdomain_flows(
-            y_subdomain_bounds, x_subdomain_bounds, subdomain_dx, prev_features.shape
+            interior_y_subdom_bounds,
+            interior_x_subdom_bounds,
+            subdomain_dx,
+            prev_features.shape,
         )
 
         return y_flow, x_flow
+
+    def check_subdomain_variability(self, subdomain_vals: NDArray):
+        """
+        Check variability in neighbouring subdomains to ensure no large
+        discrepancies. If there is a neighbourhood mean that departs from
+        the local value by more than self.subdomain_tolerance, set the
+        local value to np.nan
+
+
+        Args:
+            subdomain_vals (NDArray):
+                Flow values derived in subdomains
+
+        Returns:
+            NDArray: Input values with outliers replaced by nan
+        """
+        # Check input array is 2D
+        subdomain_vals = check_arrays(subdomain_vals, ndim=2, dtype=float)
+
+        # Setup footprint for performing filter check on neighbouring points
+        # footprint excludes current index
+        footprint = np.ones((3, 3))
+        footprint[1, 1] = 0
+
+        # Catch OOB warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            nbhood_mean = ndimage.generic_filter(
+                input=subdomain_vals,
+                function=np.nanmean,  # Apply nanmean to each nbhood
+                footprint=footprint,  # Deterrmines how to sample points in the nbhood
+                mode="constant",  # Determines how to handle boundaries. "constant" = fill with cval
+                cval=np.nan,  # Fill boundary values with nan so they don't contribute to nanmean
+            )
+
+        # Check for any values where the nanmean exceeds threshold set in init
+        invalid_tolerance = (
+            np.abs(nbhood_mean - subdomain_vals) > self.subdomain_tolerance
+        )
+        subdomain_vals[invalid_tolerance] = np.nan
+        return subdomain_vals
 
     def determine_sufficient_subdomain_size(self, feature_field_shape):
         # TODO: figure out some logic here for getting a good sd size
@@ -360,27 +420,48 @@ class OpticalFlowSolver:
         Returns:
             NDArray: Interpolated flow field for the full domain
         """
-        # TODO: tidy and document this once it is working.
-        # TODO: also need to include dd_tolerance here somehow??
-        valid_mask = ~np.isnan(subdomain_flows)
-        coords = np.array(np.nonzero(valid_mask)).T
-        values = subdomain_flows[valid_mask]
-        xmat, ymat = np.meshgrid(range(full_domain_shape[0]), full_domain_shape[1])
-        if np.size(values) >= 4:
-            it = LinearNDInterpolator(coords, values, fill_value=0)
-            filled = it(list(np.ndindex(subdomain_flows.shape))).reshape(
-                subdomain_flows.shape
-            )
+        # Check inputs
+        y_subdomain_bounds, x_subdomain_bounds = check_arrays(
+            y_subdomain_bounds, x_subdomain_bounds, ndim=1, non_negative=True
+        )
+        full_domain_shape = check_arrays(full_domain_shape, shape=(2,), dtype=int)
+        subdomain_flows = check_arrays(subdomain_flows, ndim=2)
+        subdomain_flows = self._fill_nans(subdomain_flows)
 
-            # interp2d deprecated in newer version of scipy.
-            # For functionally identical replacement, use RectBivariateSpline
-            # with kx=3, ky=3 for cubic spline interpolation, and additional transposing.
-            # https://scipy.github.io/devdocs/tutorial/interpolate/interp_transition_guide.html
-            # fu = interpolate.interp2d(xint[0, :], yint[:, 0], filled, kind="cubic")
-            fu = RectBivariateSpline(
-                x_subdomain_bounds[0, :], y_subdomain_bounds[:, 0], filled.T, kx=3, ky=3
-            )
-            newumat = fu(xmat[0, :], ymat[:, 0]).T
-        else:
-            newumat = np.zeros(full_domain_shape)
+        # If there are fewer than 4 nonzero subdomain flow elements, return 0 flow field
+        if np.count_nonzero(subdomain_flows) < 4:
+            return np.zeros(full_domain_shape, dtype=int)
+
+        # interp2d deprecated in newer version of scipy.
+        # For functionally identical replacement, use RectBivariateSpline
+        # with kx=3, ky=3 for cubic spline interpolation
+        # RectBivariateSpline expected data on (x,y) grid, not expected (y,x),
+        # hence transposed input and output.
+        # https://scipy.github.io/devdocs/tutorial/interpolate/interp_transition_guide.html
+        # fu = interpolate.interp2d(xint[0, :], yint[:, 0], filled, kind="cubic")
+        fu = RectBivariateSpline(
+            x_subdomain_bounds, y_subdomain_bounds, subdomain_flows.T, kx=3, ky=3
+        )
+        y_range = range(full_domain_shape[0])
+        x_range = range(full_domain_shape[1])
+        newumat = fu(x_range, y_range).T
+
         return newumat
+
+    def _fill_nans(self, arr: NDArray) -> NDArray:
+        """
+        Replace NaNs in the input field with values interpolated from neighbouring
+        grid points, or 0 if this is not possible.
+
+        Args:
+            arr (NDArray): Input array, potentially containing NaNs
+        Returns:
+            NDArray: Ouput array with NaNs filled
+        """
+        # Create NaN mask
+        valid_mask = ~np.isnan(arr)
+        coords = np.nonzero(valid_mask)
+        non_nan_values = arr[valid_mask]
+        it = LinearNDInterpolator(coords, non_nan_values, fill_value=0)
+        filled = it(list(np.ndindex(arr.shape))).reshape(arr.shape)
+        return filled

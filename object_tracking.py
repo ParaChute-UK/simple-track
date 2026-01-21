@@ -336,7 +336,7 @@ def track_storms(
     ###############################################################
     # PARAMETERS FOR FUTURE FUNCTIONALITY
     ###################################################################
-    tukey_window = 2
+    tukey_window = 1
     extra_thresh = []
 
     ###############################################################
@@ -1192,7 +1192,6 @@ def label_storms(
     feature_field[area_mask[id_regions]] = 0
     id_regions, num_ids = ndimage.label(feature_field, structure=connectivity_structure)
     print("num_ids = ", num_ids)
-
     return id_regions
 
 
@@ -1238,8 +1237,6 @@ def ffttrack(s1, s2, method):
             )
         )
         hann2 = hann1.conj().transpose() * hann1
-    elif method == 2:
-        hann2 = hann(leno)
     else:
         xhan = np.array(np.arange(0.5, leno + 0.5))
         hann1 = np.ones([np.size(xhan)])

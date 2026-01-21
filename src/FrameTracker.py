@@ -414,6 +414,7 @@ def advect_field_using_motion_vectors(
             # Otherwise, need to handle conflicting features. Do this by finding distances between
             # the advected coordinate and the centroids of existing and iterating ids.
             # Choose the feature that is closest to its centroid
+            # TODO: should this not merge features instead??
             existing_id_centroid = get_centroid(field, id_at_coord)
             iterating_id_centroid = get_centroid(field, feature_id)
             advected_coords = np.array([advected_y_coord, advected_x_coord])
