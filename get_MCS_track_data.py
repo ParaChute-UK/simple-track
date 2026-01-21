@@ -67,6 +67,8 @@ def load_file(ffile,var):
     if region == "aus":
         #Note not full box we want, due to lam constraint; ideally latitude=slice(-23,-11)
         ds=ds.sel(latitude=slice(-23,-11),longitude=slice(120,140))
+    if region == "summer" or region=="winter:
+        ds=ds.sel(latitude=slice(-35,-25))
     return ds
 
 ################################################################################
@@ -128,7 +130,7 @@ def build_table(sim):
         storms["tmin_min"]=storms.filter(regex="tmin").min(axis=1)
         
         mcs_data=storms[(storms["tmin_min"]<223) & (storms["mcs_thld"]>=1)]
-        mcs_data.to_csv(f"{output_dir}/{sim}_MCS_tracks.csv")
+        mcs_data.to_csv(f"{output_dir}/{sim}_{region}_MCS_tracks.csv")
         
     elif arg.mcs=="MCSMIP": # DOESN'T INCLUDE RAIN AT THIS STAGE
         storms["tmin_min"]=storms.filter(regex="tmin").min(axis=1)
@@ -138,10 +140,10 @@ def build_table(sim):
         storms["mcs_thld"]=areas.where(areas>=area_thld).count(axis=1)
         
         mcs_data=storms[(storms["tmin_min"]<227) & (storms["mcs_thld"]>=4)]
-        mcs_data.to_csv(f"{output_dir}/{sim}_MCS_track_output.csv".format(sim))
+        mcs_data.to_csv(f"{output_dir}/{sim}_{region}_MCS_track_output.csv".format(sim))
         
     else:
-        mcs_data.to_csv(f"{output_dir}/{sim}_all_tracks.csv")
+        mcs_data.to_csv(f"{output_dir}/{sim}_{region}_all_tracks.csv")
 
     return mcs_data
 
@@ -149,7 +151,7 @@ def build_table(sim):
 def calc_mean_speeds(storm_data,sim):
     # Enables data to be passed direct:
     if len(storm_data)==0:
-        storm_data=pd.read_csv(f"{output_dir}/{sim}_MCS_tracks.csv")
+        storm_data=pd.read_csv(f"{output_dir}/{sim}_{region}_MCS_tracks.csv")
         
     prop_data = {"mcs":[],"ltime":[],"speeds":[],"dirs":[]}
     geo=cgeo.Geodesic()
@@ -176,14 +178,14 @@ def calc_mean_speeds(storm_data,sim):
     storm_prop.index = storm_prop["mcs"]
     storm_prop["dirs"][storm_prop["dirs"]<0] = storm_prop["dirs"][storm_prop["dirs"]<0] + 360
 
-    storm_prop.to_csv(f"{output_dir}/{sim}_MCS_mean_props.csv",index=False)
+    storm_prop.to_csv(f"{output_dir}/{sim}_{region}_MCS_mean_props.csv",index=False)
     #return storm_prop
 
 
 
 def pop_rains_masks(sim,mcs_tab=[]):
     if len(mcs_tab)==0:
-        mcs_tab=pd.read_csv(f"{output_dir}/{sim}_MCS_tracks.csv")
+        mcs_tab=pd.read_csv(f"{output_dir}/{sim}_{region}_MCS_tracks.csv")
         mcs_tab["start_time"]=pd.to_datetime(mcs_tab["start_time"].astype(str),format="%Y%m%d_%H")
     period=pd.date_range(mcs_tab.start_time.iloc[0],mcs_tab.start_time.iloc[-1],freq="H")
     # Storm ID's are changed vs raw tracks to enable consistent identification of masks
@@ -322,12 +324,12 @@ def pop_rains_masks(sim,mcs_tab=[]):
         # Removes all remnant non-MCS label items and then corrects for the large padding:
         mcs_masks=mcs_masks.where(mcs_masks<0) + 9999999
         mcs_masks=mcs_masks.assign_attrs(units="unitless",long_name="MCS mask with track number")
-        mcs_masks.to_netcdf(f"{output_dir}/{sim}_MCS_track_masks.nc")
+        mcs_masks.to_netcdf(f"{output_dir}/{sim}_{region}_MCS_track_masks.nc")
     
     rain_vals=pd.concat(rain_vals,axis=0)
     rain_vals[["temp1","temp2"]]=rain_vals[["tmin_min","mcs_thld"]]
     rain_vals=rain_vals.drop(columns=["tmin_min","mcs_thld"]).rename(columns={"temp1":"tmin_min","temp2":"mcs_thld"})
-    rain_vals.to_csv(f"{output_dir}/{sim}_MCS_tracks_rain.csv",index=False)
+    rain_vals.to_csv(f"{output_dir}/{sim}_{region}_MCS_tracks_rain.csv",index=False)
     
     return rain_vals
 
@@ -366,10 +368,10 @@ mask_out=args.mask
 raw_track_dir=raw_track_dir+f"{domain}_{res_name}_{config}_{region}/"
 
 #For N. Hemisphere regions want summer DYMAMOND period
-if region == "sahel" or region == "wafrica" or region == "india" or region=="ea-waf":
+if region == "sahel" or region == "wafrica" or region == "india" or region=="ea-waf" or region=="summer":
     period=pd.date_range("2016-08-01 00:00","2016-09-09 23:00",freq="H")
     dymnd_run="20160801T0000Z"
-if region == "samerica" or region == "safrica" or region == "aus":
+if region == "samerica" or region == "safrica" or region == "aus" or region=="winter":
     period=pd.date_range("2020-01-20 00:00","2016-02-28 23:00",freq="H")
     dymnd_run="20200120T0000Z"
 
@@ -383,6 +385,11 @@ if region == "sahel" or region =="wafrica":
 elif region=="ea-waf":
     ds_ref=xr.open_dataset("/gws/nopw/j04/kscale/DATA/outdir_20160801T0000Z/DMn1280GAL9/channel_n2560_RAL3p2/single_olwr/20160830_20160801T0000Z_channel_olwr_hourly.nc"
                       ).sel(latitude=slice(0,25),longitude=slice(-40,30))
+    ref_lats=ds_ref.latitude.values
+    ref_lons=ds_ref.longitude.values
+elif region=="winter" or region=="summer":
+    ds_ref=xr.open_dataset("/gws/nopw/j04/kscale/DATA/outdir_20160801T0000Z/DMn1280GAL9/channel_n2560_RAL3p2/single_olwr/20160830_20160801T0000Z_channel_olwr_hourly.nc"
+                      ).sel(latitude=slice(-35,25))
     ref_lats=ds_ref.latitude.values
     ref_lons=ds_ref.longitude.values
 
