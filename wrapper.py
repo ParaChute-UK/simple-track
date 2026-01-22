@@ -145,8 +145,8 @@ for nt in range(len(filelist)):
     NewLabels = object_tracking.label_storms(
         field, minpixel, threshold, under_t, struct2d
     )
-    with open(f"{IMAGES_DIR}/labels_{nt}.npy", "xb") as f:
-        np.save(f, NewLabels)
+    # with open(f"{IMAGES_DIR}/labels_{nt}.npy", "xb") as f:
+    #     np.save(f, NewLabels)
 
     # oldmask, newmask, USED FOR DERIVING (dx,dy)
     # THESE CAN BE CHANGED USING EXPERT KNOWLEDGE (e.g. use raw data rather than binary masks,

@@ -29,18 +29,22 @@ class FrameTracker:
         # new, proviosonal id to each Feature in the current Frame based on overlap
         self.match_advected_and_current_frame_features(advected_frame, current_frame)
 
-        # Step 3: After Feature matching, there may be multiple Features in current Frame that were matched
+        # Step 3: Check accreted ids from frame matching are not also present as provisional ids.
+        # Remove any accreted ids found as a provisional id in current frame
+        self.check_accreted_feature_ids_are_not_provisional_ids(current_frame)
+
+        # Step 4: After Feature matching, there may be multiple Features in current Frame that were matched
         # to the same previous feature.
         # These features will now have the same ids. Find these ids and distinguish the most appropriate
         # match (to retain the id) from the other matches (which will be designated as children and
         # given a new id.)
         self.resolve_provisional_id_conflicts(advected_frame, current_frame)
 
-        # Step 4: Now that there is self consistent data in current frame, use this to
+        # Step 5: Now that there is self consistent data in current frame, use this to
         # produce updated fields
         current_frame.update_fields_using_provisional_ids()
 
-        # Step 5: Promote provisional ids to final ids in current frame
+        # Step 6: Promote provisional ids to final ids in current frame
         current_frame.promote_provisional_ids()
 
     def resolve_provisional_id_conflicts(
@@ -52,15 +56,15 @@ class FrameTracker:
 
         # Find all provisional ids that are repeated
         unique_ids, counts = np.unique(all_provisional_ids, return_counts=True)
-        repeated_ids = unique_ids[counts > 1]
+        conflicting_ids = unique_ids[counts > 1]
 
         # Loop over all Features with repeated provisional ids and designate parent/child
-        for repeated_id in repeated_ids:
+        for conflicting_id in conflicting_ids:
             # Find all Features with this provisional id
             matching_features = [
                 feature
                 for feature in all_features
-                if feature.provisional_id == repeated_id
+                if feature.provisional_id == conflicting_id
             ]
 
             if not all(isinstance(feature, Feature) for feature in matching_features):
@@ -68,16 +72,16 @@ class FrameTracker:
 
             # Get parent and child features
             parent_feature, child_features = self.identify_parent_and_child_features(
-                repeated_id,
+                conflicting_id,
                 matching_features,
                 advected_frame.get_feature_field(),
                 current_frame.get_feature_field(),
             )
 
             # Preserve provisional id for the parent feature
-            # All child features need new ids and are assigned the repeated id as parent
+            # All child features need new ids and are assigned the conflicting id as parent
             for feature in child_features:
-                feature.parent = repeated_id
+                feature.parent = conflicting_id
                 feature.provisional_id = current_frame.get_next_available_feature_id()
 
             # Update parent feature to include child ids
@@ -124,6 +128,38 @@ class FrameTracker:
         parent_feature = matching_features.pop(max_overlap_idx)
         # The remaining features are the child features
         return parent_feature, matching_features
+
+    def check_accreted_feature_ids_are_not_provisional_ids(self, frame: Frame) -> None:
+        """
+        Any features that have been accreted by another feature should not therefore appear
+        as a provisional id in the feature field (since it should no longer exist). This method
+        checks that this is the case for all accreted ids. If any accreted ids are found to
+        still exist as a provisional id, the accreted id is removed from its respective Feature
+
+        Args:
+            frame (Frame): Frame to inspect accreted ids
+        """
+        if not isinstance(frame, Frame):
+            raise TypeError(f"Expected type Frame, got {type(frame)}")
+
+        all_features = frame.get_features().values()
+        all_provisional_ids = [feature.provisional_id for feature in all_features]
+
+        # Check each feature for accreted values
+        for feature in all_features:
+            if feature.accreted is None:
+                continue
+            if not isinstance(feature.accreted, list):
+                raise TypeError(f"Expected list, got f{type(feature.accreted)}")
+
+            # Copy accreted id to new list if it is not a provisional id
+            new_accreted_list = [
+                acc_id
+                for acc_id in feature.accreted
+                if acc_id not in all_provisional_ids
+            ]
+            # Reset the accreted feature id list
+            feature.accreted = new_accreted_list
 
     def match_advected_and_current_frame_features(
         self, advected_frame: Frame, current_frame: Frame

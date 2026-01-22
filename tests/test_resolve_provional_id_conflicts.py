@@ -9,6 +9,7 @@ sys.path.append(
 )
 from src.FrameTracker import FrameTracker
 from src.Feature import Feature
+from src.Frame import Frame
 
 import numpy as np
 
@@ -214,3 +215,37 @@ def test_identify_parent_and_child_features_with_missing_parent_id():
         )
     except ValueError as e:
         print(f"Caught expected error: {e}")
+
+
+def test_check_accreted_feature_ids_are_not_provisional_ids():
+    frame_tracker = FrameTracker()
+    test_frame = Frame()
+
+    test_time = dt.datetime.now()
+    test_coords = np.array(((1, 1),))
+    test_features = {id: Feature(id, test_coords, test_time) for id in range(1, 4)}
+
+    # Add an accreted feature id to Feature 2 that is already present in the Frame
+    test_features[2].accreted = 3
+
+    # Add an accreted feature id to Feature 3 that is not present in the Frame
+    test_features[3].accreted = 10
+
+    # Add provisional ids to each feature
+    for feature in test_features.values():
+        feature.provisional_id = feature.id
+
+    # Add features to the Frame
+    test_frame.features = test_features
+
+    # Now, run the method which should remove this id from the accreted list
+    frame_tracker.check_accreted_feature_ids_are_not_provisional_ids(test_frame)
+
+    print(test_frame.get_feature(2).accreted)
+    print(test_frame.get_feature(3).accreted)
+
+    # Check that this correctly removed the accreted id for Feature 2
+    assert test_frame.get_feature(2).accreted is None
+
+    # Check that this correctly kept the accreted id for Feature 2
+    assert test_frame.get_feature(3).accreted == [10]

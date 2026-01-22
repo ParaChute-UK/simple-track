@@ -1,18 +1,15 @@
 from numpy.typing import NDArray
 import numpy as np
+from typing import Union
 import datetime as dt
+from utils import check_arrays
 
 
 class Feature:
     def __init__(
         self, id: int, feature_coords: NDArray[np.integer], time: dt.datetime
     ) -> None:
-        if feature_coords.shape[0] != 2 or feature_coords.ndim != 2:
-            exc_str = "Expected a 2D array with first dimension of size 2 "
-            exc_str += f"got {feature_coords.ndim} array with first dimension"
-            exc_str += f"of size {feature_coords.shape[0]}"
-            raise TypeError(exc_str)
-
+        check_arrays(feature_coords, ndim=2, dtype=int)
         self._id = id
         self._provisional_id = None
         self._feature_coords = feature_coords
@@ -106,6 +103,23 @@ class Feature:
     @provisional_id.setter
     def provisional_id(self, id: int) -> None:
         self._provisional_id = id
+
+    @accreted.setter
+    def accreted(self, accreted_ids: Union[int, list]) -> None:
+        if isinstance(accreted_ids, int):
+            self._accreted = [accreted_ids]
+        elif isinstance(accreted_ids, np.ndarray):
+            self._accreted = accreted_ids.tolist()
+        elif isinstance(accreted_ids, tuple):
+            self._accreted = list(accreted_ids)
+        elif isinstance(accreted_ids, list):
+            self._accreted = accreted_ids
+        else:
+            msg = f"Expected list, tuple, NDArray or int, got f{type(accreted_ids)}"
+            raise TypeError(msg)
+
+        if len(self._accreted) < 1:
+            self._accreted = None
 
     def calculate_centroid(self) -> tuple:
         y_centroid = np.mean(self._feature_coords[0, :])

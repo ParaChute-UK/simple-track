@@ -660,11 +660,11 @@ def track_storms(
     # newumat = interpolate_subdomain_flows(yint, xint, buu, xmat.shape)
     # newvmat = interpolate_subdomain_flows(yint, xint, bvv, xmat.shape)
 
-    with open(f"{IMAGES_DIR}/umat_{nt}.npy", "xb") as f:
-        np.save(f, newumat)
+    # with open(f"{IMAGES_DIR}/umat_{nt}.npy", "xb") as f:
+    #     np.save(f, newumat)
 
-    with open(f"{IMAGES_DIR}/vmat_{nt}.npy", "xb") as f:
-        np.save(f, newvmat)
+    # with open(f"{IMAGES_DIR}/vmat_{nt}.npy", "xb") as f:
+    #     np.save(f, newvmat)
 
     # Assign displacement to each of the old storms.
 
@@ -946,22 +946,31 @@ def track_storms(
             lifearray[C] = 1
             newwas = newwas + 1
 
+    # wasnum = provisional_id in my parlance
     wasnum = np.array([StormData[ns].was for ns in range(len(StormData))])
     ###################################################
     # QUICK SANITY CHECK
     # ACCRETED SHOULD NEVER BE A VALUE
     # SIMILAR TO EXISTING STORM ID
     ###################################################
+    # Loop over all storm data
     for ns in range(len(StormData)):
         jj = StormData[ns].storm
+        # if no storms accreted, continue
         if StormData[ns].accreted[-1] == misval:
             continue
         else:
+            # Loop over each storm accreted (acnum is idx of accreted list)
             for acnum in range(np.size(StormData[ns].accreted)):
+                # get idxs of accreted storm in list of provisional ids
                 acind = np.where((wasnum - StormData[ns].accreted[acnum]) == 0)
+                # If there is a storm with the accreted id in the provisional id list, it is therefore present
+                # in the current field, and so we need to remove this as an accreted value
+
                 if np.size(acind, 1) > 0:
                     StormData[ns].accreted[acnum] = misval
             # acnew=np.where(StormData[ns].accreted > misval)
+            # Then, this just sets storm.accreted to the list of actual values without missing values.
             acnew = [aci for aci in StormData[ns].accreted if aci > misval]
             if np.size(acnew) > 0:
                 for acindex in range(np.size(acnew)):
