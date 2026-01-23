@@ -2,7 +2,7 @@ import numpy as np
 
 
 def check_arrays(
-    *args, shape=None, ndim=None, dtype=None, equal_shape=False, non_negative=True
+    *args, shape=None, ndim=None, dtype=None, equal_shape=False, non_negative=False
 ):
     # Check inputs args are array like, convert to numpy array if possible,
     # otherwise return TypeError
@@ -33,6 +33,12 @@ def check_arrays(
 
     # Check each array has the required dtype
     if dtype is not None:
+        # Change python base types to numpy types for looser comparison
+        if dtype is int:
+            dtype = np.integer
+        if dtype is float:
+            dtype = np.floating
+
         for arr in modified_args:
             if not all(np.issubdtype(i, dtype) for i in arr.copy().flatten()):
                 msg = f"Argument with dtype {arr.dtype} does not have required dtype {dtype}"

@@ -7,9 +7,9 @@ sys.path.append(
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/src"
 )
-from src.FrameTracker import FrameTracker
-from src.Feature import Feature
-from src.Frame import Frame
+from FrameTracker import FrameTracker
+from Feature import Feature
+from Frame import Frame
 
 import numpy as np
 

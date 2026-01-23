@@ -8,9 +8,60 @@ sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/src"
 )
 from src.OpticalFlowSolver import OpticalFlowSolver
+from src.OpticalFlowSolver import pairwise_with_stride
 import numpy as np
 
 of_solver = OpticalFlowSolver()
+
+
+@pytest.mark.parametrize(
+    "iterable, stride, expected_output",
+    [
+        [(0, 10, 20, 30), 1, ((0, 10), (10, 20), (20, 30))],
+        [(0, 10, 20, 30), 2, ((0, 20), (10, 30))],
+        [(0, 10, 20, 30), 3, ((0, 30),)],
+        [(0, 10, 20, 30), 4, ()],
+    ],
+)
+def test_pairwise_with_stride(iterable, stride, expected_output):
+    pairwise_iter = pairwise_with_stride(iterable, stride)
+    assert tuple(pairwise_iter) == expected_output
+
+
+def test_subdomain_iter_valid_inputs():
+    y_subdomain_bounds = (0, 10, 20, 30)
+    x_subdomain_bounds = (0, 15, 30, 45)
+    expected_iter = (
+        ((0, 20), (0, 30)),
+        ((0, 20), (15, 45)),
+        ((10, 30), (0, 30)),
+        ((10, 30), (15, 45)),
+    )
+
+    subdom_iter = of_solver.subdomain_iter(y_subdomain_bounds, x_subdomain_bounds)
+    assert expected_iter == tuple(subdom_iter)
+
+
+@pytest.mark.parametrize(
+    "domain_shape, subdomain_shape, expected",
+    [
+        [(100, 100), (20, 20), (9, 9)],
+        [(80, 80), (10, 10), (15, 15)],
+        [(80, 100), (20, 20), (7, 9)],
+        [(100, 100), (20, 10), (9, 19)],
+        [(100, -100), (10, 10), ValueError],
+        [(100.5, 100), (10, 10), TypeError],
+        [(100, 100, 100), (10, 10), ValueError],
+    ],
+)
+def test_get_subdomain_containment_arrays(domain_shape, subdomain_shape, expected):
+    try:
+        test_arr, __ = of_solver.get_subdomain_containment_arrays(
+            domain_shape, subdomain_shape
+        )
+        assert test_arr.shape == expected
+    except expected:
+        pass
 
 
 def test_overlapping_subdomain_bounds_with_perfect_fit():

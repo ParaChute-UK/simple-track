@@ -51,7 +51,7 @@ class FrameTracker:
         self, advected_frame: Frame, current_frame: Frame
     ) -> None:
         # First, list all provisional ids
-        all_features = current_frame.get_features.values()
+        all_features = current_frame.get_features().values()
         all_provisional_ids = [feature.provisional_id for feature in all_features]
 
         # Find all provisional ids that are repeated
@@ -83,6 +83,7 @@ class FrameTracker:
             for feature in child_features:
                 feature.parent = conflicting_id
                 feature.provisional_id = current_frame.get_next_available_feature_id()
+                # TODO: potentially set child feature lifetimes to 1 here if so inclined
 
             # Update parent feature to include child ids
             parent_feature.children = [
@@ -197,6 +198,9 @@ class FrameTracker:
             matching_id, other_sufficient_ids = self.find_ids_of_closest_overlaps(
                 overlap_hist, advected_feature_field, current_feature_field, feature_id
             )
+            # print(
+            #     f"Current id {current_feature.id} matched with prev feature {matching_id}"
+            # )
 
             # If a matching feature couldn't be found, this is a new Feature
             if matching_id is None:
@@ -205,7 +209,13 @@ class FrameTracker:
             else:
                 # Inherit lifetime from matching feature
                 matching_feature = advected_frame.get_feature(matching_id)
+                # print(
+                #     f"Matched feature! Matching lifetime = {matching_feature.lifetime}"
+                # )
                 current_feature.lifetime = matching_feature.lifetime + 1
+                # print(
+                #     f"Therefore, current feature lifetime = {current_feature.lifetime}"
+                # )
                 # TODO: any other values to inherit here?
 
             # Provisionally assign the matching_id to this feature
@@ -216,6 +226,9 @@ class FrameTracker:
                 current_feature.accretes(other_sufficient_ids)
                 # TODO: understand what's going on with the sanity check part of the previous code.
                 # lines 946-966
+
+        # print("Provisional ids")
+        # print(current_frame.get_features())
 
     def find_ids_of_closest_overlaps(
         self,
@@ -303,7 +316,9 @@ class FrameTracker:
             # To ensure the matching id is now not included in other sufficient ids,
             # set sufficient overlaps to False at this id
             sufficient_overlaps[matching_id] = False
-            other_sufficient_ids = np.argwhere(sufficient_overlaps).squeeze()
+            other_sufficient_ids = (
+                np.argwhere(sufficient_overlaps).squeeze().astype(int)
+            )
 
         return matching_id, other_sufficient_ids
 
@@ -389,6 +404,12 @@ class FrameTracker:
         advected_frame = Frame()
         advected_frame.set_feature_field(advected_feature_field)
         advected_frame.populate_features()
+
+        # Transfer lifetimes to advected frame
+        for advected_feature in advected_frame.get_features().values():
+            advected_id = advected_feature.id
+            advected_feature.lifetime = frame.get_feature(advected_id).lifetime
+
         return advected_frame
 
 
@@ -426,8 +447,14 @@ def advect_field_using_motion_vectors(
     # Background field is assumed to be 0
     for feature_id in range(1, np.max(field) + 1):
         feature_mask = np.where(field == feature_id)
-        dy = np.mean(y_flow[feature_mask]).astype(int)
-        dx = np.mean(x_flow[feature_mask]).astype(int)
+        # If mask is empty, this Feature is not in the current field
+        if np.size(feature_mask) == 0:
+            continue
+
+        # For the purposes of advecting features, need dy, dx to align with grid points
+        # Therefore, perform integer mean with rounding if dy, dx values are floats
+        dy = np.mean(y_flow[feature_mask], dtype=int)
+        dx = np.mean(x_flow[feature_mask], dtype=int)
 
         # Now, advect the feature to the new position
         for y_coord, x_coord in zip(*feature_mask):

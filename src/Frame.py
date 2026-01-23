@@ -5,6 +5,7 @@ from numpy.typing import NDArray
 import scipy.ndimage as ndimage
 from typing import Union
 from Feature import Feature
+from utils import check_arrays
 
 
 class Frame:
@@ -42,7 +43,10 @@ class Frame:
         return self.feature_field
 
     def get_feature(self, feature_id: int) -> Feature:
-        return self.features[feature_id]
+        if feature_id in self.features.keys():
+            return self.features[feature_id]
+        else:
+            return None
 
     def get_features(self) -> dict:
         return self.features
@@ -55,6 +59,14 @@ class Frame:
 
     def replace_features(self, new_features: dict) -> None:
         self.features = new_features
+
+    def get_max_id(self) -> int:
+        return self.max_id
+
+    def set_max_id(self, max_id: int) -> None:
+        if not np.issubdtype(type(max_id), int):
+            raise TypeError(f"Expected type int, got {type(max_id)}")
+        self.max_id = max_id
 
     # TODO: add functionality for user-definable loading functions
     def load_data(self, filename: str) -> None:
@@ -113,8 +125,11 @@ class Frame:
         if self.features:
             self.features = {}
 
-        max_feature_id = int(np.max(self.feature_field))
-        for feature_id in range(max_feature_id):
+        feature_ids = np.unique(self.feature_field)
+        feature_ids = np.delete(feature_ids, 0)
+
+        # Don't include 0 in Feature population, this is reserved for background
+        for feature_id in feature_ids:
             # Get the pixel locations of the feature in the field
             # For 2D data, np.where returns two arrays containing y, x locations
             feature_coords = np.array(np.where(self.feature_field == feature_id))
@@ -138,17 +153,9 @@ class Frame:
                 "Features have not been loaded into this Frame. Cannot assign displacements"
             )
 
-        if not all(isinstance(flow, NDArray) for flow in [y_flow, x_flow]):
-            raise ValueError("Inputs must be NDarrays")
-
-        if not all(isinstance(flow.ndim == 2) for flow in [y_flow, x_flow]):
-            raise ValueError("Inputs must be 2D arrays")
-
-        if not all(flow.shape == self.feature_field.shape for flow in [y_flow, x_flow]):
-            raise ValueError("Input flow must have same shape as self.feature_field")
-
-        self.y_flow = y_flow
-        self.x_flow = x_flow
+        self.y_flow, self.x_flow = check_arrays(
+            y_flow, x_flow, ndim=2, equal_shape=True
+        )
 
         # Assign these displacements to each Feature in the Frame using
         # mean of flow field for each grid point spanning the Feature
@@ -168,7 +175,10 @@ class Frame:
             int: new id
         """
         if self.max_id is None:
-            self.max_id = 0
+            if self.feature_field is not None:
+                self.max_id = np.max(self.feature_field).item()
+            else:
+                self.max_id = 0
         self.max_id += 1
         return self.max_id
 

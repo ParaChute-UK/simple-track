@@ -9,6 +9,7 @@ from skimage.registration import phase_cross_correlation
 from scipy.signal.windows import tukey
 import scipy.ndimage as ndimage
 import warnings
+from collections.abc import Iterable
 
 
 class OpticalFlowSolver:
@@ -30,7 +31,7 @@ class OpticalFlowSolver:
         # Check both fields have features
         if not np.count_nonzero(arr1) and not np.count_nonzero(arr2):
             print("No features detected in both fields. Skipping optical flow.")
-            return False, False
+            return None, None
 
         # If there are too few features, don't proceed with optical flow
         min_feature_coverage = self.subdomain_size**2 * self.min_fractional_coverage
@@ -40,7 +41,7 @@ class OpticalFlowSolver:
             print(f"Number of pixels above treshold in arr2: {np.sum(arr2)}")
             print("Number of features in arr1 and/or arr2 less than threshold. ")
             print("Skipping optical flow")
-            return False, False
+            return None, None
 
         return arr1, arr2
 
@@ -95,7 +96,7 @@ class OpticalFlowSolver:
         prev_features, current_features = self._check_inputs(
             prev_features, current_features
         )
-        if not prev_features:
+        if prev_features is None:
             return None, None
 
         # Get subdomains to calculate FFT over
@@ -104,33 +105,18 @@ class OpticalFlowSolver:
         )
         subdomain_step = subdomain_shape / 2
 
+        # Initialise containing arrays for holding subdomain dy, dx
+        subdomain_dy, subdomain_dx = self.get_subdomain_containment_arrays(
+            prev_features.shape, subdomain_shape
+        )
+
         # Get tuple of indices of subdomains to iterate over
         # This will also check that the subdomain shape exactly fits the domain
         y_subdomain_bounds, x_subdomain_bounds = self.get_overlapping_subdomain_idxs(
             prev_features.shape, subdomain_shape
         )
-
-        # Combine these idxs pairwise to define the subdomain bounds as a tuple
-        # E.g., for subdomain size of 20 in y, produces [0, 10, 20, 30...]
-        # and for subdomain size of 30 in x, produces [0, 15, 30, 45...]
-        # this operation then produces ((0, 10), (10, 20), ...) for y
-        # and ((0, 15), (15, 30)...) for x
-        y_subdomain_bounds_tuple = itertools.pairwise(y_subdomain_bounds)
-        x_subdomain_bounds_tuple = itertools.pairwise(x_subdomain_bounds)
-
-        # Finally, get permutations of all xy subdomain bounds
-        # E.g., for example above, produces ( ((0, 10), (0, 15)), ((0, 10), (15, 30)) )
-        subdomain_bounds = itertools.product(
-            y_subdomain_bounds_tuple, x_subdomain_bounds_tuple
-        )
-
-        # Initialise containing array for holding subdomain dy, dx
-        # Shape is number of subdomains in each direction * 2 for overlaps
-        # E.g., for a 100x200 domain and a 20x20 subdomain size, shape of
-        # containing arrays will be 10x20
-        containing_shape = (prev_features.shape // subdomain_shape) * 2
-        subdomain_dy = np.full(shape=containing_shape, fill_value=np.nan)
-        subdomain_dx = np.full(shape=containing_shape, fill_value=np.nan)
+        # Get the iterable of subdomain bounds
+        subdomain_bounds = self.subdomain_iter(y_subdomain_bounds, x_subdomain_bounds)
 
         for y_bounds, x_bounds in subdomain_bounds:
             # Construct subdomain mask from bounds
@@ -172,6 +158,63 @@ class OpticalFlowSolver:
         )
 
         return y_flow, x_flow
+
+    def get_subdomain_containment_arrays(
+        self, full_domain_shape: NDArray, subdomain_shape: NDArray
+    ) -> NDArray:
+        """
+        Return array with correct shape for containing subdomain flow values
+        Shape is number of subdomains in each direction * 2 for overlaps
+        E.g., for a 100x200 domain and a 20x20 subdomain size, shape of
+        containing arrays will be 10x20, but -1 from each dimension
+        due to the stride of the values
+
+        Args:
+            full_domain_shape (NDArray): Shape of the full domain
+            subdomain_shape (NDArray): Shape of requested subdomain
+
+        Returns:
+            NDArray: Array of NaNs of the required shape for containing subdomain data
+        """
+        full_domain_shape, subdomain_shape = check_arrays(
+            full_domain_shape, subdomain_shape, shape=(2,), dtype=int, non_negative=True
+        )
+
+        containing_shape = (full_domain_shape // subdomain_shape) * 2
+        containing_shape = [dim - 1 for dim in containing_shape]
+        subdomain_dy = np.full(shape=containing_shape, fill_value=np.nan)
+        subdomain_dx = np.full(shape=containing_shape, fill_value=np.nan)
+        return subdomain_dy, subdomain_dx
+
+    def subdomain_iter(
+        self, y_subdomain_bounds: tuple, x_subdomain_bounds: tuple
+    ) -> Iterable:
+        """
+        Produces iterable of subdomain bounds with stride of 2 indices
+        between inputs. Each returned set is an iterable of tuples defining
+        start and end bounds in y and x direction
+
+        Args:
+            y_subdomain_bounds (tuple):
+            x_subdomain_bounds (tuple):
+
+        Returns:
+            Iterable: ((y_start, y_stop), (x_start, x_stop))
+        """
+        # Combine these idxs pairwise with stride 2 to define the subdomain bounds
+        # E.g., for subdomain size of 20 in y, produces [0, 10, 20, 30...]
+        # and for subdomain size of 30 in x, produces [0, 15, 30, 45...]
+        # this operation then produces ((0, 20), (10, 30), ...) for y
+        # and ((0, 30), (15, 45)...) for x
+        y_subdomain_bounds_tuple = pairwise_with_stride(y_subdomain_bounds, 2)
+        x_subdomain_bounds_tuple = pairwise_with_stride(x_subdomain_bounds, 2)
+
+        # Finally, get permutations of all xy subdomain bounds
+        # E.g., for example above, produces ( ((0, 10), (0, 15)), ((0, 10), (15, 30))...)
+        subdomain_bounds = itertools.product(
+            y_subdomain_bounds_tuple, x_subdomain_bounds_tuple
+        )
+        return subdomain_bounds
 
     def check_subdomain_variability(self, subdomain_vals: NDArray):
         """
@@ -351,15 +394,17 @@ class OpticalFlowSolver:
 
         # Since image registration finds the vector that translates the second arg to the
         # first, need to reverse input order
-        cross_corr = phase_cross_correlation(
-            m2,
-            m1,
-            space="real",
-            overlap_ratio=self.overlap_threshold,
-            normalization=None,
-            upsample_factor=1,
-            disambiguate=False,
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            cross_corr = phase_cross_correlation(
+                m2,
+                m1,
+                space="real",
+                overlap_ratio=self.overlap_threshold,
+                normalization=None,
+                upsample_factor=1,
+                disambiguate=False,
+            )
 
         dy, dx = cross_corr[0]
         # error = cross_corr[1]
@@ -445,7 +490,6 @@ class OpticalFlowSolver:
         y_range = range(full_domain_shape[0])
         x_range = range(full_domain_shape[1])
         newumat = fu(x_range, y_range).T
-
         return newumat
 
     def _fill_nans(self, arr: NDArray) -> NDArray:
@@ -465,3 +509,25 @@ class OpticalFlowSolver:
         it = LinearNDInterpolator(coords, non_nan_values, fill_value=0)
         filled = it(list(np.ndindex(arr.shape))).reshape(arr.shape)
         return filled
+
+
+def pairwise_with_stride(input_iter: Iterable, stride: int):
+    """
+    Similar to itertools.pairwise but with step between elements
+
+    pairwise_with_stride('ABCDEFG', 1) → AB BC CD DE EF FG
+    pairwise_with_stride('ABCDEFG', 2) → AC BD CE DF EG
+    """
+
+    if not isinstance(stride, int):
+        raise TypeError(f"Expected int, got f{type(stride)}")
+
+    pairwise_list = []
+    for idx, element in enumerate(input_iter):
+        try:
+            next_element = input_iter[idx + stride]
+            pairwise_list.append((element, next_element))
+        except IndexError:
+            pass
+
+    return iter(pairwise_list)

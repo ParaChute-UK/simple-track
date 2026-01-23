@@ -100,6 +100,10 @@ class Feature:
     def id(self, id: int) -> None:
         self._id = id
 
+    @lifetime.setter
+    def lifetime(self, lifetime: int) -> None:
+        self._lifetime = lifetime
+
     @provisional_id.setter
     def provisional_id(self, id: int) -> None:
         self._provisional_id = id

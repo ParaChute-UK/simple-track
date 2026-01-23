@@ -10,6 +10,7 @@ import multiprocessing as mp
 from Frame import Timeline, Frame
 from FrameTracker import FrameTracker
 from OpticalFlowSolver import OpticalFlowSolver
+from LoadingBar import LoadingBar
 
 
 class SimpleTrack:
@@ -36,10 +37,11 @@ class SimpleTrack:
         if filenames is None:
             filenames = self.filenames
 
+        self.loading_bar = LoadingBar(total=len(filenames))
         print(f"Hello from process {mp.current_process().name} with arg {filenames}\n")
 
         # Run the things
-        for filename in filenames:
+        for fnm_idx, filename in enumerate(filenames):
             frame = Frame()
             # TODO: change this procedure to a Loader class instead.
             # TODO: but, also want to offer a BasicLoader that can be interacted
@@ -48,14 +50,17 @@ class SimpleTrack:
             # frame.load_data(filename)
             frame.identify_features(**self.config["FEATURE"])
             self.timeline.add_to_timelime(frame)
-            print(frame)
 
             # If this is the first frame, skip tracking
             if len(self.timeline.timeline) == 1:
+                print(frame.get_time())
+                print(frame.get_features())
                 continue
 
             # Now run optical flow between previous and current event
             prev_frame = self.timeline.get_previous_frame(frame.get_time())
+            # Set max id for assigning to new features
+            frame.set_max_id(prev_frame.get_max_id())
             y_flow, x_flow = self.of_solver.analyse_flow(prev_frame, frame)
 
             # Update the previous Frame with these displacements which is
@@ -64,7 +69,12 @@ class SimpleTrack:
             prev_frame.assign_displacements(y_flow, x_flow)
 
             # Track Features between difference Frames
+            print(frame.get_time())
             self.frame_tracker.run(prev_frame, frame)
+
+            # self.loading_bar.update_progress(fnm_idx + 1)
+            print("Final ids")
+            print(frame.get_features())
 
     def run_parallel(self, processes=4):
         # Split filenames into chunks for each process
