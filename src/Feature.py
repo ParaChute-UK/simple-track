@@ -148,6 +148,8 @@ class Feature:
             self._accreted = []
         if isinstance(feature_ids, int):
             self._accreted.append(feature_ids)
+        elif isinstance(feature_ids, np.ndarray):
+            self._accreted.extend(feature_ids.tolist())
         else:
             self._accreted.extend(feature_ids)
 

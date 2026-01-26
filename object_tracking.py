@@ -842,6 +842,9 @@ def track_storms(
                 StormData[ns].area
             ) + (np.histogram(QuvL[np.where(newblob == 1)], qbins))[0][:] / qarea[:]
 
+        print(f"nt: {nt}, dt: {nt + 1}")
+        print(qhist)
+
         ###################################################
         # IF OVERLAP, THEN
         # - INHERIT "WAS"
@@ -1064,9 +1067,7 @@ def interpolate_speeds(xint, yint, xmat, ymat, buu):
     values = buu[valid_mask]
     if np.size(values) >= 4:
         it = interpolate.LinearNDInterpolator(coords, values, fill_value=0)
-        print(f"it: {it}")
         filled = it(list(np.ndindex(buu.shape))).reshape(buu.shape)
-        print(f"filled: {filled}")
 
         # interp2d deprecated in newer version of scipy.
         # For functionally identical replacement, use RectBivariateSpline

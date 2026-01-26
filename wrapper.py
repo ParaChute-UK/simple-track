@@ -18,9 +18,11 @@ dt = 5.0
 dt_tolerance = 15.0  # Maximum separation in time allowed between consecutive images
 
 under_t = False  ## True = labelling areas *under* the threshold (e.g. brightness temperature), False = labelling areas *above* threshold (e.g. rainfall)
-threshold = 3.0  ## Threshold used to identify objects (with value of variable greater than this threshold)
+threshold = 0.5  ## Threshold used to identify objects (with value of variable greater than this threshold)
+# threshold = 3  ## Threshold used to identify objects (with value of variable greater than this threshold)
 minpixel = 4.0  ## Minimum object size in pixels
-squarelength = 100.0  ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
+squarelength = 20  ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
+# squarelength = 100  ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
 rafraction = 0.01  ## Minimum fractional cover of objects required for fft to obtain (dx,dy) displacement
 dd_tolerance = 3.0  # Maximum difference in displacement values between adjacent squares (to remove spurious values) - scaled by num_dt if necessary
 halopixel = 5.0  ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
@@ -86,7 +88,8 @@ label_method = "Rainfall rate > " + thr_str + "mm/hr"
 ##################################################################
 
 # TODO: can go in the init of the main function/object for managing the tracking.
-xmat, ymat = np.meshgrid(range(-200, 200), range(-150, 150))
+xmat, ymat = np.meshgrid(range(100), range(100))
+# xmat, ymat = np.meshgrid(range(-200, 200), range(-150, 150))
 xall = np.size(xmat, 0)  # Only used to check grid dimensions
 yall = np.size(xmat, 1)  # Only used to check grid dimensions
 if np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0:
@@ -109,8 +112,8 @@ if np.fmod(xall, squarelength) != 0 or np.fmod(yall, squarelength) != 0:
 #################################################################
 
 # TODO: move to config
-DATA_DIR = "./data/"
-IMAGES_DIR = "./output_baseline_plot_steps/"
+DATA_DIR = "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/tests/mwe_test_files"
+IMAGES_DIR = "./output_mwe_test/"
 filelist = os.listdir(DATA_DIR)
 filelist = np.sort(filelist)
 if doradar:
@@ -134,10 +137,22 @@ oldhourval = []
 oldminval = []
 num_dt = []
 
+
+def load_mwe_data(filename):
+    base_time = datetime.datetime(2024, 1, 1, 0, 0, 0)
+    fpath = f"{DATA_DIR}/{filename}"
+    data = np.load(fpath)
+    raw_field = data
+    mwe_idx = str(filename)[-5]
+    time = base_time + datetime.timedelta(minutes=5 * int(mwe_idx))
+    return raw_field, str(filename), time.hour, time.minute
+
+
 for nt in range(len(filelist)):
     # Load new image
     now_time = start_time + datetime.timedelta(seconds=300.0 * nt)
-    field, file_ID, hourval, minval = user_functions.loadfile(DATA_DIR + filelist[nt])
+    field, file_ID, hourval, minval = load_mwe_data(filelist[nt])
+    # field, file_ID, hourval, minval = user_functions.loadfile(DATA_DIR + filelist[nt])
     print(file_ID)
     write_file_ID = "S" + sql_str + "_T" + thr_str + "_A" + areastr + "_" + file_ID
 

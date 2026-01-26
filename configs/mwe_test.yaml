@@ -25,7 +25,7 @@ FEATURE:
   min_size: 4 # Minimum size of feature to be tracked (in pixels)
 
 OF_SOLVER:
-  overlap_threshold: 0.4 ## Minimum fraction of overlap (0.6 in TITAN)
+  overlap_threshold: 0.2 ## Minimum fraction of overlap (0.6 in TITAN)
   subdomain_size: 20 ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
   min_fractional_coverage: 0.01  ## Minimum fractional cover of objects required for fft to obtain (dx,dy) displacement
   subdomain_tolerance: 3.0  # Maximum difference in displacement values between adjacent squares (to remove spurious values) - scaled by num_dt if necessary
@@ -33,4 +33,4 @@ OF_SOLVER:
 
 TRACKING:
   overlap_nbhood: 5.0  ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
-  overlap_threshold: 0.6 ## Minimum fraction of overlap (0.6 in TITAN)
+  overlap_threshold: 0.2 ## Minimum fraction of overlap (0.6 in TITAN)

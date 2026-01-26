@@ -3,6 +3,7 @@ from numpy.typing import NDArray
 from typing import Union
 from Frame import Frame
 from Feature import Feature
+from utils import check_arrays
 
 
 class FrameTracker:
@@ -83,7 +84,8 @@ class FrameTracker:
             for feature in child_features:
                 feature.parent = conflicting_id
                 feature.provisional_id = current_frame.get_next_available_feature_id()
-                # TODO: potentially set child feature lifetimes to 1 here if so inclined
+                # Reset lifetime since this a new storm
+                feature.lifetime = 1
 
             # Update parent feature to include child ids
             parent_feature.children = [
@@ -198,9 +200,6 @@ class FrameTracker:
             matching_id, other_sufficient_ids = self.find_ids_of_closest_overlaps(
                 overlap_hist, advected_feature_field, current_feature_field, feature_id
             )
-            # print(
-            #     f"Current id {current_feature.id} matched with prev feature {matching_id}"
-            # )
 
             # If a matching feature couldn't be found, this is a new Feature
             if matching_id is None:
@@ -209,14 +208,7 @@ class FrameTracker:
             else:
                 # Inherit lifetime from matching feature
                 matching_feature = advected_frame.get_feature(matching_id)
-                # print(
-                #     f"Matched feature! Matching lifetime = {matching_feature.lifetime}"
-                # )
                 current_feature.lifetime = matching_feature.lifetime + 1
-                # print(
-                #     f"Therefore, current feature lifetime = {current_feature.lifetime}"
-                # )
-                # TODO: any other values to inherit here?
 
             # Provisionally assign the matching_id to this feature
             current_feature.provisional_id = matching_id
@@ -224,11 +216,6 @@ class FrameTracker:
             # Determine whether this Feature has accreted other Features from the previous Frame
             if other_sufficient_ids is not None:
                 current_feature.accretes(other_sufficient_ids)
-                # TODO: understand what's going on with the sanity check part of the previous code.
-                # lines 946-966
-
-        # print("Provisional ids")
-        # print(current_frame.get_features())
 
     def find_ids_of_closest_overlaps(
         self,
@@ -285,42 +272,100 @@ class FrameTracker:
             matching_id = np.argmax(overlap_hist)
 
         # If there is more than one sufficient overlap, keep the properties of the feature
-        # with the largest overlap. If multiple have overlaps, keep nearest in centroid
+        # with the closest size. If multiple have overlaps, keep nearest in centroid
         if len_sufficient_overlaps > 1:
-            # Check for number of ids that share a maximum overlap
-            max_overlaps = np.argwhere(overlap_hist == np.max(overlap_hist)).squeeze()
+            # Check for size of each feature in advected_frame with sufficient overlap
+            ids_of_sufficient_overlaps = np.argwhere(sufficient_overlaps).squeeze()
+            min_size_comparison = self.find_ids_of_closest_size(
+                field_with_id=current_feature_field,
+                field_to_search=advected_feature_field,
+                target_feature_id=current_feature_id,
+                candidate_ids=ids_of_sufficient_overlaps.tolist(),
+            )
 
-            if max_overlaps.size == 1:
-                matching_id = np.argmax(overlap_hist)
+            # If only one id has a closest size to target feature, this is the matching id
+            if len(min_size_comparison) == 1:
+                matching_id = min_size_comparison[0]
+
+            # If more than one id shares a closest size, find the closest centroid
             else:
-                # Get the closest centroid for each feature sharing a maximum overlap
-                centroid_distances = []
+                # Get the closest centroid for each feature sharing a minimum distance
+                centroid_distances = {}
                 current_feature_centroid = get_centroid(
                     current_feature_field, current_feature_id
                 )
-                for overlap_id in max_overlaps:
+                for overlap_id in min_size_comparison:
                     overlap_id_centroid = get_centroid(
                         advected_feature_field, overlap_id
                     )
                     distance = np.linalg.norm(
                         current_feature_centroid - overlap_id_centroid
                     )
-                    centroid_distances.append(distance)
+                    centroid_distances[overlap_id] = distance
 
                 # Find the feature that has the minimum distance. If there are still more
-                # than 1 possible options at this stage, argmin returns the first instance
-                min_distance_idx = np.argmin(centroid_distances)
-                matching_id = max_overlaps[min_distance_idx]
+                # than 1 possible options at this stage, min returns the first instance
+                matching_id = min(centroid_distances, key=centroid_distances.get)
 
             # Add the other sufficient overlaps to other_sufficient_ids
             # To ensure the matching id is now not included in other sufficient ids,
             # set sufficient overlaps to False at this id
             sufficient_overlaps[matching_id] = False
-            other_sufficient_ids = (
-                np.argwhere(sufficient_overlaps).squeeze().astype(int)
-            )
+            # Squeeze output, but only one axis so that single element arrays remain arrays
+            other_sufficient_ids = np.argwhere(sufficient_overlaps).squeeze(axis=0)
 
         return matching_id, other_sufficient_ids
+
+    def find_ids_of_closest_size(
+        self,
+        field_with_id: NDArray,
+        field_to_search: NDArray,
+        target_feature_id: int,
+        candidate_ids: list[int],
+    ) -> list[int]:
+        """
+        Given a list of candidate ids, finds the id whose size is closest to the size
+        of the feature with feature_id in field_with_id
+
+        Args:
+            field_with_id (NDArray):
+                Feature field containing the feature with feature_id
+            field_to_search (NDArray):
+                Feature field containing the candidate ids
+            feature_id (int):
+                Id of the feature in field_with_id to compare sizes against
+            candidate_ids (list):
+                List of candidate ids in field_to_search to compare sizes against
+        Returns:
+            list[int]:
+                List of candidate ids that have the closest size to the target feature
+        """
+        field_with_id, field_to_search = check_arrays(
+            field_with_id,
+            field_to_search,
+            ndim=2,
+            equal_shape=True,
+            dtype=int,
+        )
+
+        size_of_target_feature_in_target_field = np.size(
+            np.where(field_with_id == target_feature_id), 1
+        )
+        size_of_candidate_features = {
+            candidate_id: np.size(np.where(field_to_search == candidate_id), 1)
+            for candidate_id in candidate_ids
+        }
+        size_comparison = {
+            candidate_id: np.abs(size_of_target_feature_in_target_field - size)
+            for candidate_id, size in size_of_candidate_features.items()
+        }
+        min_size_comparison = np.min(list(size_comparison.values()))
+        closest_size_ids = [
+            candidate_id
+            for candidate_id, size_diff in size_comparison.items()
+            if size_diff == min_size_comparison
+        ]
+        return closest_size_ids
 
     def calculate_overlap_histogram(
         self,
@@ -335,18 +380,39 @@ class FrameTracker:
         requested feature id. This mask can optionally be expanded using a nbhood surrouding the
         centroid of this feature. This mask is then used to select the same locations of the
         advected feature field. A histogram is produced giving the number of feature_ids contained
-        in this reigon in the adveced feature field. This is normalised by the pixel size of the
-        feature in each input field.
+        in this reigon in the adveced feature field. This is normalised by the pixel size of each
+        Feature in the advected field to get the degree of overlap.
 
         Args:
-            advected_feature_field (NDArray): _description_
-            current_feature_field (NDArray): _description_
-            feature_id (int): _description_
-            nbhood (bool, optional): _description_. Defaults to False.
+            advected_feature_field (NDArray):
+                Field containing advected features
+            current_feature_field (NDArray):
+                Field containing current features
+            feature_id (int):
+                Feature ID in the current feature field to calculate overlap for
+            nbhood (int, optional):
+                If nonzero, applied a radial mask surrouding the feature centroid
+                of the current_feature_field to expand the overlap calculation.
+                Defaults to 0.
 
         Returns:
-            NDArray: _description_
+            NDArray: Array contanining normalised overlap values for each feature id in
+            the advected feature field
         """
+        advected_feature_field, current_feature_field = check_arrays(
+            advected_feature_field,
+            current_feature_field,
+            ndim=2,
+            equal_shape=True,
+            dtype=int,
+        )
+        if not isinstance(feature_id, int):
+            raise TypeError(f"Expected int, got {type(feature_id)}")
+        if not isinstance(nbhood, int):
+            raise TypeError(f"Expected int, got {type(nbhood)}")
+        if nbhood < 0:
+            raise ValueError(f"Expected non-negative nbhood, got {nbhood}")
+
         # Create feature mask using current feature field, or expand mask using a nbhood
         # if this is flagged in input
         feature_mask = np.where(current_feature_field == feature_id, True, False)
@@ -366,13 +432,20 @@ class FrameTracker:
         # using mask of current features applied to the advected feature field
         overlap_hist = np.histogram(advected_feature_field[feature_mask], bins)[0]
 
-        # Set the first value of the hist to 0, since this represents the background
+        # Set the first value of the hist to 0 since this represents the background
         overlap_hist[0] = 0
 
-        # Normalise by the size of Feature within the mask of each field, if it exists
-        sizes = [np.count_nonzero(field == feature_id) for field in input_fields]
-        overlap_normed = [overlap_hist / fsize for fsize in sizes if fsize != 0]
-        return np.mean(overlap_normed, axis=0)
+        # Normalise overlap histogram by size of each feature in advected field only
+        norm_sizes = np.array(
+            [
+                np.count_nonzero(advected_feature_field == idx)
+                for idx in range(len(overlap_hist))
+            ]
+        )
+        # Replace any zero sizes with 1 to avoid division by zero
+        norm_sizes = np.where(norm_sizes == 0, 1, norm_sizes)
+        overlap_normed = overlap_hist / norm_sizes
+        return overlap_normed
 
     def advect_frame(self, frame: Frame) -> Frame:
         """
