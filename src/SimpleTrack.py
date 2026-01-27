@@ -8,6 +8,7 @@ from pathlib import Path
 import multiprocessing as mp
 
 from Frame import Timeline, Frame
+from FrameOutputManager import FrameOutputManager
 from FrameTracker import FrameTracker
 from OpticalFlowSolver import OpticalFlowSolver
 from LoadingBar import LoadingBar
@@ -24,11 +25,14 @@ class SimpleTrack:
         """
         with open(config_path, "r") as input:
             self.config = safe_load(input)
+        self.config_path = config_path
         self.start_time = self.config["DATETIME"]["start_time"]
+        # TODO: make this optional: data might be passed in from external source
         self.filenames = self.__get_files_from_input_path(self.config["PATH"]["data"])
         self.timeline = Timeline()
         self.of_solver = OpticalFlowSolver(**self.config["OF_SOLVER"])
         self.frame_tracker = FrameTracker(**self.config["TRACKING"])
+        self.frame_output = FrameOutputManager(self.config["PATH"]["output"])
 
     def run(self, filenames=None):
         # If filesnames is provided, iterate only over these files.
@@ -55,6 +59,8 @@ class SimpleTrack:
             if len(self.timeline.timeline) == 1:
                 print(frame.get_time())
                 print(frame.get_features())
+                # Output frame data to text file
+                self.frame_to_txt(frame, self.config["PATH"]["output"])
                 continue
 
             # Now run optical flow between previous and current event
@@ -70,6 +76,44 @@ class SimpleTrack:
 
             # Track Features between difference Frames
             print(frame.get_time())
+            self.frame_tracker.run(prev_frame, frame)
+
+            # Output frame data to text file
+            self.frame_output.frame_to_txt(frame)
+            self.frame_output.frame_fields_to_npy(frame)
+
+            self.loading_bar.update_progress(fnm_idx + 1)
+            # print("Final ids")
+            # print(frame.get_features())
+
+    def run_cset(self, time_and_data_dict: dict):
+        # Run the things
+        for time, data in time_and_data_dict.items():
+            frame = Frame()
+            frame.store_data(data, time)
+
+            # frame.load_data(filename)
+            frame.identify_features(**self.config["FEATURE"])
+            self.timeline.add_to_timelime(frame)
+
+            # If this is the first frame, skip tracking
+            if len(self.timeline.timeline) == 1:
+                print(frame.get_time())
+                print(frame.get_features())
+                continue
+
+            # Now run optical flow between previous and current event
+            prev_frame = self.timeline.get_previous_frame(frame.get_time())
+            # Set max id for assigning to new features
+            frame.set_max_id(prev_frame.get_max_id())
+            y_flow, x_flow = self.of_solver.analyse_flow(prev_frame, frame)
+
+            # Update the previous Frame with these displacements which is
+            # needed for tracking Features
+            # TODO:: is this actually needed??
+            prev_frame.assign_displacements(y_flow, x_flow)
+
+            # Track Features between difference Frames
             self.frame_tracker.run(prev_frame, frame)
 
             # self.loading_bar.update_progress(fnm_idx + 1)

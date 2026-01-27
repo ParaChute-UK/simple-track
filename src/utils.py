@@ -62,3 +62,17 @@ def check_arrays(
         return modified_args[0]
     else:
         return modified_args
+
+
+def native(value):
+    """
+    Convert numpy scalar types to native python types.
+    If argument is already native, return unchanged
+
+    Args:
+        value (any): Input value
+
+    Returns:
+        any: Converted value
+    """
+    return getattr(value, "tolist", lambda: value)()

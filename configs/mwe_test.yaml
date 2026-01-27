@@ -1,8 +1,7 @@
-# Test config file for reading Chilbolton data
-
+# Test config file for MWE
 PATH:
   data: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/tests/mwe_test_files
-  output: ./output
+  output: ./output_mwe_oost
 
 OUTPUT:
   experiment_name: mwe_test
@@ -33,4 +32,4 @@ OF_SOLVER:
 
 TRACKING:
   overlap_nbhood: 5  ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
-  overlap_threshold: 0.2 ## Minimum fraction of overlap (0.6 in TITAN)
+  overlap_threshold: 0.3 ## Minimum fraction of overlap (0.6 in TITAN)

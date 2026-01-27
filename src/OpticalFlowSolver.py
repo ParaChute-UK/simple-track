@@ -36,7 +36,7 @@ class OpticalFlowSolver:
         # If there are too few features, don't proceed with optical flow
         min_feature_coverage = self.subdomain_size**2 * self.min_fractional_coverage
         if np.sum(arr1) < min_feature_coverage or np.sum(arr2) < min_feature_coverage:
-            print(f"Threshold for running optical flow: {self.fftpixels}")
+            print(f"Threshold for running optical flow: {self.min_fractional_coverage}")
             print(f"Number of pixels above treshold in arr1: {np.sum(arr1)}")
             print(f"Number of pixels above treshold in arr2: {np.sum(arr2)}")
             print("Number of features in arr1 and/or arr2 less than threshold. ")

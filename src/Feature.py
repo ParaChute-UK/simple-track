@@ -2,7 +2,7 @@ from numpy.typing import NDArray
 import numpy as np
 from typing import Union
 import datetime as dt
-from utils import check_arrays
+from utils import check_arrays, native
 
 
 class Feature:
@@ -10,7 +10,7 @@ class Feature:
         self, id: int, feature_coords: NDArray[np.integer], time: dt.datetime
     ) -> None:
         check_arrays(feature_coords, ndim=2, dtype=int)
-        self._id = id
+        self._id = native(id)
         self._provisional_id = None
         self._feature_coords = feature_coords
         self._time = time
@@ -81,32 +81,32 @@ class Feature:
 
     @parent.setter
     def parent(self, parent_id: int) -> None:
-        self._parent = parent_id
+        self._parent = native(parent_id)
 
     @children.setter
     def children(self, child_ids: list[int]) -> None:
         if isinstance(child_ids, int):
-            self._children = [child_ids]
+            self._children = native([child_ids])
         elif isinstance(child_ids, list):
-            self._children = child_ids
+            self._children = native(child_ids)
         else:
             raise TypeError("children must be set to an int or list of ints")
 
     @dydx.setter
     def dydx(self, dy_dx: tuple) -> None:
-        self._dydx = dy_dx
+        self._dydx = native(dy_dx)
 
     @id.setter
     def id(self, id: int) -> None:
-        self._id = id
+        self._id = native(id)
 
     @lifetime.setter
     def lifetime(self, lifetime: int) -> None:
-        self._lifetime = lifetime
+        self._lifetime = native(lifetime)
 
     @provisional_id.setter
     def provisional_id(self, id: int) -> None:
-        self._provisional_id = id
+        self._provisional_id = native(id)
 
     @accreted.setter
     def accreted(self, accreted_ids: Union[int, list]) -> None:
@@ -126,28 +126,15 @@ class Feature:
             self._accreted = None
 
     def calculate_centroid(self) -> tuple:
-        y_centroid = np.mean(self._feature_coords[0, :])
-        x_centroid = np.mean(self._feature_coords[1, :])
+        y_centroid = native(np.mean(self._feature_coords[0, :]))
+        x_centroid = native(np.mean(self._feature_coords[1, :]))
         return (y_centroid, x_centroid)
-
-    def get_advected_centroid(self) -> tuple:
-        current_centroid = self.calculate_centroid()
-        advected_centroid = (
-            coord + int(round(delta))
-            for coord, delta in zip(current_centroid, self._dydx_post_frame)
-        )
-        return advected_centroid
-
-    def get_advected_coords(self) -> NDArray[np.integer]:
-        # For advection, need to round dydx to integers
-        rounded_dydx = (int(round(delta)) for delta in self._dydx_post_frame)
-        return self.coords + np.array(rounded_dydx)
 
     def accretes(self, feature_ids: int | list[int]) -> None:
         if self._accreted is None:
             self._accreted = []
         if isinstance(feature_ids, int):
-            self._accreted.append(feature_ids)
+            self._accreted.append(native(feature_ids))
         elif isinstance(feature_ids, np.ndarray):
             self._accreted.extend(feature_ids.tolist())
         else:
@@ -186,4 +173,22 @@ class Feature:
         return self.get_y_max() - self.get_y_min()
 
     def get_size(self) -> int:
-        return len(self.centroid[0])
+        return len(self._feature_coords[0])
+
+    def summarise(self, output_type="str"):
+        summary = {
+            "id": self.id,
+            "centroid": self.centroid,
+            "size": self.get_size(),
+            "dydx": self.dydx,
+            "lifetime": self.lifetime,
+            "accreted": self.accreted,
+            "parent": self.parent,
+            "children": self.children,
+        }
+        if output_type == "str":
+            return str(summary)
+        elif output_type == "dict":
+            return summary
+        else:
+            raise ValueError("output_type must be 'str' or 'dict'")

@@ -68,6 +68,10 @@ class Frame:
             raise TypeError(f"Expected type int, got {type(max_id)}")
         self.max_id = max_id
 
+    def store_data(self, data: NDArray, time) -> None:
+        self.raw_field = data
+        self.time = time
+
     # TODO: add functionality for user-definable loading functions
     def load_data(self, filename: str) -> None:
         """
@@ -169,7 +173,7 @@ class Frame:
     def get_next_available_feature_id(self) -> int:
         """
         Get the next available feature ID for this Frame.
-        Used when new features are created via splitting.
+        Used when new features are created.
 
         Returns:
             int: new id
@@ -184,7 +188,7 @@ class Frame:
 
     def promote_provisional_ids(self) -> None:
         """
-        Promote provisional ids to final ids for all features in this Frame.
+        Promote provisional ids to final ids for all features.
         """
         # Construct updated features dictionary with new ids as keys
         new_features_dict = {}
