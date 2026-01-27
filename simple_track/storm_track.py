@@ -472,7 +472,7 @@ class StormTracker:
 
             if old_frame is None:
                 for i in range(frame.numstorms):
-                    storm_label_idx = i + 1  # First storm is labelled 1, but python indeces start at 0.
+                    storm_label_idx = i + 1  # First storm is labelled 1, but python indices start at 0.
                     frame.storm_data.append(
                         Storm(
                             self.new_storm_idx, storm_label_idx, frame, self.num_dt, self.under_t, storm_history=False
@@ -625,7 +625,7 @@ class StormTracker:
         This method calculates velocities for storm cells by performing Fast Fourier Transform
         (FFT)-based tracking between successive frames. It uses square regions within a domain to
         estimate displacements and velocities. The method also ensures smoothness in the derived
-        velocities by checking neighboring values and refining the results.
+        velocities by checking neighbouring values and refining the results.
 
         Parameters:
             old_frame: Frame
