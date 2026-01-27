@@ -25,14 +25,18 @@ class SimpleTrack:
         """
         with open(config_path, "r") as input:
             self.config = safe_load(input)
-        self.config_path = config_path
         self.start_time = self.config["DATETIME"]["start_time"]
         # TODO: make this optional: data might be passed in from external source
         self.filenames = self.__get_files_from_input_path(self.config["PATH"]["data"])
         self.timeline = Timeline()
         self.of_solver = OpticalFlowSolver(**self.config["OF_SOLVER"])
         self.frame_tracker = FrameTracker(**self.config["TRACKING"])
-        self.frame_output = FrameOutputManager(self.config["PATH"]["output"])
+        self.frame_output = FrameOutputManager(
+            self.config["PATH"]["output"],
+            self.config["OUTPUT"]["experiment_name"],
+            self.start_time,
+            config_path,
+        )
 
     def run(self, filenames=None):
         # If filesnames is provided, iterate only over these files.
@@ -57,10 +61,11 @@ class SimpleTrack:
 
             # If this is the first frame, skip tracking
             if len(self.timeline.timeline) == 1:
-                print(frame.get_time())
-                print(frame.get_features())
+                # print(frame.get_time())
+                # print(frame.get_features())
                 # Output frame data to text file
-                self.frame_to_txt(frame, self.config["PATH"]["output"])
+                self.frame_output.features_to_txt(frame)
+                self.frame_output.fields_to_npy(frame)
                 continue
 
             # Now run optical flow between previous and current event
@@ -71,16 +76,17 @@ class SimpleTrack:
 
             # Update the previous Frame with these displacements which is
             # needed for tracking Features
-            # TODO:: is this actually needed??
+            # TODO: is the feautre assignment here actually needed?
+            # TODO: the dy, d
             prev_frame.assign_displacements(y_flow, x_flow)
 
             # Track Features between difference Frames
-            print(frame.get_time())
+            # print(frame.get_time())
             self.frame_tracker.run(prev_frame, frame)
 
             # Output frame data to text file
-            self.frame_output.frame_to_txt(frame)
-            self.frame_output.frame_fields_to_npy(frame)
+            self.frame_output.features_to_txt(frame)
+            self.frame_output.fields_to_npy(frame)
 
             self.loading_bar.update_progress(fnm_idx + 1)
             # print("Final ids")

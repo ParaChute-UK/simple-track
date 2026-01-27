@@ -42,6 +42,9 @@ class Frame:
     def get_feature_field(self) -> NDArray[np.integer]:
         return self.feature_field
 
+    def get_lifetime_field(self) -> NDArray:
+        return self.lifetime_field
+
     def get_feature(self, feature_id: int) -> Feature:
         if feature_id in self.features.keys():
             return self.features[feature_id]
