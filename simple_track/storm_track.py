@@ -3,6 +3,7 @@ import warnings
 from functools import partial
 from os import makedirs
 from os.path import isdir
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -443,6 +444,9 @@ class StormTracker:
         self.new_storm_idx = 1
         self.num_dt = None
 
+        self.times = None
+        self.frames = None
+
     def track_storms(self):
         old_frame = None
         times = []
@@ -498,10 +502,18 @@ class StormTracker:
             frames.append(frame)
             old_frame = frame
 
-        print(frames)
-        self.write_output(times, frames)
+        self.times = times
+        self.frames = frames
+        # self.write_output(times, frames)
 
-    def write_output(self, times, frames):
+    def write_output(self, outdir=None,
+                     storm_labels_tpl='storm_labels_{nstorms}.nc',
+                     storm_data_tpl='storm_data_{nstorms}.hdf'):
+        times = self.times
+        frames = self.frames
+        if outdir is None:
+            outdir = self.outdir
+
         storms = [storm for frame in frames for storm in frame.storm_data]
         storm_idxs = [s.storm_idx for s in storms]
         # TODO: Not generic!
@@ -537,20 +549,14 @@ class StormTracker:
         storm_times = [time for frame in frames for time in [frame.time] * frame.numstorms]
         df = pd.DataFrame(data={col: [getattr(s, col) for s in storms] for col in cols})
         df.insert(1, 'time', np.array(storm_times))
-        print(df)
-        print(df[df.storm_idx == 88])
 
-        # print("images_dir + file_id +'.txt'=", images_dir + file_id +'.txt')
-        print(self.outdir + f'storm_labels_{len(storm_times)}.nc')
-        ds.to_netcdf(self.outdir + f'storm_labels_{len(storm_times)}.nc')
-        print(self.outdir + f'storm_data_{len(storm_times)}.hdf')
-        df.to_hdf(self.outdir + f'storm_data_{len(storm_times)}.hdf', key='storm_data')
+        storm_labels_path = Path(outdir) / storm_labels_tpl.format(nstorms=len(storm_times))
+        storm_data_path = Path(outdir) / storm_data_tpl.format(nstorms=len(storm_times))
+        print(storm_labels_path)
+        print(storm_data_path)
 
-        # self.parent = []
-        # self.child = None
-        # self.accreted = []
-
-        # self.wasdist = None
+        ds.to_netcdf(storm_labels_path)
+        df.to_hdf(storm_data_path, key='storm_data')
 
     def label_storms(self, frame):
         """
