@@ -63,6 +63,9 @@ class FrameTracker:
 
         Step 6: Promote provisional ids to final ids in current frame
 
+        Step 7: Identify Features in the previous Frame that aren't matched with a Feature in the
+        current Frame.
+
         Args:
             prev_frame (Frame):
                 Frame containing Features at the previous timestep
@@ -84,7 +87,9 @@ class FrameTracker:
         # previous/advected Frame in anyway.
         # Match features between the advected frame and the current frame by assigning a
         # new, proviosonal id to each Feature in the current Frame based on overlap
-        self.match_advected_and_current_frame_features(advected_frame, current_frame)
+        self.match_advected_and_current_frame_features(
+            advected_frame, current_frame, prev_frame
+        )
 
         # Step 3: Check accreted ids from frame matching are not also present as provisional ids.
         # Remove any accreted ids found as a provisional id in current frame
@@ -100,6 +105,21 @@ class FrameTracker:
 
         # Step 6: Promote provisional ids to final ids in current frame
         current_frame.promote_provisional_ids()
+
+        # Step 7: For tracing Features in the previous Frame that aren't matched with a
+        # Feature in the current Frame
+        self.identify_unmatched_features_in_prev_frame(prev_frame, current_frame)
+
+    def identify_unmatched_features_in_prev_frame(
+        self, prev_frame: Frame, current_frame: Frame
+    ) -> None:
+        current_frame_ids = [
+            feature.id for feature in current_frame.get_features().values()
+        ]
+
+        for feature_id, feature in prev_frame.get_features().items():
+            if feature_id not in current_frame_ids:
+                feature.set_as_final_timestep()
 
     def resolve_provisional_id_conflicts(
         self, advected_frame: Frame, current_frame: Frame
@@ -263,7 +283,7 @@ class FrameTracker:
             feature.accreted = new_accreted_list
 
     def match_advected_and_current_frame_features(
-        self, advected_frame: Frame, current_frame: Frame
+        self, advected_frame: Frame, current_frame: Frame, prev_frame: Frame
     ) -> None:
         """
         For each Feature in the current Frame, attempt to match it to a Feature in
@@ -329,9 +349,17 @@ class FrameTracker:
             # Provisionally assign the matching_id to this feature
             current_feature.provisional_id = matching_id
 
-            # Determine whether this Feature has accreted other Features from the previous Frame
             if other_sufficient_ids is not None:
-                current_feature.accretes(other_sufficient_ids)
+                # Add other ids to Feature accretion list
+                current_feature.accrete_ids(other_sufficient_ids)
+
+                # Update the accreted_in_next_frame_by property of Features in prev_frame
+                for accreted_id in other_sufficient_ids:
+                    accreted_feature = prev_frame.get_feature(accreted_id)
+                    print(accreted_id)
+                    print(accreted_feature)
+                    accreted_feature.accreted_in_next_frame_by = feature_id
+                    accreted_feature.set_as_final_timestep()
 
     def find_ids_of_closest_overlaps(
         self,

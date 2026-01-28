@@ -58,7 +58,9 @@ class FrameOutputManager:
         np.save(feature_output_fnm, frame.get_feature_field())
         np.save(lifetime_output_fnm, frame.get_lifetime_field())
 
-    def output_init_density_field(self, timeline: Timeline, centroid_only: bool = True):
+    def output_density_field(
+        self, timeline: Timeline, field_type: str, centroid_only: bool = True
+    ):
         """
         Loops over all Frames in Timeline, makes density plot of areas
         where new Features are being created
@@ -66,6 +68,12 @@ class FrameOutputManager:
         Args:
             timeline (Timeline): _description_
         """
+        valid_types = ["init", "dissipation"]
+        if field_type not in valid_types:
+            raise ValueError(
+                f"field_type ({field_type}) not in valid_types {valid_types}"
+            )
+
         all_frames = list(timeline.get_timeline().values())
         if not all((isinstance(frame, Frame) for frame in all_frames)):
             return TypeError(f"Expected all Frames, got {all_frames}")
@@ -78,12 +86,12 @@ class FrameOutputManager:
         )
 
         # If above check passes, can make storage array from first frame field
-        init_density_shape = (len(all_frames), *all_frames[0].get_feature_field().shape)
-        init_map = np.zeros(init_density_shape)
+        field_shape = (len(all_frames), *all_frames[0].get_feature_field().shape)
+        field_density = np.zeros(field_shape)
 
         for frame_idx, frame in enumerate(all_frames):
-            init_field = frame.get_init_field(centroid_only=centroid_only)
-            init_map[frame_idx, ...] = init_field
+            field = frame.get_field(field_type, centroid_only=centroid_only)
+            field_density[frame_idx, ...] = field
 
-        output_fnm = f"{self.output_path}/init_density.npy"
-        np.save(output_fnm, init_map)
+        output_fnm = f"{self.output_path}/{field_type}_density.npy"
+        np.save(output_fnm, field_density)

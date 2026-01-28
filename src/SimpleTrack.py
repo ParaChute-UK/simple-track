@@ -92,7 +92,8 @@ class SimpleTrack:
             # print("Final ids")
             # print(frame.get_features())
 
-        self.frame_output.output_init_density_field(self.timeline)
+        self.frame_output.output_density_field(self.timeline, "init")
+        self.frame_output.output_density_field(self.timeline, "dissipation")
 
     def run_cset(self, time_and_data_dict: dict):
         # Run the things

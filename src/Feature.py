@@ -16,7 +16,9 @@ class Feature:
         self._time = time
         self._centroid = None
         self._lifetime = 1
+        self._final_timestep = False
         self._accreted = None
+        self._accreted_in_next_frame_by = None
         self._parent = None
         self._children = None
         self._dydx = ()
@@ -53,8 +55,16 @@ class Feature:
         return self._lifetime
 
     @property
+    def is_final_timestep(self) -> bool:
+        return self._final_timestep
+
+    @property
     def accreted(self) -> list[int]:
         return self._accreted
+
+    @property
+    def accreted_in_next_frame_by(self) -> int:
+        return self._accreted_in_next_frame_by
 
     @property
     def parent(self) -> int:
@@ -97,8 +107,8 @@ class Feature:
         self._dydx = native(dy_dx)
 
     @id.setter
-    def id(self, id: int) -> None:
-        self._id = native(id)
+    def id(self, _id: int) -> None:
+        self._id = native(_id)
 
     @lifetime.setter
     def lifetime(self, lifetime: int) -> None:
@@ -125,12 +135,18 @@ class Feature:
         if len(self._accreted) < 1:
             self._accreted = None
 
+    @accreted_in_next_frame_by.setter
+    def accreted_in_next_frame_by(self, id_of_accreting_feature: int):
+        if not isinstance(id_of_accreting_feature, int):
+            raise TypeError(f"Expected type in, got {type(id_of_accreting_feature)}")
+        self._accreted_in_next_frame_by = id_of_accreting_feature
+
     def calculate_centroid(self) -> tuple:
         y_centroid = native(np.mean(self._feature_coords[0, :]))
         x_centroid = native(np.mean(self._feature_coords[1, :]))
         return (y_centroid, x_centroid)
 
-    def accretes(self, feature_ids: int | list[int]) -> None:
+    def accrete_ids(self, feature_ids: int | list[int]) -> None:
         if self._accreted is None:
             self._accreted = []
         if isinstance(feature_ids, int):
@@ -175,6 +191,9 @@ class Feature:
     def get_size(self) -> int:
         return len(self._feature_coords[0])
 
+    def set_as_final_timestep(self) -> None:
+        self._final_timestep = True
+
     def summarise(self, output_type="str"):
         summary = {
             "id": self.id,
@@ -200,5 +219,14 @@ class Feature:
         (i.e., it has no parent)
         """
         if self._lifetime == 1 and self._parent is None:
+            return True
+        return False
+
+    def is_dissipating(self) -> bool:
+        """
+        Returns bool whether the Feature is 'dissipating' in the sense that
+        this is its final timestep AND it has not been accreted by another Feature
+        """
+        if self._final_timestep and self._accreted_in_next_frame_by is None:
             return True
         return False

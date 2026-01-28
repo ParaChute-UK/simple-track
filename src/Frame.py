@@ -232,18 +232,37 @@ class Frame:
     def get_new_features(self) -> list:
         return [feature for feature in self.features.values() if feature.is_new()]
 
+    def get_dissipating_features(self) -> list:
+        return [
+            feature for feature in self.features.values() if feature.is_dissipating()
+        ]
+
     def get_init_field(self, centroid_only: bool = True) -> NDArray:
-        init_field = np.zeros_like(self.feature_field)
-        for feature in self.get_new_features():
+        return self.get_field("init", centroid_only)
+
+    def get_dissipation_field(self, centroid_only: bool = True) -> NDArray:
+        return self.get_field("dissipation", centroid_only)
+
+    def get_field(self, field_type: str, centroid_only: bool = True) -> NDArray:
+        feature_methods = {
+            "init": self.get_new_features,
+            "dissipation": self.get_dissipating_features,
+        }
+        if field_type not in feature_methods.keys():
+            raise KeyError(f"field_type must be one of {feature_methods.keys()}")
+
+        field = np.zeros_like(self.feature_field)
+        for feature in feature_methods[field_type]():
             if centroid_only:
                 # tuple to ensure correct indexing
                 # Round centroid to nearest integer and cast to int
                 centroid_coord = tuple(np.rint(feature.centroid).astype(int))
-                init_field[centroid_coord] = 1
+                field[centroid_coord] = 1
             else:
+                # Populate field with full size of feature
                 init_mask = self.feature_field == feature.id
-                init_field[init_mask] = 1
-        return init_field
+                field[init_mask] = 1
+        return field
 
 
 class Timeline:
