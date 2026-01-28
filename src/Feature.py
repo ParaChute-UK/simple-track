@@ -192,3 +192,13 @@ class Feature:
             return summary
         else:
             raise ValueError("output_type must be 'str' or 'dict'")
+
+    def is_new(self) -> bool:
+        """
+        Returns bool whether the Feature is 'new' in the sense that it
+        has lifetime of 1 AND it has not split from another Feature
+        (i.e., it has no parent)
+        """
+        if self._lifetime == 1 and self._parent is None:
+            return True
+        return False

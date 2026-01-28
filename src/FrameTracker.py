@@ -11,6 +11,7 @@ class FrameTracker:
         self,
         overlap_nbhood: int = 5,
         overlap_threshold: float = 0.6,
+        retain_lifetime_on_split: bool = False,
     ):
         """
         Initialise FrameTracker class to track Features between Frames
@@ -26,9 +27,15 @@ class FrameTracker:
                 Sets the minimum normalised overlap required between Features in advected
                 and current Frames to be considered a match.
                 Defaults to 0.6.
+            retain_lifetime_on_split (bool, optional):
+                If a child Feature splits from its parent feature, this determines whether
+                the child Feature should carry over the lifetime from the parent or whether
+                its lifetime should be set to 1
+                Defaults to False
         """
         self.overlap_nbhood = int(overlap_nbhood)
         self.overlap_threshold = overlap_threshold
+        self.retain_lifetime_on_split = retain_lifetime_on_split
 
     def run(self, prev_frame: Frame, current_frame: Frame) -> None:
         """
@@ -143,13 +150,17 @@ class FrameTracker:
                 current_frame.get_feature_field(),
             )
 
+            # TODO: should some of this functionality be moved to Feature?
             # Preserve provisional id for the parent feature
             # All child features need new ids and are assigned the conflicting id as parent
             for feature in child_features:
                 feature.parent = conflicting_id
                 feature.provisional_id = current_frame.get_next_available_feature_id()
-                # Reset lifetime since this a new storm
-                feature.lifetime = 1
+                # Handle lifetime depending on init input
+                if self.retain_lifetime_on_split:
+                    feature.lifetime = parent_feature.lifetime + 1
+                else:
+                    feature.lifetime = 1
 
             # Update parent feature to include child ids
             parent_feature.children = [

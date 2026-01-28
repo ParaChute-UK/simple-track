@@ -229,6 +229,22 @@ class Frame:
         self.feature_field = updated_feature_field
         self.lifetime_field = updated_lifetime_field
 
+    def get_new_features(self) -> list:
+        return [feature for feature in self.features.values() if feature.is_new()]
+
+    def get_init_field(self, centroid_only: bool = True) -> NDArray:
+        init_field = np.zeros_like(self.feature_field)
+        for feature in self.get_new_features():
+            if centroid_only:
+                # tuple to ensure correct indexing
+                # Round centroid to nearest integer and cast to int
+                centroid_coord = tuple(np.rint(feature.centroid).astype(int))
+                init_field[centroid_coord] = 1
+            else:
+                init_mask = self.feature_field == feature.id
+                init_field[init_mask] = 1
+        return init_field
+
 
 class Timeline:
     def __init__(self):
@@ -249,6 +265,9 @@ class Timeline:
     def purge_old_frame(self, max_frames: int = 2) -> None:
         # Remove any frames that aren't needed anymore, as defined by max_frames
         pass
+
+    def get_timeline(self):
+        return self.timeline
 
 
 def label_features(

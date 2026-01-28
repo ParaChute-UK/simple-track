@@ -1,6 +1,7 @@
-from Frame import Frame
+from Frame import Frame, Timeline
 from pathlib import Path
 import numpy as np
+from utils import check_arrays
 
 
 class FrameOutputManager:
@@ -56,3 +57,33 @@ class FrameOutputManager:
         lifetime_output_fnm = f"{self.output_path}/lifetimes_{frame_time_str}.npy"
         np.save(feature_output_fnm, frame.get_feature_field())
         np.save(lifetime_output_fnm, frame.get_lifetime_field())
+
+    def output_init_density_field(self, timeline: Timeline, centroid_only: bool = True):
+        """
+        Loops over all Frames in Timeline, makes density plot of areas
+        where new Features are being created
+
+        Args:
+            timeline (Timeline): _description_
+        """
+        all_frames = list(timeline.get_timeline().values())
+        if not all((isinstance(frame, Frame) for frame in all_frames)):
+            return TypeError(f"Expected all Frames, got {all_frames}")
+
+        check_arrays(
+            *[frame.get_feature_field() for frame in all_frames],
+            ndim=2,
+            equal_shape=True,
+            non_negative=True,
+        )
+
+        # If above check passes, can make storage array from first frame field
+        init_density_shape = (len(all_frames), *all_frames[0].get_feature_field().shape)
+        init_map = np.zeros(init_density_shape)
+
+        for frame_idx, frame in enumerate(all_frames):
+            init_field = frame.get_init_field(centroid_only=centroid_only)
+            init_map[frame_idx, ...] = init_field
+
+        output_fnm = f"{self.output_path}/init_density.npy"
+        np.save(output_fnm, init_map)
