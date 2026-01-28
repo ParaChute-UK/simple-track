@@ -412,7 +412,7 @@ class StormTracker:
         lapthresh=0.6,  ## Minimum fraction of overlap (0.6 in TITAN)
     ):
         self.loader = loader
-        self.outdir = outdir
+        self.outdir = Path(outdir)
 
         self.dt = dt
         self.dt_tolerance = dt_tolerance
@@ -886,20 +886,11 @@ class StormTracker:
             makedirs(self.outdir)
         label_method = 'Rainfall rate > ' + str(int(self.threshold)) + 'mm/hr'
         domain = 'chil_' if True else 'central_'
-        write_file_id = (
-            domain
-            + 'S'
-            + str(int(self.squarelength))
-            + '_T'
-            + str(int(self.threshold))
-            + '_A'
-            + str(int(self.minpixel))
-            + '_'
-            + file_id
-        )
+        write_file = (f'history_{domain}S{int(self.squarelength)}_'
+                      f'T{int(self.threshold)}_A{int(self.minpixel)}_{file_id}.txt')
 
         # print("images_dir + file_id +'.txt'=", images_dir + file_id +'.txt')
-        fw = open(self.outdir + 'history_' + write_file_id + '.txt', 'w')
+        fw = open(self.outdir / write_file, 'w')
         fw.write('missing_value=' + str(-999) + '\r\n')
         fw.write('Start date and time=' + init_time.strftime('%d/%m/%y-%H%M') + '\r\n')
         fw.write('Current date and time=' + frame.time.strftime('%d/%m/%y-%H%M') + '\r\n')
