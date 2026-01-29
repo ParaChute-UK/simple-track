@@ -6,7 +6,7 @@ sys.path.append(
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/src"
 )
-from src.FrameTracker import FrameTracker, generate_radial_mask, get_centroid
+from frame_tracker import FrameTracker, generate_radial_mask, get_centroid
 
 import numpy as np
 

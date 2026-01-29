@@ -1,10 +1,9 @@
 import numpy as np
 from numpy.typing import NDArray
 from typing import Union
-from Frame import Frame
-from Feature import Feature
+from frame import Frame
+from feature import Feature
 from utils import check_arrays
-import time
 
 
 class FrameTracker:

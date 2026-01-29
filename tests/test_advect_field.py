@@ -7,7 +7,7 @@ sys.path.append(
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/src"
 )
-from src.FrameTracker import advect_field_using_motion_vectors
+from frame_tracker import advect_field_using_motion_vectors
 
 
 def test_advect_field():

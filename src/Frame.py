@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 import scipy.ndimage as ndimage
 from typing import Union
-from Feature import Feature
+from feature import Feature
 from utils import check_arrays
 
 

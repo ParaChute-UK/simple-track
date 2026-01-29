@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.typing import NDArray
 from scipy.interpolate import LinearNDInterpolator, RectBivariateSpline
-from Frame import Frame
+from frame import Frame
 from typing import Union
 from utils import check_arrays
 import itertools

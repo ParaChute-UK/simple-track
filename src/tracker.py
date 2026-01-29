@@ -7,11 +7,11 @@ from yaml import safe_load
 from pathlib import Path
 import multiprocessing as mp
 
-from Frame import Timeline, Frame
-from FrameOutputManager import FrameOutputManager
-from FrameTracker import FrameTracker
-from OpticalFlowSolver import OpticalFlowSolver
-from LoadingBar import LoadingBar
+from frame import Timeline, Frame
+from output import FrameOutputManager
+from frame_tracker import FrameTracker
+from flow_solver import OpticalFlowSolver
+from loading_bar import LoadingBar
 
 
 class SimpleTrack:

@@ -7,8 +7,7 @@ sys.path.append(
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/src"
 )
-from src.OpticalFlowSolver import OpticalFlowSolver
-from src.OpticalFlowSolver import pairwise_with_stride
+from flow_solver import OpticalFlowSolver, pairwise_with_stride
 import numpy as np
 
 of_solver = OpticalFlowSolver()
