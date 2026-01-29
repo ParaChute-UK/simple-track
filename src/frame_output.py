@@ -2,7 +2,6 @@ from frame import Frame, Timeline
 from pathlib import Path
 import numpy as np
 from utils import check_arrays
-import matplotlib
 
 
 class FrameOutputManager:
@@ -52,12 +51,17 @@ class FrameOutputManager:
         Args:
             frame (Frame): _description_
         """
+        outputs = {
+            "features": frame.get_feature_field(),
+            "lifetime": frame.get_lifetime_field(),
+            "y_flow": frame.get_flow()[0],
+            "x_flow": frame.get_flow()[1],
+        }
         frame_time = frame.get_time()
         frame_time_str = frame_time.strftime("%Y%m%d_%H%M")
-        feature_output_fnm = f"{self.output_path}/features_{frame_time_str}.npy"
-        lifetime_output_fnm = f"{self.output_path}/lifetimes_{frame_time_str}.npy"
-        np.save(feature_output_fnm, frame.get_feature_field())
-        np.save(lifetime_output_fnm, frame.get_lifetime_field())
+        for output_fnm, output in outputs.items():
+            full_fnm = f"{self.output_path}/{output_fnm}_{frame_time_str}.npy"
+            np.save(full_fnm, output)
 
     def output_density_field(
         self, timeline: Timeline, field_type: str, centroid_only: bool = True

@@ -170,7 +170,6 @@ class Frame:
             feature_mask = self.feature_field == feature_id
             feature_dy = np.mean(y_flow[feature_mask])
             feature_dx = np.mean(x_flow[feature_mask])
-
             feature.dydx = (feature_dy, feature_dx)
 
     def get_next_available_feature_id(self) -> int:

@@ -46,7 +46,7 @@ class SimpleTrack:
             filenames = self.filenames
 
         self.loading_bar = LoadingBar(total=len(filenames))
-        print(f"Hello from process {mp.current_process().name} with arg {filenames}\n")
+        # print(f"Hello from process {mp.current_process().name} with arg {filenames}\n")
 
         # Run the things
         for fnm_idx, filename in enumerate(filenames):
@@ -75,16 +75,19 @@ class SimpleTrack:
             y_flow, x_flow = self.of_solver.analyse_flow(prev_frame, frame)
 
             # Update the previous Frame with these displacements which is
-            # needed for tracking Features
-            # TODO: is the feautre assignment here actually needed?
-            # TODO: the dy, d
+            # needed for tracking Features.
+            # Also update the current frame with displacements for outputs
+            # TODO: this choice may need to be revisited so that flow field
+            # is output at the correct time (currently, it is a bit misleading)
+            # that it is output at the timestep after it is used to displace features.
             prev_frame.assign_displacements(y_flow, x_flow)
+            frame.assign_displacements(y_flow, x_flow)
 
             # Track Features between difference Frames
             # print(frame.get_time())
             self.frame_tracker.run(prev_frame, frame)
 
-            # Output frame data to text file
+            # Output frame data to text file and field to npy
             self.frame_output.features_to_txt(frame)
             self.frame_output.fields_to_npy(frame)
 

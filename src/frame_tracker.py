@@ -158,7 +158,6 @@ class FrameTracker:
                 for feature in all_features
                 if feature.provisional_id == conflicting_id
             ]
-            print(f"Matching features for id {conflicting_id}: {matching_features}")
 
             if not all(isinstance(feature, Feature) for feature in matching_features):
                 raise TypeError("Expected all matching features to be of type Feature")
