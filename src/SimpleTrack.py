@@ -54,8 +54,8 @@ class SimpleTrack:
             # TODO: change this procedure to a Loader class instead.
             # TODO: but, also want to offer a BasicLoader that can be interacted
             # with purely through the config file
-            frame.load_mwe_data(filename)
-            # frame.load_data(filename)
+            # frame.load_mwe_data(filename)
+            frame.load_data(filename)
             frame.identify_features(**self.config["FEATURE"])
             self.timeline.add_to_timelime(frame)
 
@@ -92,8 +92,12 @@ class SimpleTrack:
             # print("Final ids")
             # print(frame.get_features())
 
-        self.frame_output.output_density_field(self.timeline, "init")
-        self.frame_output.output_density_field(self.timeline, "dissipation")
+        self.frame_output.output_density_field(
+            self.timeline, "init", centroid_only=False
+        )
+        self.frame_output.output_density_field(
+            self.timeline, "dissipation", centroid_only=False
+        )
 
     def run_cset(self, time_and_data_dict: dict):
         # Run the things

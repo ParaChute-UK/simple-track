@@ -4,6 +4,7 @@ from typing import Union
 from Frame import Frame
 from Feature import Feature
 from utils import check_arrays
+import time
 
 
 class FrameTracker:
@@ -158,6 +159,7 @@ class FrameTracker:
                 for feature in all_features
                 if feature.provisional_id == conflicting_id
             ]
+            print(f"Matching features for id {conflicting_id}: {matching_features}")
 
             if not all(isinstance(feature, Feature) for feature in matching_features):
                 raise TypeError("Expected all matching features to be of type Feature")
@@ -229,14 +231,35 @@ class FrameTracker:
         # feature field
         overlap_sizes = []
         for feature in matching_features:
+            advected_feature_mask = advected_feature_field == parent_id
+            current_feature_mask = current_feature_field == feature.id
             overlap_size = np.size(
-                np.where(
-                    (advected_feature_field == parent_id)
-                    & (current_feature_field == feature.id)
-                ),
+                np.where(advected_feature_mask & current_feature_mask),
                 1,
             )
             overlap_sizes.append(overlap_size)
+
+        # If there is no overlap between the two fields, implies there was a halo used
+        # to match these features. Try applying the halo again here
+        # TODO: tidy repeated functionality
+        if all(size == 0 for size in overlap_sizes):
+            overlap_sizes = []
+            for feature in matching_features:
+                advected_feature_mask += generate_radial_mask(
+                    advected_feature_field,
+                    get_centroid(advected_feature_field, parent_id),
+                    self.overlap_nbhood,
+                )
+                current_feature_mask += generate_radial_mask(
+                    current_feature_field,
+                    get_centroid(current_feature_field, feature.id),
+                    self.overlap_nbhood,
+                )
+                overlap_size = np.size(
+                    np.where(advected_feature_mask & current_feature_mask),
+                    1,
+                )
+                overlap_sizes.append(overlap_size)
 
         if all(size == 0 for size in overlap_sizes):
             raise ValueError(
@@ -356,8 +379,6 @@ class FrameTracker:
                 # Update the accreted_in_next_frame_by property of Features in prev_frame
                 for accreted_id in other_sufficient_ids:
                     accreted_feature = prev_frame.get_feature(accreted_id)
-                    print(accreted_id)
-                    print(accreted_feature)
                     accreted_feature.accreted_in_next_frame_by = feature_id
                     accreted_feature.set_as_final_timestep()
 
@@ -402,7 +423,7 @@ class FrameTracker:
                 best overlap. If None, there are no other sufficient ids.
 
         """
-        # Check number of sufficient overlaps.
+        # Check number of sufficient overlaps. Get bool array of values meeting threshold
         sufficient_overlaps = overlap_hist >= self.overlap_threshold
         len_sufficient_overlaps = np.count_nonzero(sufficient_overlaps)
 
@@ -455,8 +476,10 @@ class FrameTracker:
             # To ensure the matching id is now not included in other sufficient ids,
             # set sufficient overlaps to False at this id
             sufficient_overlaps[matching_id] = False
+            other_sufficient_ids = np.argwhere(sufficient_overlaps)
             # Squeeze output, but only one axis so that single element arrays remain arrays
-            other_sufficient_ids = np.argwhere(sufficient_overlaps).squeeze(axis=0)
+            axis_to_squeeze = other_sufficient_ids.shape.index(1)
+            other_sufficient_ids = other_sufficient_ids.squeeze(axis_to_squeeze)
 
         return matching_id, other_sufficient_ids
 

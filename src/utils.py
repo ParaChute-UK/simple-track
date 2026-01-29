@@ -40,7 +40,7 @@ def check_arrays(
             dtype = np.floating
 
         for arr in modified_args:
-            if not all(np.issubdtype(i, dtype) for i in arr.copy().flatten()):
+            if not np.issubdtype(arr.dtype, dtype):
                 msg = f"Argument with dtype {arr.dtype} does not have required dtype {dtype}"
                 raise TypeError(msg)
 

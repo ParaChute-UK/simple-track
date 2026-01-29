@@ -2,6 +2,7 @@ class LoadingBar:
     def __init__(self, total, bar_length=20):
         self.total = total
         self.bar_length = bar_length
+        print("Progress: [] 0%", end="/r")
 
     def update_progress(self, current):
         fraction = current / self.total
