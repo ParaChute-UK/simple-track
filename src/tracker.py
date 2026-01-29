@@ -8,7 +8,7 @@ from pathlib import Path
 import multiprocessing as mp
 
 from frame import Timeline, Frame
-from output import FrameOutputManager
+from frame_output import FrameOutputManager
 from frame_tracker import FrameTracker
 from flow_solver import OpticalFlowSolver
 from loading_bar import LoadingBar
