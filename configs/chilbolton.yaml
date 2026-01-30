@@ -26,7 +26,7 @@ FEATURE:
 
 OF_SOLVER:
   overlap_threshold: 0.6 ## Minimum fraction of overlap (0.6 in TITAN)
-  subdomain_size: 100 ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
+  # subdomain_size: 100 ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
   min_fractional_coverage: 0.01  ## Minimum fractional cover of objects required for fft to obtain (dx,dy) displacement
   subdomain_tolerance: 3.0  # Maximum difference in displacement values between adjacent squares (to remove spurious values) - scaled by num_dt if necessary
   apply_tukey_filtering: True

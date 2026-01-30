@@ -21,7 +21,14 @@ class OpticalFlowSolver:
         overlap_threshold=0.6,
         apply_tukey_filtering=True,
     ) -> None:
-        self.subdomain_size = subdomain_size
+        if isinstance(subdomain_size, int):
+            self.subdomain_shape = np.array([subdomain_size, subdomain_size], dtype=int)
+        elif isinstance(subdomain_size, float):
+            raise TypeError("Expected int or array-like, got float")
+        elif subdomain_size is None:
+            self.subdomain_shape = None
+        else:
+            self.subdomain_shape = check_arrays(subdomain_size, ndim=2).astype(int)
         self.min_fractional_coverage = min_fractional_coverage
         self.subdomain_tolerance = subdomain_tolerance
         self.overlap_threshold = overlap_threshold
@@ -34,7 +41,8 @@ class OpticalFlowSolver:
             return None, None
 
         # If there are too few features, don't proceed with optical flow
-        min_feature_coverage = self.subdomain_size**2 * self.min_fractional_coverage
+        subdomain_count = np.prod(self.subdomain_shape)
+        min_feature_coverage = subdomain_count * self.min_fractional_coverage
         if np.sum(arr1) < min_feature_coverage or np.sum(arr2) < min_feature_coverage:
             print(f"Threshold for running optical flow: {self.min_fractional_coverage}")
             print(f"Number of pixels above treshold in arr1: {np.sum(arr1)}")
@@ -87,10 +95,8 @@ class OpticalFlowSolver:
         )
 
         # Determine a subdomain size if not provided
-        if self.subdomain_size is None:
-            self.subdomain_size = self.determine_sufficient_subdomain_size(
-                prev_features.shape
-            )
+        if self.subdomain_shape is None:
+            self.subdomain_shape = self.get_subdomain_shape(prev_features.shape)
 
         # Check inputs, don't proceeed if not validated
         prev_features, current_features = self._check_inputs(
@@ -99,21 +105,15 @@ class OpticalFlowSolver:
         if prev_features is None:
             return None, None
 
-        # Get subdomains to calculate FFT over
-        subdomain_shape = np.array(
-            [self.subdomain_size, self.subdomain_size], dtype=int
-        )
-        subdomain_step = subdomain_shape / 2
-
         # Initialise containing arrays for holding subdomain dy, dx
         subdomain_dy, subdomain_dx = self.get_subdomain_containment_arrays(
-            prev_features.shape, subdomain_shape
+            prev_features.shape, self.subdomain_shape
         )
 
         # Get tuple of indices of subdomains to iterate over
         # This will also check that the subdomain shape exactly fits the domain
         y_subdomain_bounds, x_subdomain_bounds = self.get_overlapping_subdomain_idxs(
-            prev_features.shape, subdomain_shape
+            prev_features.shape, self.subdomain_shape
         )
         # Get the iterable of subdomain bounds
         subdomain_bounds = self.subdomain_iter(y_subdomain_bounds, x_subdomain_bounds)
@@ -131,6 +131,7 @@ class OpticalFlowSolver:
             )
 
             # Use first bounds to get idx for dy and dx subdomain
+            subdomain_step = self.subdomain_shape / 2
             dy_idx = int(y_bounds[0] // subdomain_step[0])
             dx_idx = int(x_bounds[0] // subdomain_step[1])
             subdomain_dy[dy_idx, dx_idx] = dy
@@ -156,7 +157,6 @@ class OpticalFlowSolver:
             subdomain_dx,
             prev_features.shape,
         )
-
         return y_flow, x_flow
 
     def get_subdomain_containment_arrays(
@@ -257,14 +257,22 @@ class OpticalFlowSolver:
         subdomain_vals[invalid_tolerance] = np.nan
         return subdomain_vals
 
-    def determine_sufficient_subdomain_size(self, feature_field_shape):
+    def get_subdomain_shape(self, feature_field_shape):
         # TODO: figure out some logic here for getting a good sd size
         # if none is provided.
         # Use this for now, but it won't work in all cases!
         # TODO: this is entirely arbitrary. Check if this is sensible. It probably isnt
-        # TODO: also need checks that this will divide the domain sensibly.
         # TODO: what if domain is an odd shape?? What then??
-        return max(feature_field_shape[0], feature_field_shape[1]) // 5
+        sd_shape = np.array(feature_field_shape) // 5
+        if not self.check_subdomain_size_fits_in_full_domain(
+            feature_field_shape, sd_shape
+        ):
+            # TODO: do something more intelligent here rather than just raise an error
+            # Try to find another subdomain shape that could fit
+            raise Exception(
+                f"Derived subdomain shape ({sd_shape}) cannot fit ({feature_field_shape})"
+            )
+        return sd_shape
 
     def check_subdomain_size_fits_in_full_domain(
         self, feature_field_shape: NDArray, subdomain_shape: NDArray
