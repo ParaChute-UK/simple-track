@@ -11,7 +11,7 @@ class FrameTracker:
         self,
         overlap_nbhood: int = 5,
         overlap_threshold: float = 0.6,
-        retain_lifetime_on_split: bool = False,
+        retain_lifetime_on_split: bool = True,
     ):
         """
         Initialise FrameTracker class to track Features between Frames
@@ -31,7 +31,7 @@ class FrameTracker:
                 If a child Feature splits from its parent feature, this determines whether
                 the child Feature should carry over the lifetime from the parent or whether
                 its lifetime should be set to 1
-                Defaults to False
+                Defaults to True
         """
         self.overlap_nbhood = int(overlap_nbhood)
         self.overlap_threshold = overlap_threshold
@@ -178,7 +178,7 @@ class FrameTracker:
                 feature.provisional_id = current_frame.get_next_available_feature_id()
                 # Handle lifetime depending on init input
                 if self.retain_lifetime_on_split:
-                    feature.lifetime = parent_feature.lifetime + 1
+                    feature.lifetime = parent_feature.lifetime
                 else:
                     feature.lifetime = 1
 
@@ -246,12 +246,12 @@ class FrameTracker:
                 advected_feature_mask += generate_radial_mask(
                     advected_feature_field,
                     get_centroid(advected_feature_field, parent_id),
-                    self.overlap_nbhood,
+                    self.overlap_nbhood * np.count_nonzero(advected_feature_mask),
                 )
                 current_feature_mask += generate_radial_mask(
                     current_feature_field,
                     get_centroid(current_feature_field, feature.id),
-                    self.overlap_nbhood,
+                    self.overlap_nbhood * np.count_nonzero(current_feature_mask),
                 )
                 overlap_size = np.size(
                     np.where(advected_feature_mask & current_feature_mask),
@@ -583,8 +583,9 @@ class FrameTracker:
         feature_mask = np.where(current_feature_field == feature_id, True, False)
         if nbhood:
             centroid = get_centroid(current_feature_field, feature_id)
+            radial_mask_size = nbhood * np.count_nonzero(feature_mask)
             feature_mask += generate_radial_mask(
-                current_feature_field, centroid, nbhood
+                current_feature_field, centroid, radial_mask_size
             )
 
         # Setup bins for comparing feature fields using histogram

@@ -124,6 +124,9 @@ class Frame:
             threshold=threshold,
             under_threshold=under_threshold,
         )
+        # Provisionally set the lifetime field to 1 anywhere there is a feature
+        self.lifetime_field = np.zeros_like(self.feature_field)
+        self.lifetime_field[self.feature_field > 0] = 1
         self.max_id = int(np.max(self.feature_field))
         self.populate_features()
 

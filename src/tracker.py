@@ -114,8 +114,6 @@ class SimpleTrack:
 
             # If this is the first frame, skip tracking
             if len(self.timeline.timeline) == 1:
-                print(frame.get_time())
-                print(frame.get_features())
                 continue
 
             # Now run optical flow between previous and current event
@@ -133,8 +131,7 @@ class SimpleTrack:
             self.frame_tracker.run(prev_frame, frame)
 
             # self.loading_bar.update_progress(fnm_idx + 1)
-            print("Final ids")
-            print(frame.get_features())
+        return self.timeline.get_timeline()
 
     def run_parallel(self, processes=4):
         # Split filenames into chunks for each process

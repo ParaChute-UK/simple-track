@@ -210,7 +210,7 @@ class OpticalFlowSolver:
         x_subdomain_bounds_tuple = pairwise_with_stride(x_subdomain_bounds, 2)
 
         # Finally, get permutations of all xy subdomain bounds
-        # E.g., for example above, produces ( ((0, 10), (0, 15)), ((0, 10), (15, 30))...)
+        # E.g., for example above, produces ( ((0, 20), (0, 30)), ((0, 20), (15, 45))...)
         subdomain_bounds = itertools.product(
             y_subdomain_bounds_tuple, x_subdomain_bounds_tuple
         )
