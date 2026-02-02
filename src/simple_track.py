@@ -55,7 +55,8 @@ class SimpleTrack:
             # TODO: but, also want to offer a BasicLoader that can be interacted
             # with purely through the config file
             # frame.load_mwe_data(filename)
-            frame.load_data(filename)
+            # frame.load_data(filename)
+            frame.load_india_data(filename)
             frame.identify_features(**self.config["FEATURE"])
             self.timeline.add_to_timelime(frame)
 
@@ -166,10 +167,11 @@ class SimpleTrack:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        raise Exception("Running SimpleTrack requires path to config")
+    if len(sys.argv) < 2:
+        raise Exception("Running SimpleTrack requires path to at least one config")
 
     # For parallelisation, may need to setup the filenames here instead??
 
-    config_path = sys.argv[1]
-    SimpleTrack(config_path).run()
+    config_paths = sys.argv[1:]
+    for config_path in config_paths:
+        SimpleTrack(config_path).run()

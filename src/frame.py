@@ -101,6 +101,18 @@ class Frame:
         mwe_idx = str(filename)[-5]
         self.time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
 
+    def load_india_data(self, filename):
+        import iris
+        cube = iris.load_cube(filename, "precipitation_flux")
+        # data is (401, 401) - cut the first elements out
+        self.raw_field = cube.data[1:, 1:]
+        assert self.raw_field.ndim == 2
+        tcoord = cube.coord("time")
+        time_points = tcoord.units.num2pydate(tcoord.points)
+        assert len(time_points) == 1
+        self.time = time_points[0]
+
+
     def identify_features(
         self, min_size: int, threshold: float, under_threshold: bool
     ) -> None:
