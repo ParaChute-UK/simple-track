@@ -120,11 +120,22 @@ newmask = []
 num_dt = []
 
 ###### MODIFIED OPTICAL FLOW CODE CONTRIBUTED BY CHRIS SHORT #######
+# This is based on the rainymotion library described in this paper:
+# Optical flow models as an open benchmark for radar-based precipitation nowcasting (rainymotion v0.1)
+# Ayzel et al 2019, GMD
+# https://gmd.copernicus.org/articles/12/1387/2019/
+# The rainymotion library can be found here:
+# https://rainymotion.readthedocs.io/en/latest/
+
 use_new_opt_flow = True
+
+# The Dense Inverse Search (DIS) algorithm was found to perform well by Ayzel et al 2019 (particularly
+# the "backward scheme") so we adopt this method here (and haven't really tested the others
+# implemented in rainymotion)
 of_method = "DIS"
 direction = "backward"
     
-# Below functions heavily based on REF
+# Three below functions are heavily based on similar functions in the rainymotion package
 def scaler(data):
     c1 = data.min()
     c2 = data.max()
@@ -240,6 +251,8 @@ for nt in range(len(filelist)):
 	    oldmask = np.where(OldLabels>=1,1,0)
 	    newmask = np.where(NewLabels>=1,1,0)
 
+        # If using alternative optical flow method, compute displacement vectors between
+        # previous field (e.g. rainfall) and the current one
         delta_x = None
         delta_y = None
         if use_new_opt_flow:
@@ -254,7 +267,7 @@ for nt in range(len(filelist)):
                 # Scale input data to uint8 [0-255] 
                 scaled_data, c1, c2 = scaler(input_data)
 
-                # Calculate optical flow displacements in each direction (in pixels)
+                # Calculate optical flow displacement vectors (in pixels)
                 of = calculate_of(scaled_data, method=of_method, direction=direction)
                 delta_x = of[::, ::, 0]
                 delta_y = of[::, ::, 1]
