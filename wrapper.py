@@ -3,6 +3,7 @@ import numpy as np
 import datetime
 import os
 import user_functions
+import cv2
 
 ##################################################################
 # THE FOLLOWING PARAMETERS SHOULD BE CHANGED BASED ON THE DATA (RESOLUTION ETC.)
@@ -118,6 +119,104 @@ oldmask = []
 newmask = []
 num_dt = []
 
+###### MODIFIED OPTICAL FLOW CODE CONTRIBUTED BY CHRIS SHORT #######
+use_new_opt_flow = True
+of_method = "DIS"
+direction = "backward"
+    
+# Below functions heavily based on REF
+def scaler(data):
+    c1 = data.min()
+    c2 = data.max()
+    return ((data - c1) / (c2 - c1) * 255).astype(np.uint8), c1, c2
+
+def fill_holes(of_instance, threshold=0):
+    # calculate velocity scalar
+    vlcty = np.sqrt(of_instance[::, ::, 0]**2 + of_instance[::, ::, 1]**2)
+
+    # zero mask
+    zero_holes = vlcty <= threshold
+    if vlcty.size == np.count_nonzero(zero_holes):
+        print("WARNING: vlcty <= 0 everywhere")
+        delta_x_target = np.zeros(vlcty.shape)
+        delta_y_target = np.zeros(vlcty.shape)
+    else:
+        # targets
+        coord_target_i, coord_target_j = np.meshgrid(range(of_instance.shape[1]),
+                                                     range(of_instance.shape[0]))
+
+        # source
+        coord_source_i, coord_source_j = coord_target_i[~zero_holes], coord_target_j[~zero_holes]
+        delta_x_source = of_instance[::, ::, 0][~zero_holes]
+        delta_y_source = of_instance[::, ::, 1][~zero_holes]
+
+        # reshape
+        src = np.vstack((coord_source_i.ravel(), coord_source_j.ravel())).T
+        trg = np.vstack((coord_target_i.ravel(), coord_target_j.ravel())).T
+
+        # create an object
+        import wradlib.ipol as ipol
+        interpolator = ipol.Idw(src, trg)
+
+        # do interpolation
+        delta_x_target = interpolator(delta_x_source.ravel())
+        delta_y_target = interpolator(delta_y_source.ravel())
+
+        # reshape output
+        delta_x_target = delta_x_target.reshape(of_instance.shape[0],
+                                                of_instance.shape[1])
+        delta_y_target = delta_y_target.reshape(of_instance.shape[0],
+                                                of_instance.shape[1])
+
+    return np.stack([delta_x_target, delta_y_target], axis=-1)
+
+def calculate_of(data_instance,
+                 method="DIS",
+                 direction="forward"):
+    # define frames order
+    if direction == "forward":
+        prev_frame = data_instance[-2]
+        next_frame = data_instance[-1]
+        coef = 1.0
+    elif direction == "backward":
+        prev_frame = data_instance[-1]
+        next_frame = data_instance[-2]
+        coef = -1.0
+
+    # calculate dense flow
+    if method == "Farneback":
+        of_instance = cv2.optflow.createOptFlow_Farneback()
+    elif method == "DIS":
+        # Name depends on version of CV2
+        # of_instance = cv2.optflow.createOptFlow_DIS()
+        of_instance = cv2.DISOpticalFlow_create()
+    elif method == "DeepFlow":
+        of_instance = cv2.optflow.createOptFlow_DeepFlow()
+    elif method == "PCAFlow":
+        of_instance = cv2.optflow.createOptFlow_PCAFlow()
+    elif method == "SimpleFlow":
+        of_instance = cv2.optflow.createOptFlow_SimpleFlow()
+    elif method == "SparseToDense":
+        of_instance = cv2.optflow.createOptFlow_SparseToDense()
+
+    try:
+        delta = of_instance.calc(prev_frame, next_frame, None) * coef
+
+        if method in ["Farneback", "SimpleFlow"]:
+            # variational refinement
+            # Name depends on version of CV2
+            # delta = cv2.optflow.createVariationalFlowRefinement().calc(prev_frame, next_frame, delta)
+            delta = cv2.VariationalRefinement_create().calc(prev_frame, next_frame, delta)
+            delta = np.nan_to_num(delta)
+            delta = fill_holes(delta)
+    except:
+        print("WARNING: Couldn't compute optical flow. Setting to zeros")
+        shape = [data_instance.shape[1], data_instance.shape[2], data_instance.shape[0]]
+        delta = np.zeros(shape)
+
+    return delta
+##########################
+
 for nt in range(len(filelist)):
 	# Load new image
 	now_time = start_time + datetime.timedelta(seconds=300.*nt)
@@ -130,16 +229,36 @@ for nt in range(len(filelist)):
 	# !!! NB If raw data are used (i.e. not zeros and ones) then fftpixels needs to be changed to remain sensible !!!
 	if len(OldLabels) > 1:
 	    # CHECK TIME DIFFERENCE BETWEEN CONSECUTIVE IMAGES 
-		dtnow = user_functions.timediff(oldhourval,oldminval,hourval,minval)
-		num_dt = dtnow/dt
-		if dtnow > dt_tolerance:
-			print('Data are too far apart in time --- Re-initialise objects')
-			OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
-			newwas = 1
-			plot_vectors = False
-			continue
-		oldmask = np.where(OldLabels>=1,1,0)
-		newmask = np.where(NewLabels>=1,1,0)
+	    dtnow = user_functions.timediff(oldhourval,oldminval,hourval,minval)
+	    num_dt = dtnow/dt
+	    if dtnow > dt_tolerance:
+		print('Data are too far apart in time --- Re-initialise objects')
+		OldData, OldLabels, oldvar, newvar, prev_time = [], [], [], [], []
+		newwas = 1
+		plot_vectors = False
+		continue
+	    oldmask = np.where(OldLabels>=1,1,0)
+	    newmask = np.where(NewLabels>=1,1,0)
+
+        delta_x = None
+        delta_y = None
+        if use_new_opt_flow:
+            if nt > 0:
+                # Load data from previous timestep
+                prev_time = start_time + datetime.timedelta(seconds=300.*(nt - 1))
+	        prev_var, _, _, _ = user_functions.loadfile(DATA_DIR + filelist[nt - 1])
+
+                # Stack data into required shape
+                input_data = np.stack((prev_var, var), axis=0)
+                
+                # Scale input data to uint8 [0-255] 
+                scaled_data, c1, c2 = scaler(input_data)
+
+                # Calculate optical flow displacements in each direction (in pixels)
+                of = calculate_of(scaled_data, method=of_method, direction=direction)
+                delta_x = of[::, ::, 0]
+                delta_y = of[::, ::, 1]
+            
 	# Call object tracking routine
 	# NewData = list of objects and properties
 	# newwas = final label number
@@ -147,7 +266,7 @@ for nt in range(len(filelist)):
 	# newumat, newvmat = arrays with (dx,dy) displacement between two images (NB not displacement per dt!!!) 
 	# wasarray = array with object IDs consistent across images (i.e. tracked IDs)
 	# lifearray = array with object lifetime consistent across images
-	NewData, newwas, NewLabels, newumat, newvmat, wasarray, lifearray = object_tracking.track_storms(OldData, var, newwas, NewLabels, OldLabels, xmat, ymat, fftpixels, dd_tolerance, halosq, squarehalf, oldmask, newmask, num_dt, lapthresh, misval, doradar, under_t, IMAGES_DIR, write_file_ID, flagplottest)
+	NewData, newwas, NewLabels, newumat, newvmat, wasarray, lifearray = object_tracking.track_storms(OldData, var, newwas, NewLabels, OldLabels, xmat, ymat, fftpixels, dd_tolerance, halosq, squarehalf, oldmask, newmask, num_dt, lapthresh, misval, doradar, under_t, IMAGES_DIR, write_file_ID, flagplottest, use_new_opt_flow=use_new_opt_flow, delta_x=delta_x, delta_y=delta_y)
 	# Write tracked storm information (see object_tracking.write_storms)
 	if flagwrite:
 		object_tracking.write_storms(write_file_ID, start_time, now_time, label_method, squarelength, rafraction, newwas, NewData, doradar, misval, IMAGES_DIR)
