@@ -1,6 +1,7 @@
 # Test config file for MWE
 PATH:
   data: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/tests/mwe_test_files
+  loader: MWELoader
   output: ./output_mwe_oost
 
 OUTPUT:

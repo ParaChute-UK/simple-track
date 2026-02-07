@@ -2,6 +2,7 @@
 
 PATH:
   data: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/data
+  loader: ChilboltonLoader
   output: ./output_chilbolton_oost_test
 
 OUTPUT:

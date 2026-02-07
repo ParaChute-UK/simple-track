@@ -1,5 +1,4 @@
 import datetime as dt
-from netCDF4 import Dataset as ncfile
 import numpy as np
 from numpy.typing import NDArray
 import scipy.ndimage as ndimage
@@ -10,8 +9,6 @@ from utils import check_arrays
 
 class Frame:
     def __init__(self):
-        self.file_id = None
-        # TODO: make time an input in init, remove set_time as an option
         self.time = None
 
         self.raw_field = None
@@ -32,6 +29,14 @@ class Frame:
         if not isinstance(other, Frame):
             return False
         return self.time == other.time
+
+    def import_data_and_time(self, data: NDArray, time: dt.datetime) -> None:
+        self.raw_field = check_arrays(data, ndim=2)
+        if not isinstance(time, dt.datetime):
+            raise TypeError(
+                f"Expected 'output_time' to be datetime objcet, got {type(time)}"
+            )
+        self.time = time
 
     def set_time(self, time: dt.datetime):
         self.time = time
@@ -70,48 +75,6 @@ class Frame:
         if not np.issubdtype(type(max_id), int):
             raise TypeError(f"Expected type int, got {type(max_id)}")
         self.max_id = max_id
-
-    def store_data(self, data: NDArray, time) -> None:
-        self.raw_field = data
-        self.time = time
-
-    # TODO: add functionality for user-definable loading functions
-    def load_data(self, filename: str) -> None:
-        """
-        Load data and extract time information
-
-        Args:
-            filename (str):
-                Path to file
-        """
-        nc = ncfile(filename)
-        data = nc.variables["var"][200:600, 250:550] / 32
-        data = np.flipud(np.transpose(data))
-        self.raw_field = data
-
-        file_id = str(filename)[-9:-5]
-        self.file_id = file_id
-        self.time = dt.time(hour=int(file_id[0:2]), minute=int(file_id[2:4]))
-
-    def load_mwe_data(self, filename):
-        base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
-        data = np.load(filename)
-        self.raw_field = data
-        self.file_id = str(filename)
-        mwe_idx = str(filename)[-5]
-        self.time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
-
-    def load_india_data(self, filename):
-        import iris
-        cube = iris.load_cube(filename, "precipitation_flux")
-        # data is (401, 401) - cut the first elements out
-        self.raw_field = cube.data[1:, 1:]
-        assert self.raw_field.ndim == 2
-        tcoord = cube.coord("time")
-        time_points = tcoord.units.num2pydate(tcoord.points)
-        assert len(time_points) == 1
-        self.time = time_points[0]
-
 
     def identify_features(
         self, min_size: int, threshold: float, under_threshold: bool
