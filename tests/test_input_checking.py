@@ -12,6 +12,7 @@ sys.path.append(
 )
 from simple_track import SimpleTrack
 from load import BaseLoader
+from frame import Frame
 
 test_time = dt.datetime(2026, 1, 1, 0, 0, 0)
 
@@ -117,8 +118,7 @@ def test_get_filenames_from_input_path(tmp_path, extensions, expected_result):
         print(e)
 
 
-@pytest.mark.parametrize(
-    "test_arr, test_time, expected_result",
+input_tests = (
     [
         [np.zeros((5, 5)), test_time, ValueError],
         ["Not an array", test_time, TypeError],
@@ -127,10 +127,22 @@ def test_get_filenames_from_input_path(tmp_path, extensions, expected_result):
         [np.zeros((10, 10)), test_time, True],
     ],
 )
+
+
+@pytest.mark.parametrize("test_arr, test_time, expected_result", *input_tests)
 def test_BaseLoader(test_arr, test_time, expected_result):
     loader = BaseLoader()
     loader.domain_shape = (10, 10)
     try:
         loader._check_outputs(test_arr, test_time)
+    except expected_result:
+        pass
+
+
+@pytest.mark.parametrize("test_arr, test_time, expected_result", *input_tests)
+def test_Frame_import_data_and_time(test_arr, test_time, expected_result):
+    frame = Frame()
+    try:
+        frame.import_data_and_time(test_arr, test_time)
     except expected_result:
         pass
