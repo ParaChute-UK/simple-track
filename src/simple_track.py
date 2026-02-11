@@ -26,7 +26,9 @@ class SimpleTrack:
         self.config = self._read_config(config_path)
         self.start_time = self.config["DATETIME"]["start_time"]
         # TODO: make this optional: data might be passed in from external source
-        self.filenames = self.__get_files_from_input_path(self.config["PATH"]["data"])
+        self.filenames = self._get_filenames_from_input_path(
+            self.config["PATH"]["data"]
+        )
         self.loader = get_loader(self.config["PATH"]["loader"])
         self.timeline = Timeline()
         self.of_solver = OpticalFlowSolver(**self.config["OF_SOLVER"])
@@ -163,7 +165,7 @@ class SimpleTrack:
         # This is apparently already solved in Will Keats/Callum Scullion MO
         # code so don't need to reinvent the wheel here.
 
-    def __get_files_from_input_path(self, input_path: str) -> list:
+    def _get_filenames_from_input_path(self, input_path: str) -> list:
         supported_filetypes = [".nc", ".npy"]
         filenames = sorted(
             [
