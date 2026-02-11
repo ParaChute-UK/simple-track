@@ -10,13 +10,13 @@ def get_loader(loader_key: str):
         "ChilboltonLoader": ChilboltonLoader,
     }
     loader = available_loaders[loader_key]()
-    if not issubclass(type(loader), LoaderBase):
+    if not issubclass(type(loader), BaseLoader):
         print(type(loader))
         raise TypeError("Requested loader is not type LoadingManager")
     return loader
 
 
-class LoaderBase:
+class BaseLoader:
     def __init__(self):
         self.domain_shape = None
 
@@ -42,7 +42,7 @@ class LoaderBase:
             )
 
 
-class MWELoader(LoaderBase):
+class MWELoader(BaseLoader):
     def __init__(self):
         super().__init__()
 
@@ -57,7 +57,7 @@ class MWELoader(LoaderBase):
         return data, time
 
 
-class ChilboltonLoader(LoaderBase):
+class ChilboltonLoader(BaseLoader):
     def __init__(self):
         super().__init__()
 
@@ -73,7 +73,7 @@ class ChilboltonLoader(LoaderBase):
         return data, time
 
 
-class CSETIndiaLoader(LoaderBase):
+class CSETIndiaLoader(BaseLoader):
     def __init__(self):
         super().__init__()
 

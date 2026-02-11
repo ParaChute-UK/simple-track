@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 import pytest
+import numpy as np
+import datetime as dt
 
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track"
@@ -9,6 +11,9 @@ sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/src"
 )
 from simple_track import SimpleTrack
+from load import BaseLoader
+
+test_time = dt.datetime(2026, 1, 1, 0, 0, 0)
 
 
 def test_check_valid_config():
@@ -110,3 +115,22 @@ def test_get_filenames_from_input_path(tmp_path, extensions, expected_result):
         assert expected_files == retrieved_files
     except expected_result as e:
         print(e)
+
+
+@pytest.mark.parametrize(
+    "test_arr, test_time, expected_result",
+    [
+        [np.zeros((5, 5)), test_time, ValueError],
+        ["Not an array", test_time, TypeError],
+        [np.zeros((10, 10)), "Not a time", TypeError],
+        [np.zeros((10, 10, 10)), test_time, ValueError],
+        [np.zeros((10, 10)), test_time, True],
+    ],
+)
+def test_BaseLoader(test_arr, test_time, expected_result):
+    loader = BaseLoader()
+    loader.domain_shape = (10, 10)
+    try:
+        loader._check_outputs(test_arr, test_time)
+    except expected_result:
+        pass

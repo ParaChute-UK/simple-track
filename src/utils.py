@@ -13,7 +13,7 @@ def check_arrays(
         elif isinstance(arr, (list, tuple)):
             modified_args.append(np.array(arr))
         else:
-            raise TypeError("args must be an array, list or tuple")
+            raise TypeError("args must be an array-like (array, list or tuple)")
 
     # Check each array has the required shape
     if shape is not None:
