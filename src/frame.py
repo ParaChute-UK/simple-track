@@ -10,13 +10,11 @@ from utils import check_arrays
 class Frame:
     def __init__(self):
         self.time = None
-
         self.raw_field = None
         self.feature_field = None
         self.lifetime_field = None
         self.max_id = None
         self.features = {}
-
         self.y_flow = None
         self.x_flow = None
 
@@ -91,7 +89,7 @@ class Frame:
                 if False, regions over the threshold are considered.
         """
         if self.raw_field is None:
-            raise Exception("Data has not been loaded into Event.")
+            raise Exception("Data has not been loaded into Frame")
 
         self.feature_field = label_features(
             field=self.raw_field,

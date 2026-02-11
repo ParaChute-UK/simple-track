@@ -41,6 +41,7 @@ class OpticalFlowSolver:
             return None, None
 
         # If there are too few features, don't proceed with optical flow
+        # TODO: what is actually the check here??
         subdomain_count = np.prod(self.subdomain_shape)
         min_feature_coverage = subdomain_count * self.min_fractional_coverage
         if np.sum(arr1) < min_feature_coverage or np.sum(arr2) < min_feature_coverage:

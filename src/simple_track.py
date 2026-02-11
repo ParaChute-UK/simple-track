@@ -23,8 +23,7 @@ class SimpleTrack:
             config_path (str):
                 Path to the configuration file
         """
-        with open(config_path, "r") as input:
-            self.config = safe_load(input)
+        self.config = self._read_config(config_path)
         self.start_time = self.config["DATETIME"]["start_time"]
         # TODO: make this optional: data might be passed in from external source
         self.filenames = self.__get_files_from_input_path(self.config["PATH"]["data"])
@@ -32,9 +31,20 @@ class SimpleTrack:
         self.timeline = Timeline()
         self.of_solver = OpticalFlowSolver(**self.config["OF_SOLVER"])
         self.frame_tracker = FrameTracker(**self.config["TRACKING"])
+
+        if "output" not in self.config["PATH"].keys():
+            output_path = "./output"
+        else:
+            output_path = self.config["PATH"]["output"]
+
+        if "experiment_name" not in self.config["OUTPUT"].keys():
+            expt_name = "simple_track"
+        else:
+            expt_name = self.config["OUTPUT"]["experiment_name"]
+
         self.frame_output = FrameOutputManager(
-            self.config["PATH"]["output"],
-            self.config["OUTPUT"]["experiment_name"],
+            output_path,
+            expt_name,
             self.start_time,
             config_path,
         )
@@ -162,7 +172,48 @@ class SimpleTrack:
                 if p.is_file() and p.suffix in supported_filetypes
             ]
         )
+        if len(filenames) == 0:
+            raise Exception(f"No files found in directory: {input_path}")
         return filenames
+
+    def _read_config(self, config_path: str) -> dict:
+        """
+        Read config, check for necessary arguments (threshold, data paths, loader),
+        return dict of parameters.
+
+        Args:
+            config_path (str):
+                Path to config
+
+        Returns:
+            dict:
+                Simple-Track parameters
+        """
+        with open(config_path, "r") as input:
+            config = safe_load(input)
+        self._check_config(config)
+        return config
+
+    def _check_config(self, config: dict) -> None:
+        # Check required top-level sections are present
+        required_sections = ["PATH", "FEATURE"]
+        input_section = config.keys()
+        section_check = [section in required_sections for section in input_section]
+        if not all(section_check):
+            raise Exception(
+                f"config missing one or more required sections: {required_sections}"
+            )
+        # Check required parameters are present
+        required_params = ["data", "loader"]
+        input_keys = config["PATH"].keys()
+        required_input_check = [key in input_keys for key in required_params]
+        # TODO: make ConfigError in utils
+        if not all(required_input_check):
+            raise Exception(
+                f"config missing one or more required inputs: {required_params}"
+            )
+        if "threshold" not in config["FEATURE"].keys():
+            raise Exception("config missing required threshold input")
 
 
 if __name__ == "__main__":
