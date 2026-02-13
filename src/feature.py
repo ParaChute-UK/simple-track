@@ -28,6 +28,15 @@ class Feature:
         repr_str += f"lifetime: {self.lifetime} timestep(s) at time: {self.time}"
         return repr_str
 
+    def __eq__(self, other):
+        if (
+            self._time == other._time
+            and self._id == other._id
+            and np.array_equal(self._feature_coords, other._feature_coords)
+        ):
+            return True
+        return False
+
     @property
     def id(self) -> int:
         return self._id

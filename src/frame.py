@@ -114,6 +114,12 @@ class Frame:
         feature_ids = np.unique(self.feature_field)
         feature_ids = np.delete(feature_ids, 0)
 
+        if any(feature_ids < 0):
+            raise ValueError("Values in feature field cannot be negative")
+
+        if np.issubdtype(feature_ids.dtype, np.integer):
+            raise TypeError("Feature field dtype must be int")
+
         # Don't include 0 in Feature population, this is reserved for background
         for feature_id in feature_ids:
             # Get the pixel locations of the feature in the field

@@ -1,5 +1,4 @@
 import sys
-from pathlib import Path
 import pytest
 import numpy as np
 import datetime as dt
@@ -10,9 +9,8 @@ sys.path.append(
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/src"
 )
-from simple_track import SimpleTrack
-from load import BaseLoader
 from frame import Frame, label_features
+from feature import Feature
 
 
 def test_label_features_valid_inputs():
@@ -64,3 +62,72 @@ def test_label_features_invalid_inputs(
         label_features(field, min_area, threshold, under_threshold)
     except expected_result:
         pass
+
+
+def test_populate_features_valid_feature_field():
+    test_time = dt.datetime.now()
+    test_frame = Frame()
+    test_frame.time = test_time
+
+    test_feature_field = test_field.copy()
+    test_feature_field[3:5, 3:5] = 1
+    test_feature_field[6:9, 6:9] = 2
+
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    expected_dict = {
+        1: Feature(1, np.where(test_feature_field == 1), test_time),
+        2: Feature(2, np.where(test_feature_field == 2), test_time),
+    }
+
+    assert test_frame.features == expected_dict
+
+
+def test_populate_features_invalid_negative_features():
+    test_time = dt.datetime.now()
+    test_frame = Frame()
+    test_frame.time = test_time
+
+    test_feature_field = test_field.copy()
+    test_feature_field[3:5, 3:5] = -1
+    test_feature_field[6:9, 6:9] = 2
+
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    try:
+        test_frame.populate_features()
+    except ValueError:
+        pass
+
+
+def test_populate_features_invalid_float_features():
+    test_time = dt.datetime.now()
+    test_frame = Frame()
+    test_frame.time = test_time
+
+    test_feature_field = test_field.copy()
+    test_feature_field[3:5, 3:5] = 0.1
+    test_feature_field[6:9, 6:9] = 2
+
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    try:
+        test_frame.populate_features()
+    except TypeError:
+        pass
+
+
+def test_populate_features_with_no_feature_field():
+    test_time = dt.datetime.now()
+    test_frame = Frame()
+    test_frame.time = test_time
+
+    test_frame.populate_features()
+
+    if len(test_frame.get_features()) != 0:
+        raise TypeError(
+            f"No features expected for this test, got {len(test_frame.get_features())}"
+        )
