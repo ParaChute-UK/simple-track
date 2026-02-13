@@ -78,7 +78,7 @@ class Frame:
         self, min_size: int, threshold: float, under_threshold: bool
     ) -> None:
         """
-        Call the "label_storms" function to identify distinct regions in the input field
+        Call the "label_features" function to identify distinct regions in the input field
         that meet a specified threshold condition.
         Then, analyses each of the identified features to find properties
 
@@ -107,6 +107,9 @@ class Frame:
         # Check for existing features dict
         if self.features:
             self.features = {}
+
+        if self.feature_field is None:
+            return
 
         feature_ids = np.unique(self.feature_field)
         feature_ids = np.delete(feature_ids, 0)
@@ -308,18 +311,14 @@ def label_features(
     """
 
     # Check input types
-    if not isinstance(field, np.ndarray):
-        raise TypeError("field must be a numpy ndarray")
+    field = check_arrays(field, ndim=2)
+
     if not isinstance(min_area, (int, float)) or min_area < 0:
         raise ValueError("min_area must be a non-negative number")
     if not isinstance(threshold, (int, float)):
         raise ValueError("threshold must be a number")
     if not isinstance(under_threshold, bool):
         raise TypeError("under_threshold must be a boolean")
-
-    # Check the input field is 2D
-    if field.ndim != 2:
-        raise ValueError("field must be a 2D array")
 
     # Construct feature field using threshold and threshold condition
     # Grid points meeting the condition are set to 1, others to 0
