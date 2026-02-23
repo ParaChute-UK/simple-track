@@ -1,10 +1,7 @@
 import sys
 
 sys.path.append(
-    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track"
-)
-sys.path.append(
-    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/src"
+    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
 from src.utils import check_arrays
 import numpy as np

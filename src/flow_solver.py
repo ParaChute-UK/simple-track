@@ -46,8 +46,8 @@ class OpticalFlowSolver:
         min_feature_coverage = subdomain_count * self.min_fractional_coverage
         if np.sum(arr1) < min_feature_coverage or np.sum(arr2) < min_feature_coverage:
             print(f"Threshold for running optical flow: {self.min_fractional_coverage}")
-            print(f"Number of pixels above treshold in arr1: {np.sum(arr1)}")
-            print(f"Number of pixels above treshold in arr2: {np.sum(arr2)}")
+            print(f"Number of pixels above threshold in arr1: {np.sum(arr1)}")
+            print(f"Number of pixels above threshold in arr2: {np.sum(arr2)}")
             print("Number of features in arr1 and/or arr2 less than threshold. ")
             print("Skipping optical flow")
             return None, None
@@ -65,7 +65,7 @@ class OpticalFlowSolver:
         provided.
 
         Input feature fields must be of the same size and contain sufficient feature
-        coverage, as determined by min_feactional_coverage in init. Otherwise, solver
+        coverage, as determined by min_fractional_coverage in init. Otherwise, solver
         will return None for the flow fields.
 
         Args:
@@ -99,7 +99,7 @@ class OpticalFlowSolver:
         if self.subdomain_shape is None:
             self.subdomain_shape = self.get_subdomain_shape(prev_features.shape)
 
-        # Check inputs, don't proceeed if not validated
+        # Check inputs, don't proceed if not validated
         prev_features, current_features = self._check_inputs(
             prev_features, current_features
         )
@@ -125,7 +125,7 @@ class OpticalFlowSolver:
             x_slice = slice(x_bounds[0], x_bounds[1])
             subdomain_mask = (y_slice, x_slice)
 
-            dy, dx = self.track_subdomain_flow(
+            dy, dx = self.derive_subdomain_flow(
                 field1=prev_features[subdomain_mask],
                 field2=current_features[subdomain_mask],
                 tukey_filtering=self.apply_tukey_filtering,
@@ -362,7 +362,7 @@ class OpticalFlowSolver:
 
         return y_subdomain_idxs, x_subdomain_idxs
 
-    def track_subdomain_flow(
+    def derive_subdomain_flow(
         self, field1: NDArray, field2: NDArray, tukey_filtering: bool = True
     ) -> list[int]:
         """

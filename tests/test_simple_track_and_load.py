@@ -5,10 +5,7 @@ import numpy as np
 import datetime as dt
 
 sys.path.append(
-    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track"
-)
-sys.path.append(
-    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/src"
+    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
 from simple_track import SimpleTrack
 from load import BaseLoader
