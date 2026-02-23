@@ -51,7 +51,7 @@ class FrameTracker:
         are designated as new features and assigned a new id.
 
         Step 3: Check accreted ids from frame matching are not also present as provisional ids.
-        If they are, remove them from the accreted list.
+        Accreted ids should be removed from the field. If any are present, remove them from the accreted list.
 
         Step 4: After Feature matching, there may be multiple Features in current Frame that were matched
         to the same previous feature. These features will now have the same provisional ids.
@@ -64,7 +64,7 @@ class FrameTracker:
         Step 6: Promote provisional ids to final ids in current frame
 
         Step 7: Identify Features in the previous Frame that aren't matched with a Feature in the
-        current Frame.
+        current Frame. This is useful for output statistics
 
         Args:
             prev_frame (Frame):
@@ -107,7 +107,7 @@ class FrameTracker:
         current_frame.promote_provisional_ids()
 
         # Step 7: For tracing Features in the previous Frame that aren't matched with a
-        # Feature in the current Frame
+        # Feature in the current Frame. This is useful for output statistics
         self.identify_unmatched_features_in_prev_frame(prev_frame, current_frame)
 
     def identify_unmatched_features_in_prev_frame(
@@ -268,6 +268,8 @@ class FrameTracker:
         # If multiple features share max overlap, first instance is chosen.
         max_overlap_idx = np.argmax(overlap_sizes)
         parent_feature = matching_features.pop(max_overlap_idx)
+
+        # TODO: if there is still more than one max overlap, check centroid!
         # The remaining features are the child features
         return parent_feature, matching_features
 

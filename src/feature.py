@@ -64,10 +64,6 @@ class Feature:
         return self._lifetime
 
     @property
-    def is_final_timestep(self) -> bool:
-        return self._final_timestep
-
-    @property
     def accreted(self) -> list[int]:
         return self._accreted
 

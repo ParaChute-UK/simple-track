@@ -92,8 +92,9 @@ class SimpleTrack:
             # TODO: this choice may need to be revisited so that flow field
             # is output at the correct time (currently, it is a bit misleading)
             # that it is output at the timestep after it is used to displace features.
-            prev_frame.assign_displacements(y_flow, x_flow)
-            frame.assign_displacements(y_flow, x_flow)
+            if y_flow is not None or x_flow is not None:
+                prev_frame.assign_displacements(y_flow, x_flow)
+                frame.assign_displacements(y_flow, x_flow)
 
             # Track Features between difference Frames
             # print(frame.get_time())

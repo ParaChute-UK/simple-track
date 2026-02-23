@@ -203,8 +203,8 @@ class OpticalFlowSolver:
             Iterable: ((y_start, y_stop), (x_start, x_stop))
         """
         # Combine these idxs pairwise with stride 2 to define the subdomain bounds
-        # E.g., for subdomain size of 20 in y, produces [0, 10, 20, 30...]
-        # and for subdomain size of 30 in x, produces [0, 15, 30, 45...]
+        # E.g., for subdomain size of 20 in y with bounds [0, 10, 20, 30...]
+        # and for subdomain size of 30 in x with bounds [0, 15, 30, 45...]
         # this operation then produces ((0, 20), (10, 30), ...) for y
         # and ((0, 30), (15, 45)...) for x
         y_subdomain_bounds_tuple = pairwise_with_stride(y_subdomain_bounds, 2)
