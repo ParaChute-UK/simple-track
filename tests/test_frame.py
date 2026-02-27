@@ -6,7 +6,7 @@ import datetime as dt
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
-from frame import Frame, label_features
+from frame import Frame, Timeline, label_features
 from feature import Feature
 
 
@@ -365,9 +365,8 @@ def test_get_dissipating_features():
     # Should not expect to see this feature in the list of dissipating features
     feature2 = test_frame.get_feature(2)
     feature2.set_as_final_timestep()  # Set as final timestep so that it can be considered dissipating
-    feature2.accreted_in_next_frame_by = (
-        999  # Set to some arbitrary id to indicate it is accreted by another feature
-    )
+    # Set to some arbitrary id to indicate it is accreted by another feature
+    feature2.accreted_in_next_frame_by = 999
 
     # Set the accreted_in_next_frame_by of feature 4 to be some value so that it is not considered dissipating
     feature4 = test_frame.get_feature(4)
@@ -388,3 +387,64 @@ def test_get_dissipating_features_with_no_features():
 
 
 # TODO: add tests for get fields if this remains in the Frame class
+
+
+def test_add_to_timeline_with_valid_frame():
+    test_frame = Frame()
+    test_time = dt.datetime.now()
+    test_frame.time = test_time
+    test_timeline = Timeline()
+    test_timeline.add_to_timelime(test_frame)
+    assert test_timeline.get_frame(test_time) == test_frame
+
+
+def test_add_to_timeline_with_invalid_frame():
+    test_timeline = Timeline()
+    try:
+        test_timeline.add_to_timelime("not a frame")
+    except TypeError:
+        pass
+
+
+def test_add_to_timeline_with_frame_with_no_time():
+    test_timeline = Timeline()
+    test_frame = Frame()  # No time set for this frame
+    try:
+        test_timeline.add_to_timelime(test_frame)
+    except ValueError:
+        pass
+
+
+def test_get_previous_frame_with_valid_time():
+    test_timeline = Timeline()
+    test_frame1 = Frame()
+    test_frame2 = Frame()
+    time1 = dt.datetime(2024, 1, 1, 0, 0, 0)
+    time2 = dt.datetime(2024, 1, 1, 0, 5, 0)
+    test_frame1.time = time1
+    test_frame2.time = time2
+    test_timeline.add_to_timelime(test_frame1)
+    test_timeline.add_to_timelime(test_frame2)
+
+    previous_frame = test_timeline.get_previous_frame(time2)
+    assert previous_frame == test_frame1
+
+
+def test_get_previous_frame_with_no_previous_frames():
+    test_timeline = Timeline()
+    test_frame = Frame()
+    time = dt.datetime(2024, 1, 1, 0, 0, 0)
+    test_frame.time = time
+    test_timeline.add_to_timelime(test_frame)
+
+    previous_frame = test_timeline.get_previous_frame(time)
+    assert previous_frame is None
+
+
+def test_get_previous_frame_with_empty_timeline():
+    test_timeline = Timeline()
+    time = dt.datetime(2024, 1, 1, 0, 0, 0)
+    try:
+        test_timeline.get_previous_frame(time)
+    except ValueError:
+        pass

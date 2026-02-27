@@ -263,9 +263,16 @@ class Timeline:
     def add_to_timelime(self, frame: Frame):
         if not isinstance(frame, Frame):
             raise TypeError(f"Expected type Frame, got {type(frame)}")
+        if frame.get_time() is None:
+            raise ValueError("Frame time is not set. Cannot add to timeline.")
         self.timeline[frame.get_time()] = frame
 
     def get_previous_frame(self, current_time: dt.time) -> Frame:
+        if len(self.timeline) == 0:
+            raise ValueError("Timeline is empty. No previous frame to return.")
+        if len(self.timeline) == 1:
+            return None
+
         prev_times = [time for time in self.timeline.keys() if time < current_time]
         closest_time = max(prev_times) if prev_times else None
         if closest_time is None:
@@ -278,6 +285,11 @@ class Timeline:
 
     def get_timeline(self):
         return self.timeline
+
+    def get_frame(self, time: dt.datetime) -> Frame:
+        if time not in self.timeline.keys():
+            raise ValueError(f"No frame found for time {time}")
+        return self.timeline[time]
 
 
 def label_features(
