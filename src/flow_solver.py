@@ -12,7 +12,7 @@ import warnings
 from collections.abc import Iterable
 
 
-class OpticalFlowSolver:
+class FlowSolver:
     def __init__(
         self,
         subdomain_size=None,

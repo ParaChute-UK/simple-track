@@ -10,7 +10,7 @@ import multiprocessing as mp
 from frame import Timeline, Frame
 from frame_output import FrameOutputManager
 from frame_tracker import FrameTracker
-from flow_solver import OpticalFlowSolver
+from flow_solver import FlowSolver
 from load import LoadingBar, get_loader
 
 
@@ -31,7 +31,7 @@ class SimpleTrack:
         )
         self.loader = get_loader(self.config["PATH"]["loader"])
         self.timeline = Timeline()
-        self.of_solver = OpticalFlowSolver(**self.config["OF_SOLVER"])
+        self.of_solver = FlowSolver(**self.config["FLOW_SOLVER"])
         self.frame_tracker = FrameTracker(**self.config["TRACKING"])
 
         if "output" not in self.config["PATH"].keys():
@@ -40,7 +40,7 @@ class SimpleTrack:
             output_path = self.config["PATH"]["output"]
 
         if "experiment_name" not in self.config["OUTPUT"].keys():
-            expt_name = "simple_track"
+            expt_name = "Simple-Track Experiment"
         else:
             expt_name = self.config["OUTPUT"]["experiment_name"]
 

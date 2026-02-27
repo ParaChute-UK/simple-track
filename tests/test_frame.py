@@ -128,3 +128,57 @@ def test_populate_features_with_no_feature_field():
         raise TypeError(
             f"No features expected for this test, got {len(test_frame.get_features())}"
         )
+
+
+def test_assign_displacements_valid_inputs():
+    test_frame = Frame()
+    y_flow = np.ones((10, 10))
+    x_flow = np.ones((10, 10))
+    # Make zero flow on one half of domain
+    y_flow[:, :5] = 0
+    x_flow[:, :5] = 0
+
+    test_features = np.zeros((10, 10))
+    test_features[2:4, 2:4] = 1
+    test_features[6:9, 6:9] = 2
+
+    test_frame.feature_field = test_features
+    test_frame.populate_features()
+    test_frame.assign_displacements(y_flow, x_flow)
+
+    expected_displacements = {
+        1: (0.0, 0.0),  # No flow in this region
+        2: (1.0, 1.0),  # Flow of 1 in both directions
+    }
+
+    for feature_id, expected_disp in expected_displacements.items():
+        feature = test_frame.get_feature(feature_id)
+        assert feature.dydx == expected_disp
+
+
+def test_assign_displacements_no_features_loaded():
+    test_frame = Frame()
+    y_flow = np.ones((10, 10))
+    x_flow = np.ones((10, 10))
+
+    try:
+        test_frame.assign_displacements(y_flow, x_flow)
+    except Exception:
+        pass
+
+
+def test_assign_displacements_invalid_inputs():
+    test_frame = Frame()
+    test_features = np.zeros((10, 10))
+    test_features[2:4, 2:4] = 1
+    test_features[6:9, 6:9] = 2
+
+    test_frame.feature_field = test_features
+    test_frame.populate_features()
+    y_flow = "not a flow array"
+    x_flow = np.ones((10, 10))
+
+    try:
+        test_frame.assign_displacements(y_flow, x_flow)
+    except TypeError:
+        pass

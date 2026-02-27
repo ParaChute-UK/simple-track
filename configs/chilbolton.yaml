@@ -22,7 +22,7 @@ FEATURE:
   under_threshold: false ## True = labelling areas *under* the threshold (e.g. brightness temperature), False = labelling areas *above* threshold (e.g. rainfall)
   min_size: 4 # Minimum size of feature to be tracked (in pixels)
 
-OF_SOLVER:
+FLOW_SOLVER:
   overlap_threshold: 0.6 ## Minimum fraction of overlap (0.6 in TITAN)
   # subdomain_size: 100 ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
   min_fractional_coverage: 0.01  ## Minimum fractional cover of objects required for fft to obtain (dx,dy) displacement

@@ -82,12 +82,13 @@ class CSETIndiaLoader(BaseLoader):
 
         cube = iris.load_cube(filename, "precipitation_flux")
         # data is (401, 401) - cut the first elements out
-        self.raw_field = cube.data[1:, 1:]
-        assert self.raw_field.ndim == 2
+        data = cube.data[1:, 1:]
+        assert data.ndim == 2
         tcoord = cube.coord("time")
         time_points = tcoord.units.num2pydate(tcoord.points)
         assert len(time_points) == 1
-        self.time = time_points[0]
+        time_points = time_points[0]
+        return data, time_points
 
 
 class LoadingBar:
