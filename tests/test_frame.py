@@ -182,3 +182,209 @@ def test_assign_displacements_invalid_inputs():
         test_frame.assign_displacements(y_flow, x_flow)
     except TypeError:
         pass
+
+
+def test_get_next_available_feature_id_with_existing_max_id():
+    test_frame = Frame()
+    test_frame.max_id = 5
+    assert test_frame.get_next_available_feature_id() == 6
+
+
+def test_get_next_available_feature_id_with_no_existing_max_id_and_no_feature_field():
+    test_frame = Frame()
+    assert test_frame.get_next_available_feature_id() == 1
+
+
+def test_get_next_available_feature_id_with_existing_field_and_no_existing_max_id():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_feature_field[6:9, 6:9] = 2
+    test_frame.feature_field = test_feature_field
+    assert test_frame.get_next_available_feature_id() == 3
+
+
+def test_promote_provisional_ids():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_feature_field[6:9, 6:9] = 2
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    # Set provisional ids for features
+    feature1 = test_frame.get_feature(1)
+    feature2 = test_frame.get_feature(2)
+    feature1.provisional_id = 10
+    feature2.provisional_id = 20
+
+    # Promote provisional ids to main ids
+    test_frame.promote_provisional_ids()
+
+    assert feature1.id == 10
+    assert feature2.id == 20
+    assert feature1.provisional_id is None
+    assert feature2.provisional_id is None
+
+    # Now test that the features dict has also been updated
+    expected_features_dict = {
+        # Note this test has not updated the feature field itself, so the coords are
+        # still based on the original feature ids
+        10: Feature(10, np.where(test_feature_field == 1), test_frame.time),
+        20: Feature(20, np.where(test_feature_field == 2), test_frame.time),
+    }
+    assert test_frame.get_features() == expected_features_dict
+
+
+def test_update_fields_using_provisional_ids_with_valid_settings():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_feature_field[6:9, 6:9] = 2
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    # Set provisional ids for features
+    feature1 = test_frame.get_feature(1)
+    feature2 = test_frame.get_feature(2)
+    feature1.provisional_id = 10
+    feature2.provisional_id = 20
+
+    # Also set the lifetime of these features
+    feature1.lifetime = 5
+    feature2.lifetime = 3
+
+    # Update the feature field using the provisional ids
+    test_frame.update_fields_using_provisional_ids()
+
+    expected_feature_field = np.zeros((10, 10))
+    expected_feature_field[2:4, 2:4] = 10
+    expected_feature_field[6:9, 6:9] = 20
+
+    expected_lifetime_field = np.zeros((10, 10))
+    expected_lifetime_field[2:4, 2:4] = 5
+    expected_lifetime_field[6:9, 6:9] = 3
+
+    np.testing.assert_array_equal(
+        test_frame.get_feature_field(), expected_feature_field
+    )
+    np.testing.assert_array_equal(
+        test_frame.get_lifetime_field(), expected_lifetime_field
+    )
+
+
+def test_update_fields_using_provisional_ids_with_no_provisional_ids_set():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_feature_field[6:9, 6:9] = 2
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    # Update the feature field without setting any provisional ids
+    test_frame.update_fields_using_provisional_ids()
+
+    # The feature field should remain unchanged
+    np.testing.assert_array_equal(test_frame.get_feature_field(), test_feature_field)
+
+
+def test_update_fields_using_provisional_ids_with_no_feature_field():
+    test_frame = Frame()
+    test_frame.populate_features()  # No feature field set, so no features populated
+
+    # Update the feature field without setting any provisional ids
+    try:
+        test_frame.update_fields_using_provisional_ids()
+    except Exception:
+        pass
+
+
+def test_update_fields_using_provisional_ids_with_no_features():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()  # No features populated as feature field is all zeros
+
+    # Update the feature field without any features
+    try:
+        test_frame.update_fields_using_provisional_ids()
+    except Exception:
+        pass
+
+
+def test_get_new_features():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_feature_field[6:8, 6:8] = 2
+    test_feature_field[0:2, 0:2] = 3
+    test_feature_field[8:10, 8:10] = 4
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+    # By definition, these features are new since they have not been tracked yet
+    # and so will have lifetimes of 1 and will not have been found to split from
+    # another storm
+
+    # Set the lifetime of feature 3 to be 2 so that it is not considered new
+    feature3 = test_frame.get_feature(3)
+    feature3.lifetime = 2
+
+    # Set the parent of feature 4 to be another feature so that it is not considered new
+    feature4 = test_frame.get_feature(4)
+    feature4.parent = 999  # Set to some arbitrary parent id
+
+    new_features = test_frame.get_new_features()
+    # Only expect feature 1 and 2 to be new
+    expected_new_features = [test_frame.get_feature(1), test_frame.get_feature(2)]
+
+    assert new_features == expected_new_features
+
+
+def test_get_new_features_with_no_features():
+    test_frame = Frame()
+    new_features = test_frame.get_new_features()
+    assert new_features == []
+
+
+def test_get_dissipating_features():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_feature_field[6:8, 6:8] = 2
+    test_feature_field[0:2, 0:2] = 3
+    test_feature_field[8:10, 8:10] = 4
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    # Set feature 1 as final timestep, and that it is not accreting
+    # Should expect to see this feature in the list of dissipating features
+    feature1 = test_frame.get_feature(1)
+    feature1.set_as_final_timestep()  # Set as final timestep so that it can be considered dissipating
+
+    # Set feature 2 as final timstep, but also set it to be accreted by another feature
+    # Should not expect to see this feature in the list of dissipating features
+    feature2 = test_frame.get_feature(2)
+    feature2.set_as_final_timestep()  # Set as final timestep so that it can be considered dissipating
+    feature2.accreted_in_next_frame_by = (
+        999  # Set to some arbitrary id to indicate it is accreted by another feature
+    )
+
+    # Set the accreted_in_next_frame_by of feature 4 to be some value so that it is not considered dissipating
+    feature4 = test_frame.get_feature(4)
+    feature4.accreted_in_next_frame_by = 999  # Set to some arbitrary id
+
+    dissipating_features = test_frame.get_dissipating_features()
+
+    # Only expect feature 1 to be dissipating
+    expected_dissipating_features = [test_frame.get_feature(1)]
+
+    assert dissipating_features == expected_dissipating_features
+
+
+def test_get_dissipating_features_with_no_features():
+    test_frame = Frame()
+    dissipating_features = test_frame.get_dissipating_features()
+    assert dissipating_features == []
+
+
+# TODO: add tests for get fields if this remains in the Frame class

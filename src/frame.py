@@ -184,8 +184,6 @@ class Frame:
             if feature.provisional_id is not None:
                 feature.id = feature.provisional_id
                 feature.provisional_id = None
-            else:
-                feature.id = feature.id
             new_features_dict[feature.id] = feature
 
         self.features = new_features_dict
@@ -197,6 +195,11 @@ class Frame:
         if self.feature_field is None:
             raise Exception(
                 "Feature field is not set. Cannot update using provisional ids."
+            )
+
+        if not self.features:
+            raise Exception(
+                "Features have not been loaded into this Frame. Cannot update using provisional ids."
             )
 
         updated_feature_field = np.zeros_like(self.feature_field)
@@ -214,9 +217,13 @@ class Frame:
         self.lifetime_field = updated_lifetime_field
 
     def get_new_features(self) -> list:
+        if not self.features:
+            return []
         return [feature for feature in self.features.values() if feature.is_new()]
 
     def get_dissipating_features(self) -> list:
+        if not self.features:
+            return []
         return [
             feature for feature in self.features.values() if feature.is_dissipating()
         ]
