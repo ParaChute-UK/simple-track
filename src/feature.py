@@ -235,3 +235,10 @@ class Feature:
         if self._final_timestep and self._accreted_in_next_frame_by is None:
             return True
         return False
+
+    def is_final_timstep(self) -> bool:
+        """
+        Returns bool whether this is the final timestep for the Feature, i.e., it is either
+        dissipating or accreting into another Feature
+        """
+        return self._final_timestep

@@ -805,11 +805,123 @@ def test_check_accreted_feature_ids_are_not_provisional_ids():
     # Now, run the method which should remove this id from the accreted list
     frame_tracker.check_accreted_feature_ids_are_not_provisional_ids(test_frame)
 
-    print(test_frame.get_feature(2).accreted)
-    print(test_frame.get_feature(3).accreted)
-
     # Check that this correctly removed the accreted id for Feature 2
     assert test_frame.get_feature(2).accreted is None
 
     # Check that this correctly kept the accreted id for Feature 2
     assert test_frame.get_feature(3).accreted == [10]
+
+
+def test_check_accreted_feature_ids_are_not_provisional_ids_valid():
+    frame_tracker = FrameTracker()
+    test_frame = Frame()
+
+    test_time = dt.datetime.now()
+    test_coords = np.array(((1, 1),))
+    test_features = {id: Feature(id, test_coords, test_time) for id in range(1, 4)}
+
+    # Add accreted feature ids to each feature that are not present in the Frame
+    test_features[1].accreted = 10
+    test_features[2].accreted = 11
+    test_features[3].accreted = 1
+
+    # Add provisional ids to each feature
+    for feature in test_features.values():
+        feature.provisional_id = feature.id
+
+    # Add features to the Frame
+    test_frame.features = test_features
+
+    # Now, run the method which should not remove any accreted ids since they are all valid
+    frame_tracker.check_accreted_feature_ids_are_not_provisional_ids(test_frame)
+
+    # Check that all accreted ids are still present where appropriate
+    assert test_frame.get_feature(1).accreted == [10]
+    assert test_frame.get_feature(2).accreted == [11]
+    # If empty list is passed to feature.accreted setter, this is replaced with None
+    assert test_frame.get_feature(3).accreted is None
+
+
+def test_check_accreted_feature_ids_are_not_provisional_ids_with_no_provisional_ids():
+    frame_tracker = FrameTracker()
+    test_frame = Frame()
+
+    test_time = dt.datetime.now()
+    test_coords = np.array(((1, 1),))
+    test_features = {id: Feature(id, test_coords, test_time) for id in range(1, 4)}
+
+    # Add accreted feature ids to each feature that are not present in the Frame
+    test_features[1].accreted = 10
+    test_features[2].accreted = 11
+    test_features[3].accreted = 1
+
+    # Add features to the Frame
+    test_frame.features = test_features
+
+    # Now, run the method which should not remove any accreted ids since they are all valid
+    frame_tracker.check_accreted_feature_ids_are_not_provisional_ids(test_frame)
+
+    # Check that all accreted ids are still present where appropriate
+    assert test_frame.get_feature(1).accreted == [10]
+    assert test_frame.get_feature(2).accreted == [11]
+    # If empty list is passed to feature.accreted setter, this is replaced with None
+    assert test_frame.get_feature(3).accreted == [1]
+
+
+def test_identify_unmatched_features_in_prev_frame_valid_inputs():
+    frame_tracker = FrameTracker()
+    test_time = dt.datetime.now()
+
+    current_frame = Frame()
+    prev_frame = Frame()
+
+    # Create features for the previous frame
+    prev_features = {
+        id: Feature(id, np.array(((1, 1),)), test_time) for id in range(1, 6)
+    }
+    prev_frame.features = prev_features
+
+    # Create features for the current frame, where some features are unmatched with the previous frame
+    current_features = {
+        id: Feature(id, np.array(((1, 1),)), test_time) for id in range(3, 8)
+    }
+    current_frame.features = current_features
+
+    # Now, run the method to find unmatched features
+    frame_tracker.identify_unmatched_features_in_prev_frame(prev_frame, current_frame)
+
+    # Check the unmatched features in previous frame are correctly identified
+    expected_unmatched_ids = [1, 2]
+    actual_unmatched_ids = [
+        feature.id
+        for feature in prev_frame.get_features().values()
+        if feature.is_final_timstep()
+    ]
+
+    assert set(expected_unmatched_ids) == set(actual_unmatched_ids)
+
+
+def test_identify_unmatched_features_in_prev_frame_invalid_inputs():
+    frame_tracker = FrameTracker()
+    try:
+        frame_tracker.identify_unmatched_features_in_prev_frame(
+            "Not a frame", "Not a frame"
+        )
+    except TypeError:
+        pass
+
+
+def test_identify_parent_and_child_features_valid():
+    pass
+
+
+def test_identify_parent_and_child_features_where_halo_is_required():
+    pass
+
+
+def test_identify_parent_and_child_features_with_no_matching_features():
+    pass
+
+
+def test_identify_parent_and_child_features_invalid_inputs():
+    pass

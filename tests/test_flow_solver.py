@@ -50,36 +50,22 @@ def test_get_2d_tukey_window_with_unequal_dims():
     np.testing.assert_allclose(tukey_window, expected_window)
 
 
-def test_get_2d_tukey_window_with_float_in_input():
+@pytest.mark.parametrize(
+    "arr_shape, expected_exception",
+    [
+        [(5.5, 5), TypeError],
+        [5, TypeError],
+        [(5, 4, 7), ValueError],
+        [(-5, 5), ValueError],
+    ],
+)
+def test_get_2d_tukey_window_with_invalid_input(arr_shape, expected_exception):
     """
-    Test the get_2d_tukey_window returns TypeError with float input
+    Test the get_2d_tukey_window returns error with invalid input
     """
-    arr_shape = (5.5, 5)
     try:
         of_solver.get_2d_tukey_window(arr_shape)
-    except TypeError:
-        pass
-
-
-def test_get_2d_tukey_window_with_int_input():
-    """
-    Test the get_2d_tukey_window returns TypeError with scalar input
-    """
-    arr_shape = 5
-    try:
-        of_solver.get_2d_tukey_window(arr_shape)
-    except TypeError:
-        pass
-
-
-def test_get_2d_tukey_window_with_3d_shape():
-    """
-    Test the get_2d_tukey_window returns ValueError with 3d input
-    """
-    arr_shape = (5, 4, 7)
-    try:
-        of_solver.get_2d_tukey_window(arr_shape)
-    except ValueError:
+    except expected_exception:
         pass
 
 
@@ -234,79 +220,50 @@ def test_get_subdomain_containment_arrays(domain_shape, subdomain_shape, expecte
         pass
 
 
-def test_overlapping_subdomain_bounds_with_perfect_fit():
-    """
-    Test that the overlapping subdomain bounds are calculated correctly.
-    """
-
-    # Create a dummy feature field of shape (12, 16)
-    feature_field_shape = (12, 16)
-
-    # get subdomain shape from squarelength
-    squarelength = 4
-    subdomain_shape = np.array((squarelength, squarelength), dtype=int)
-
-    # Get the subdomain bounds
-    subdomain_y_bounds, subdomain_x_bounds = of_solver.get_overlapping_subdomain_idxs(
-        feature_field_shape=feature_field_shape, subdomain_shape=subdomain_shape
-    )
-
-    # Expected subdomain bounds for squarelength of 4 and feature field shape of (10, 10)
-    expected_y_bounds = np.array((0, 2, 4, 6, 8, 10, 12))
-    expected_x_bounds = np.array((0, 2, 4, 6, 8, 10, 12, 14, 16))
-
-    np.testing.assert_array_equal(
-        subdomain_y_bounds, expected_y_bounds, "y bounds do not match expected values."
-    )
-    np.testing.assert_array_equal(
-        subdomain_x_bounds, expected_x_bounds, "x bounds do not match expected values."
-    )
-
-
-def test_overlapping_subdomain_bounds_with_odd_subdomain():
-    """
-    Test that the overlapping subdomain bounds returns error with odd-shaped subdomain.
-    """
-
-    # Create a dummy feature field of shape (12, 16)
-    feature_field_shape = (12, 16)
-
-    # get subdomain shape from squarelength
-    squarelength = 3
-    subdomain_shape = np.array((squarelength, squarelength), dtype=int)
-
-    # Get the subdomain bounds
+@pytest.mark.parametrize(
+    "feature_field_shape, subdomain_shape, expected_result",
+    [
+        [
+            (12, 16),
+            (4, 4),
+            (
+                np.array((0, 2, 4, 6, 8, 10, 12)),
+                np.array((0, 2, 4, 6, 8, 10, 12, 14, 16)),
+            ),
+        ],  # Test valid input with valid subdomain size
+        [(12, 16), (3, 3), ValueError],  # Odd subdomain shapes
+        [(12, 16), (4, 3), ValueError],  # Odd subdomain shape in one dim
+        [(12, 16), (6, 6), ValueError],  # Subdomain shape does not fit
+        [(12, 16), (-6, 6), ValueError],  # Negative subdomain shape
+        [(12, 16), (6.5, 6), TypeError],  # Non-integer subdomain shape
+        [(12, 16), (6, 6.5), TypeError],  # Non-integer subdomain shape in one dim
+        [(12, 16), (6, -6), ValueError],  # Negative subdomain shape in one dim
+        [(12, 16, 5), (4, 4), ValueError],  # Non-2D feature field
+        [(12,), (4,), ValueError],  # Non-2D feature field
+    ],
+)
+def test_get_overlapping_subdomain_bounds(
+    feature_field_shape, subdomain_shape, expected_result
+):
+    if isinstance(expected_result, tuple):
+        expected_y_bounds, expected_x_bounds = expected_result
     try:
-        subdomain_y_bounds, subdomain_x_bounds = (
+        y_subdomain_bounds, x_subdomain_bounds = (
             of_solver.get_overlapping_subdomain_idxs(
                 feature_field_shape=feature_field_shape, subdomain_shape=subdomain_shape
             )
         )
-    except ValueError:
-        pass
-
-
-def test_overlapping_subdomain_bounds_without_fit():
-    """
-    Test that the overlapping subdomain bounds return error if the requested shape
-    does not fit exactly within the full domain.
-    """
-
-    # Create a dummy feature field of shape (12, 16)
-    feature_field_shape = (12, 16)
-
-    # get subdomain shape from squarelength
-    squarelength = 6
-    subdomain_shape = np.array((squarelength, squarelength), dtype=int)
-
-    # Get the subdomain bounds
-    try:
-        subdomain_y_bounds, subdomain_x_bounds = (
-            of_solver.get_overlapping_subdomain_idxs(
-                feature_field_shape=feature_field_shape, subdomain_shape=subdomain_shape
-            )
+        np.testing.assert_array_equal(
+            y_subdomain_bounds,
+            expected_y_bounds,
+            "y bounds do not match expected values.",
         )
-    except ValueError:
+        np.testing.assert_array_equal(
+            x_subdomain_bounds,
+            expected_x_bounds,
+            "x bounds do not match expected values.",
+        )
+    except expected_result:
         pass
 
 
@@ -622,3 +579,40 @@ def test_shrinking_feature(
     test1[y_slice_f1_new, x_slice_f1_new] = 1
 
     run_of_solver_test(test0, test1, expected_dy, expected_dx)
+
+
+@pytest.mark.parametrize(
+    "y_subdomain_bounds, x_subdomain_bounds, expected_subdomain_iter",
+    [
+        [
+            (0, 10, 20, 30),
+            (0, 15, 30, 45),
+            (
+                ((0, 20), (0, 30)),
+                ((0, 20), (15, 45)),
+                ((10, 30), (0, 30)),
+                ((10, 30), (15, 45)),
+            ),
+        ],
+        [(0, 5, 10), (0, 5, 10), (((0, 10), (0, 10)),)],
+        [(0, 10), (0, 15), ()],
+        [(0, 10, 20), (0, 15), ()],
+        [(0, 10), (0, 15, 30), ()],
+        ["not a tuple", (0, 15, 30), TypeError],
+        [(0, 10, 20), "not a tuple", TypeError],
+        [(1.1, 1.2, 1.3), (0, 15, 30), TypeError],
+        [((0, 10, 20), (0, 15, 30)), (0, 15, 30), ValueError],
+        [(-10, 0, 10), (0, 15, 30), ValueError],
+    ],
+)
+def test_subdomain_iter(
+    y_subdomain_bounds, x_subdomain_bounds, expected_subdomain_iter
+):
+    """
+    Test subdomain_iter function with various bounds.
+    """
+    try:
+        result = tuple(of_solver.subdomain_iter(y_subdomain_bounds, x_subdomain_bounds))
+        assert result == expected_subdomain_iter
+    except expected_subdomain_iter:
+        pass

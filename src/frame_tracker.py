@@ -113,10 +113,22 @@ class FrameTracker:
     def identify_unmatched_features_in_prev_frame(
         self, prev_frame: Frame, current_frame: Frame
     ) -> None:
+        """
+        Identify Features in the previous Frame that are not matched with a Feature in the current Frame.
+        This is useful for output statistics, e.g., for tracing dissipation events.
+        Any feature that is not matched is designated as a final timestep by setting the final_timestep
+        property to True.
+
+        Args:
+            prev_frame (Frame): Frame containing Features at previous timestep
+            current_frame (Frame): Frame containing Features at current timestep
+        """
+        if not isinstance(prev_frame, Frame) or isinstance(current_frame, Frame):
+            raise TypeError("Expected type Frame for both prev_frame and current_frame")
+
         current_frame_ids = [
             feature.id for feature in current_frame.get_features().values()
         ]
-
         for feature_id, feature in prev_frame.get_features().items():
             if feature_id not in current_frame_ids:
                 feature.set_as_final_timestep()
@@ -200,8 +212,12 @@ class FrameTracker:
         All others are identified as children.
 
         Best match is determined by finding the Feature that has the largest overlap with
-        the advected feature with id parent_id. If multiple Features share the same overlap size,
-        the first instance is chosen.
+        the advected feature with id parent_id.
+
+        If multiple Features share the same overlap size, then the feature with the closest
+        centroid is chosen.
+
+        If multiple features are equidistant, the feature with the lower id is chosen.
 
         Args:
             parent_id (int):
@@ -231,15 +247,14 @@ class FrameTracker:
         for feature in matching_features:
             advected_feature_mask = advected_feature_field == parent_id
             current_feature_mask = current_feature_field == feature.id
-            overlap_size = np.size(
-                np.where(advected_feature_mask & current_feature_mask),
-                1,
+            overlap_size = self._calculate_regional_overlap(
+                advected_feature_mask, current_feature_mask, parent_id, feature.id
             )
             overlap_sizes.append(overlap_size)
 
         # If there is no overlap between the two fields, implies there was a halo used
         # to match these features. Try applying the halo again here
-        # TODO: tidy repeated functionality
+        # TODO: think about a more rigorous way of deciding whether halo is needed here.
         if all(size == 0 for size in overlap_sizes):
             overlap_sizes = []
             for feature in matching_features:
@@ -253,9 +268,8 @@ class FrameTracker:
                     get_centroid(current_feature_field, feature.id),
                     self.overlap_nbhood * np.count_nonzero(current_feature_mask),
                 )
-                overlap_size = np.size(
-                    np.where(advected_feature_mask & current_feature_mask),
-                    1,
+                overlap_size = self._calculate_regional_overlap(
+                    advected_feature_mask, current_feature_mask, parent_id, feature.id
                 )
                 overlap_sizes.append(overlap_size)
 
@@ -272,6 +286,9 @@ class FrameTracker:
         # TODO: if there is still more than one max overlap, check centroid!
         # The remaining features are the child features
         return parent_feature, matching_features
+
+    def _calculate_regional_overlap(self, region1, region2, region1_id, region2_id):
+        return np.size(np.where((region1 == region1_id) & (region2 == region2_id)), 1)
 
     def check_accreted_feature_ids_are_not_provisional_ids(self, frame: Frame) -> None:
         """
@@ -303,6 +320,7 @@ class FrameTracker:
                 if acc_id not in all_provisional_ids
             ]
             # Reset the accreted feature id list
+            # If list is empty, gets replaced with None in accreted setter
             feature.accreted = new_accreted_list
 
     def match_advected_and_current_frame_features(

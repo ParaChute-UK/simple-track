@@ -202,6 +202,10 @@ class FlowSolver:
         Returns:
             Iterable: ((y_start, y_stop), (x_start, x_stop))
         """
+        y_subdomain_bounds, x_subdomain_bounds = check_arrays(
+            y_subdomain_bounds, x_subdomain_bounds, dtype=int, ndim=1, non_negative=True
+        )
+
         # Combine these idxs pairwise with stride 2 to define the subdomain bounds
         # E.g., for subdomain size of 20 in y with bounds [0, 10, 20, 30...]
         # and for subdomain size of 30 in x with bounds [0, 15, 30, 45...]
@@ -438,7 +442,7 @@ class FlowSolver:
             NDArray: 2D filter array of requested shape
         """
         # Checks that the arr_shape input describes dimensions of a 2D array
-        arr_shape = check_arrays(arr_shape, shape=(2,), dtype=int)
+        arr_shape = check_arrays(arr_shape, shape=(2,), dtype=int, non_negative=True)
 
         # Create a 1D Tukey filter for each dimension. Alpha sets the degree to which
         # the filter resembles either a rectangular window (alpha=0) or a Hanning window
