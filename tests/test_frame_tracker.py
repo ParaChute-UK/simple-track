@@ -911,6 +911,50 @@ def test_identify_unmatched_features_in_prev_frame_invalid_inputs():
         pass
 
 
+def test__number_of_overlapping_pixels_full_overlap_same_feature_size():
+    region1 = np.zeros((10, 10))
+    region2 = np.zeros((10, 10))
+    region1[2:8, 2:8] = 1  # 6x6 region
+    region2[2:8, 2:8] = 2  # 6x6 region, fully overlapping
+    overlap = FrameTracker()._number_of_overlapping_pixels(
+        region1, region2, region1_id=1, region2_id=2
+    )
+    assert overlap == 36
+
+
+def test__number_of_overlapping_pixels_full_overlap_different_feature_size():
+    region1 = np.zeros((10, 10))
+    region2 = np.zeros((10, 10))
+    region1[2:8, 2:8] = 1
+    region2[3:7, 3:7] = 2
+    overlap = FrameTracker()._number_of_overlapping_pixels(
+        region1, region2, region1_id=1, region2_id=2
+    )
+    assert overlap == 16
+
+
+def test__number_of_overlapping_pixels_partial_overlap():
+    region1 = np.zeros((10, 10))
+    region2 = np.zeros((10, 10))
+    region1[2:8, 2:8] = 1
+    region2[6:9, 6:9] = 2  # Only a 2x2 overlap with region1
+    overlap = FrameTracker()._number_of_overlapping_pixels(
+        region1, region2, region1_id=1, region2_id=2
+    )
+    assert overlap == 4
+
+
+def test__number_of_overlapping_pixels_no_overlap():
+    region1 = np.zeros((10, 10))
+    region2 = np.zeros((10, 10))
+    region1[2:5, 2:5] = 1
+    region2[5:7, 5:7] = 2
+    overlap = FrameTracker()._number_of_overlapping_pixels(
+        region1, region2, region1_id=1, region2_id=2
+    )
+    assert overlap == 0
+
+
 def test_identify_parent_and_child_features_valid():
     pass
 

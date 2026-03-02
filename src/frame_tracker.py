@@ -247,7 +247,7 @@ class FrameTracker:
         for feature in matching_features:
             advected_feature_mask = advected_feature_field == parent_id
             current_feature_mask = current_feature_field == feature.id
-            overlap_size = self._calculate_regional_overlap(
+            overlap_size = self._number_of_overlapping_pixels(
                 advected_feature_mask, current_feature_mask, parent_id, feature.id
             )
             overlap_sizes.append(overlap_size)
@@ -268,7 +268,7 @@ class FrameTracker:
                     get_centroid(current_feature_field, feature.id),
                     self.overlap_nbhood * np.count_nonzero(current_feature_mask),
                 )
-                overlap_size = self._calculate_regional_overlap(
+                overlap_size = self._number_of_overlapping_pixels(
                     advected_feature_mask, current_feature_mask, parent_id, feature.id
                 )
                 overlap_sizes.append(overlap_size)
@@ -287,7 +287,9 @@ class FrameTracker:
         # The remaining features are the child features
         return parent_feature, matching_features
 
-    def _calculate_regional_overlap(self, region1, region2, region1_id, region2_id):
+    def _number_of_overlapping_pixels(
+        self, region1: NDArray, region2: NDArray, region1_id: int, region2_id: int
+    ) -> int:
         return np.size(np.where((region1 == region1_id) & (region2 == region2_id)), 1)
 
     def check_accreted_feature_ids_are_not_provisional_ids(self, frame: Frame) -> None:
