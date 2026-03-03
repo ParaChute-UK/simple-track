@@ -224,16 +224,33 @@ class FrameTracker:
                 Provisional feature id to identify parent for
             matching_features (list[Feature]):
                 List of matching Features sharing the provisional parent_id
-            advected_frame (Frame):
-                Frame containing advected Features from previous timestep
-            current_frame (Frame):
-                Frame containing Features at current timestep
+            advected_feature_field (NDArray):
+                Array of features advected from previous timestep
+            current_feature_field (NDArray):
+                Array of features from current timestep
 
         Returns:
             list[Feature, list[Feature]]:
                 [parent_feature, list of child_features]
         """
-        # First, check the parent_id is present in the advected feature field
+
+        advected_feature_field, current_feature_field = check_arrays(
+            advected_feature_field,
+            current_feature_field,
+            ndim=2,
+            equal_shape=True,
+            dtype=int,
+        )
+
+        if not isinstance(parent_id, int) or parent_id < 1:
+            raise TypeError(f"Expected parent_id type int, for {type(parent_id)}")
+
+        if not all([isinstance(feature, Feature) for feature in matching_features]):
+            raise TypeError(
+                "Expected all values in matching_features to be type Feature"
+            )
+
+        # Check the parent_id is present in the advected feature field
         if not np.isin(parent_id, advected_feature_field):
             raise ValueError(
                 f"Parent id {parent_id} not found in advected feature field"
@@ -243,54 +260,85 @@ class FrameTracker:
         # For this, need to match the locations of the repeated "provisional_id"
         # from the advetced feature field with the unique "id" in the current x
         # feature field
-        overlap_sizes = []
-        for feature in matching_features:
-            advected_feature_mask = advected_feature_field == parent_id
-            current_feature_mask = current_feature_field == feature.id
-            overlap_size = self._number_of_overlapping_pixels(
-                advected_feature_mask, current_feature_mask, parent_id, feature.id
-            )
-            overlap_sizes.append(overlap_size)
+        matching_feature_ids = [feature.id for feature in matching_features]
+        overlap_sizes = self._get_overlap_sizes(
+            advected_feature_field=advected_feature_field,
+            current_feature_field=current_feature_field,
+            advected_id=parent_id,
+            matching_ids=matching_feature_ids,
+            nbhood=0,
+        )
 
         # If there is no overlap between the two fields, implies there was a halo used
         # to match these features. Try applying the halo again here
         # TODO: think about a more rigorous way of deciding whether halo is needed here.
         if all(size == 0 for size in overlap_sizes):
-            overlap_sizes = []
-            for feature in matching_features:
-                advected_feature_mask += generate_radial_mask(
-                    advected_feature_field,
-                    get_centroid(advected_feature_field, parent_id),
-                    self.overlap_nbhood * np.count_nonzero(advected_feature_mask),
-                )
-                current_feature_mask += generate_radial_mask(
-                    current_feature_field,
-                    get_centroid(current_feature_field, feature.id),
-                    self.overlap_nbhood * np.count_nonzero(current_feature_mask),
-                )
-                overlap_size = self._number_of_overlapping_pixels(
-                    advected_feature_mask, current_feature_mask, parent_id, feature.id
-                )
-                overlap_sizes.append(overlap_size)
+            overlap_sizes = self._get_overlap_sizes(
+                advected_feature_field=advected_feature_field,
+                current_feature_field=current_feature_field,
+                advected_id=parent_id,
+                matching_ids=matching_feature_ids,
+                nbhood=self.overlap_nbhood,
+            )
 
+        # Check that at least one feature has at least some overlap.
+        # Don't expect a situation to occur where overlap_sizes should all be 0 at this stage
         if all(size == 0 for size in overlap_sizes):
             raise ValueError(
                 f"No overlapping features found for provisional id {parent_id}"
             )
 
-        # Pop feature with max overlap to be the parent feature,
-        # If multiple features share max overlap, first instance is chosen.
-        max_overlap_idx = np.argmax(overlap_sizes)
-        parent_feature = matching_features.pop(max_overlap_idx)
+        # If multiple feautures share the same overlap, check centroid to find best match
+        max_overlap = max(overlap_sizes)
+        max_overlap_indices = np.where(np.array(overlap_sizes) == max_overlap)[0]
+        if len(max_overlap_indices) == 1:
+            max_overlap_idx = np.argmax(overlap_sizes)
+        else:
+            closest_size_ids = self.find_ids_of_closest_size(
+                advected_feature_field,
+                current_feature_field,
+                parent_id,
+                matching_feature_ids,
+            )
+            # If multiple features share the same closest size, choose the first anyway
+            closest_size_id = closest_size_ids[0]
+            max_overlap_idx = matching_feature_ids.index(closest_size_id)
 
-        # TODO: if there is still more than one max overlap, check centroid!
+        # Pop feature with max overlap to be the parent feature,
         # The remaining features are the child features
+        parent_feature = matching_features.pop(max_overlap_idx)
         return parent_feature, matching_features
 
-    def _number_of_overlapping_pixels(
-        self, region1: NDArray, region2: NDArray, region1_id: int, region2_id: int
-    ) -> int:
-        return np.size(np.where((region1 == region1_id) & (region2 == region2_id)), 1)
+    def _get_overlap_sizes(
+        self,
+        advected_feature_field: NDArray,
+        current_feature_field: NDArray,
+        advected_id: int,
+        matching_ids: list,
+        nbhood: int = 0,
+    ) -> list:
+        overlap_sizes = []
+        for feature_id in matching_ids:
+            advected_feature_mask = advected_feature_field == advected_id
+            current_feature_mask = current_feature_field == feature_id
+
+            if nbhood > 0:
+                advected_feature_mask += generate_radial_mask(
+                    advected_feature_field,
+                    get_centroid(advected_feature_field, advected_id),
+                    nbhood * np.count_nonzero(advected_feature_mask),
+                )
+                current_feature_mask += generate_radial_mask(
+                    current_feature_field,
+                    get_centroid(current_feature_field, feature_id),
+                    nbhood * np.count_nonzero(current_feature_mask),
+                )
+
+            overlap_size = np.size(
+                np.where(advected_feature_mask & current_feature_mask), 1
+            )
+            overlap_sizes.append(overlap_size)
+        return overlap_sizes
 
     def check_accreted_feature_ids_are_not_provisional_ids(self, frame: Frame) -> None:
         """

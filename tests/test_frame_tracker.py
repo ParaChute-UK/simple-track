@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+import pytest
 
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
@@ -911,61 +912,212 @@ def test_identify_unmatched_features_in_prev_frame_invalid_inputs():
         pass
 
 
-def test__number_of_overlapping_pixels_full_overlap_same_feature_size():
+def test__get_overlap_sizes_same_feature_size():
     region1 = np.zeros((10, 10))
     region2 = np.zeros((10, 10))
     region1[2:8, 2:8] = 1  # 6x6 region
     region2[2:8, 2:8] = 2  # 6x6 region, fully overlapping
-    overlap = FrameTracker()._number_of_overlapping_pixels(
-        region1, region2, region1_id=1, region2_id=2
-    )
-    assert overlap == 36
+    overlap = FrameTracker()._get_overlap_sizes(region1, region2, 1, [2])
+    assert overlap == [36]
 
 
-def test__number_of_overlapping_pixels_full_overlap_different_feature_size():
+def test__get_overlap_sizes_full_overlap_different_feature_size():
     region1 = np.zeros((10, 10))
     region2 = np.zeros((10, 10))
     region1[2:8, 2:8] = 1
     region2[3:7, 3:7] = 2
-    overlap = FrameTracker()._number_of_overlapping_pixels(
-        region1, region2, region1_id=1, region2_id=2
-    )
-    assert overlap == 16
+    region2[8:9, 8:9] = 3
+    overlap = FrameTracker()._get_overlap_sizes(region1, region2, 1, [2, 3])
+    assert overlap == [16, 0]
 
 
-def test__number_of_overlapping_pixels_partial_overlap():
+def test__get_overlap_sizes_partial_overlap():
     region1 = np.zeros((10, 10))
     region2 = np.zeros((10, 10))
     region1[2:8, 2:8] = 1
     region2[6:9, 6:9] = 2  # Only a 2x2 overlap with region1
-    overlap = FrameTracker()._number_of_overlapping_pixels(
-        region1, region2, region1_id=1, region2_id=2
-    )
-    assert overlap == 4
+    region2[8:9, 8:9] = 3
+    overlap = FrameTracker()._get_overlap_sizes(region1, region2, 1, [2, 3])
+    assert overlap == [4, 0]
 
 
-def test__number_of_overlapping_pixels_no_overlap():
+def test__get_overlap_sizes_no_overlap():
     region1 = np.zeros((10, 10))
     region2 = np.zeros((10, 10))
     region1[2:5, 2:5] = 1
     region2[5:7, 5:7] = 2
-    overlap = FrameTracker()._number_of_overlapping_pixels(
-        region1, region2, region1_id=1, region2_id=2
-    )
-    assert overlap == 0
+    region2[8:9, 8:9] = 3
+    overlap = FrameTracker()._get_overlap_sizes(region1, region2, 1, [2, 3])
+    assert overlap == [0, 0]
+
+
+# TODO: come back to this after considering best way of implementing nbhood in the code
+# def test__get_overlap_sizes_no_overlap_using_nbhood():
+#     region1 = np.zeros((10, 10))
+#     region2 = np.zeros((10, 10))
+#     region1[2:5, 2:5] = 1
+#     region2[5:7, 5:7] = 2
+#     region2[8:9, 8:9] = 3
+#     overlap = FrameTracker()._get_overlap_sizes(region1, region2, 1, [2, 3], nbhood=2)
+#     assert overlap == [0, 0]
 
 
 def test_identify_parent_and_child_features_valid():
-    pass
+    current_field = np.zeros((10, 10), dtype=int)
+    advected_field = np.zeros((10, 10), dtype=int)
+
+    # Create a single parent feature in the advected field
+    advected_field[3:7, 3:7] = 1
+
+    # Create multiple features in current field, with one being most
+    # obvious overlap
+    current_field[6:9, 6:9] = 10
+    current_field[3:7, 0:5] = 20  # This should be chosen as parent
+    current_field[8:9, 6:9] = 30
+
+    # Create list of matching_features for advected fields
+    feature_dt = dt.datetime.now()  # this is unimportant for this test
+    matching_features = [
+        Feature(
+            id=id,
+            feature_coords=np.array(np.where(current_field == id)),
+            time=feature_dt,
+        )
+        for id in range(10, 40, 10)
+    ]
+
+    parent_feature, child_features = FrameTracker().identify_parent_and_child_features(
+        parent_id=1,
+        matching_features=matching_features,
+        advected_feature_field=advected_field,
+        current_feature_field=current_field,
+    )
+    child_ids = [cf.id for cf in child_features]
+    assert parent_feature.id == 20
+    assert set(child_ids) == set((10, 30))
 
 
-def test_identify_parent_and_child_features_where_halo_is_required():
-    pass
+# TODO: when nbhood has been properly thought through.
+# def test_identify_parent_and_child_features_where_halo_is_required():
+#     pass
 
 
 def test_identify_parent_and_child_features_with_no_matching_features():
-    pass
+    current_field = np.zeros((10, 10), dtype=int)
+    advected_field = np.zeros((10, 10), dtype=int)
+
+    # Create a single parent feature in the advected field
+    advected_field[0:2, 0:2] = 1  # Place this feature in the corner to avoid overlap
+
+    # Create multiple features in current field
+    current_field[6:9, 6:9] = 10
+    current_field[3:7, 0:5] = 20
+    current_field[8:9, 6:9] = 30
+
+    # Create list of matching_features for advected fields
+    feature_dt = dt.datetime.now()  # this is unimportant for this test
+    matching_features = [
+        Feature(
+            id=id,
+            feature_coords=np.array(np.where(current_field == id)),
+            time=feature_dt,
+        )
+        for id in range(10, 40, 10)
+    ]
+    try:
+        parent_feature, child_features = (
+            FrameTracker().identify_parent_and_child_features(
+                parent_id=1,
+                matching_features=matching_features,
+                advected_feature_field=advected_field,
+                current_feature_field=current_field,
+            )
+        )
+    except ValueError:
+        pass
 
 
-def test_identify_parent_and_child_features_invalid_inputs():
-    pass
+def test_identify_parent_and_child_features_with_same_overlap_and_different_centroid_distances():
+    current_field = np.zeros((10, 10), dtype=int)
+    advected_field = np.zeros((10, 10), dtype=int)
+
+    # Create a single parent feature in the advected field
+    advected_field[2:9, 2:9] = 1
+
+    # Create multiple features in current field with same overlap
+    current_field[4:6, 3:6] = 10  # This should be chosen as parent due to centroid
+    current_field[7:9, 6:9] = 20
+
+    # Create list of matching_features for advected fields
+    feature_dt = dt.datetime.now()  # this is unimportant for this test
+    matching_features = [
+        Feature(
+            id=id,
+            feature_coords=np.array(np.where(current_field == id)),
+            time=feature_dt,
+        )
+        for id in range(10, 30, 10)
+    ]
+
+    parent_feature, child_features = FrameTracker().identify_parent_and_child_features(
+        parent_id=1,
+        matching_features=matching_features,
+        advected_feature_field=advected_field,
+        current_feature_field=current_field,
+    )
+    child_ids = [cf.id for cf in child_features]
+    assert parent_feature.id == 10
+    assert child_ids == [20]
+
+
+current_field = np.zeros((10, 10), dtype=int)
+advected_field = np.zeros((10, 10), dtype=int)
+# Create list of matching_features for advected fields
+feature_dt = dt.datetime.now()  # this is unimportant for this test
+matching_features = [
+    Feature(
+        id=id,
+        feature_coords=np.array(np.where(current_field == id)),
+        time=feature_dt,
+    )
+    for id in range(10, 30, 10)
+]
+
+
+@pytest.mark.parametrize(
+    "parent_id, matching_features, advected_field, current_field, expected_error",
+    [
+        [1, matching_features, "not an array", current_field, TypeError],
+        [1, matching_features, advected_field, "not an array", TypeError],
+        # ndim != 2
+        [1, matching_features, advected_field, np.array((1), dtype=int), ValueError],
+        # unequal shape
+        [1, matching_features, advected_field, np.array((1, 1), dtype=int), ValueError],
+        # Array of ints
+        [
+            1,
+            matching_features,
+            advected_field,
+            np.array((10, 10), dtype=float),
+            ValueError,
+        ],
+        [1, ["not a feature list"], advected_field, current_field, TypeError],
+        ["not an int", matching_features, advected_field, current_field, TypeError],
+    ],
+)
+def test_identify_parent_and_child_features_invalid_inputs(
+    parent_id, matching_features, advected_field, current_field, expected_error
+):
+
+    # Check non-array inputs
+    try:
+        parent_feature, child_features = (
+            FrameTracker().identify_parent_and_child_features(
+                parent_id=parent_id,
+                matching_features=matching_features,
+                advected_feature_field=advected_field,
+                current_feature_field=current_field,
+            )
+        )
+    except expected_error:
+        pass
