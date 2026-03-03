@@ -294,13 +294,14 @@ class FrameTracker:
         if len(max_overlap_indices) == 1:
             max_overlap_idx = np.argmax(overlap_sizes)
         else:
-            # If multiple features share the same closest size, this will choose the first anyway
-            closest_size_id = self.find_id_of_closest_centroid(
+            closest_size_id = self.find_ids_of_closest_centroid(
                 advected_feature_field,
                 current_feature_field,
                 parent_id,
                 matching_feature_ids,
             )
+            # If multiple features share the same closest size, this will choose the first
+            closest_size_id = closest_size_id[0]
             max_overlap_idx = matching_feature_ids.index(closest_size_id)
 
         # Pop feature with max overlap to be the parent feature,
@@ -521,29 +522,15 @@ class FrameTracker:
 
             # If more than one id shares a closest size, find the closest centroid
             else:
-                matching_id = self.find_id_of_closest_centroid(
+                matching_id = self.find_ids_of_closest_centroid(
                     field_with_id=current_feature_field,
                     field_to_search=advected_feature_field,
                     target_feature_id=current_feature_id,
                     candidate_ids=min_size_comparison,
                 )
-                # # Get the closest centroid for each feature sharing a minimum distance
-                # centroid_distances = {}
-                # current_feature_centroid = get_centroid(
-                #     current_feature_field, current_feature_id
-                # )
-                # for overlap_id in min_size_comparison:
-                #     overlap_id_centroid = get_centroid(
-                #         advected_feature_field, overlap_id
-                #     )
-                #     distance = np.linalg.norm(
-                #         current_feature_centroid - overlap_id_centroid
-                #     )
-                #     centroid_distances[overlap_id] = distance
-
-                # # Find the feature that has the minimum distance. If there are still more
-                # # than 1 possible options at this stage, min returns the first instance
-                # matching_id = min(centroid_distances, key=centroid_distances.get)
+                # If there are still more than 1 possible options at this stage,
+                # min returns the first instance
+                matching_id = matching_id[0]
 
             # Add the other sufficient overlaps to other_sufficient_ids
             # To ensure the matching id is now not included in other sufficient ids,
@@ -607,7 +594,7 @@ class FrameTracker:
         ]
         return closest_size_ids
 
-    def find_id_of_closest_centroid(
+    def find_ids_of_closest_centroid(
         self,
         field_with_id: NDArray,
         field_to_search: NDArray,
@@ -616,8 +603,7 @@ class FrameTracker:
     ) -> int:
         """
         Given a list of candidate ids, finds the id whose centroid is closest to the centroid
-        of the feature with feature_id in field_with_id. If multiple have the closest centroid,
-        the feature with the smaller id is chosen
+        of the feature with feature_id in field_with_id.
 
         Args:
             field_with_id (NDArray):
@@ -629,8 +615,8 @@ class FrameTracker:
             candidate_ids (list):
                 List of candidate ids in field_to_search to compare sizes against
         Returns:
-            int:
-                Candidate id that has the closest size to the target feature
+            list[int]:
+                Candidate ids that have the closest size to the target feature
         """
         # Get the closest centroid for each feature sharing a minimum distance
         centroid_distances = {}
@@ -640,10 +626,13 @@ class FrameTracker:
             distance = np.linalg.norm(current_feature_centroid - cand_id_centroid)
             centroid_distances[cand_id] = distance
 
-        # Find the feature that has the minimum distance. If there are still more
-        # than 1 possible options at this stage, min returns the first instance
-        matching_id = min(centroid_distances, key=centroid_distances.get)
-        return matching_id
+        min_centroid_comparison = np.min(list(centroid_distances.values()))
+        closest_distance_ids = [
+            candidate_id
+            for candidate_id, size_diff in centroid_distances.items()
+            if size_diff == min_centroid_comparison
+        ]
+        return closest_distance_ids
 
     def calculate_overlap_histogram(
         self,
