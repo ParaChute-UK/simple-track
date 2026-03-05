@@ -123,15 +123,19 @@ class Frame:
 
         # Don't include 0 in Feature population, this is reserved for background
         for feature_id in feature_ids:
-            print(feature_id)
             # Get the pixel locations of the feature in the field
             # For 2D data, np.where returns two arrays containing y, x locations
-            feature_coords = np.array(np.where(self.feature_field == feature_id))
+            feature_mask = np.where(self.feature_field == feature_id)
+            feature_coords = np.array(feature_mask)
 
-            # Add this to the list of features
-            self.features[feature_id] = Feature(
+            # Construct Feature object, set relevant properties, add to the list of features
+            feature = Feature(
                 id=feature_id, feature_coords=feature_coords, time=self.time
             )
+            # If raw field is not None, use this to find max value within Feature
+            if self.raw_field is not None:
+                feature.extreme = max(self.raw_field[feature_mask])
+            self.features[feature_id] = feature
 
     def assign_displacements(self, y_flow: NDArray, x_flow: NDArray) -> None:
         """

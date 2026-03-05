@@ -23,6 +23,7 @@ class Feature:
         self._parent = None
         self._children = None
         self._dydx = ()
+        self._extreme = None
 
     def __repr__(self) -> str:
         repr_str = f"Feature id: {self.id} (provisionally {self.provisional_id}), "
@@ -90,6 +91,10 @@ class Feature:
         """
         return self._dydx
 
+    @property
+    def extreme(self) -> float:
+        return self._extreme
+
     @coords.setter
     def coords(self, new_coords: NDArray[np.integer]) -> None:
         self._feature_coords = new_coords
@@ -153,6 +158,10 @@ class Feature:
     def accreted_in_next_frame_by(self, id_of_accreting_feature: int):
         id_of_accreting_feature = check_valid_ids(id_of_accreting_feature)
         self._accreted_in_next_frame_by = id_of_accreting_feature
+
+    @extreme.setter
+    def extreme(self, extreme_val: float) -> None:
+        self._extreme = extreme_val
 
     def calculate_centroid(self) -> tuple:
         y_centroid = native(np.mean(self._feature_coords[0, :]))
