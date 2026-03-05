@@ -10,6 +10,7 @@ sys.path.append(
 from simple_track import SimpleTrack
 from load import BaseLoader
 from frame import Frame
+from utils import ArrayShapeError, ArrayTypeError
 
 test_time = dt.datetime(2026, 1, 1, 0, 0, 0)
 
@@ -117,10 +118,10 @@ def test_get_filenames_from_input_path(tmp_path, extensions, expected_result):
 
 input_tests = (
     [
-        [np.zeros((5, 5)), test_time, ValueError],
-        ["Not an array", test_time, TypeError],
+        [np.zeros((5, 5)), test_time, ArrayShapeError],
+        ["Not an array", test_time, ArrayTypeError],
         [np.zeros((10, 10)), "Not a time", TypeError],
-        [np.zeros((10, 10, 10)), test_time, ValueError],
+        [np.zeros((10, 10, 10)), test_time, ArrayShapeError],
         [np.zeros((10, 10)), test_time, True],
     ],
 )

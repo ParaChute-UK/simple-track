@@ -1,9 +1,19 @@
 import sys
+import pytest
 
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
-from src.utils import check_arrays
+from utils import (
+    check_arrays,
+    check_valid_ids,
+    ArrayShapeError,
+    ArrayTypeError,
+    NegativeIDError,
+    ZeroIDError,
+    FloatIDError,
+    IDError,
+)
 import numpy as np
 
 
@@ -51,7 +61,7 @@ def test_check_arrays_with_unequal_shapes():
     test_arr2 = np.arange(10, 21)
     try:
         check_arrays(test_arr1, test_arr2, equal_shape=True)
-    except ValueError:
+    except ArrayShapeError:
         pass
 
 
@@ -68,7 +78,7 @@ def test_check_arrays_against_incorrect_shape():
     expected_shape = (20,)
     try:
         check_arrays(test_arr1, test_arr2, shape=expected_shape)
-    except ValueError:
+    except ArrayShapeError:
         pass
 
 
@@ -85,7 +95,7 @@ def test_check_arrays_against_incorrect_ndim():
     expected_ndim = 2
     try:
         check_arrays(test_arr1, test_arr2, ndim=expected_ndim)
-    except ValueError:
+    except ArrayShapeError:
         pass
 
 
@@ -102,7 +112,7 @@ def test_check_arrays_against_incorrect_float_dtype():
     expected_dtype = float
     try:
         check_arrays(test_arr1, test_arr2, dtype=expected_dtype)
-    except TypeError:
+    except ArrayTypeError:
         pass
 
 
@@ -112,7 +122,7 @@ def test_check_arrays_against_incorrect_str_dtype():
     expected_dtype = str
     try:
         check_arrays(test_arr1, test_arr2, dtype=expected_dtype)
-    except TypeError:
+    except ArrayTypeError:
         pass
 
 
@@ -120,10 +130,43 @@ def test_check_arrays_with_non_negative_values():
     test_arr1 = np.arange(-5, 5)
     try:
         check_arrays(test_arr1, non_negative=True)
-    except ValueError:
+    except ArrayTypeError:
         pass
 
 
 def test_check_arrays_with_no_non_negative_values():
     test_arr1 = np.arange(0, 10)
     check_arrays(test_arr1, non_negative=True)
+
+
+def test_check_valid_ids_valid_inputs():
+    test_id1 = 13
+    test_id2 = list(range(5))
+    test_id3 = np.arange(9)
+    # Should accept values that can safely be converted to int
+    # This is checked in the code by doing val == int(val), which in python
+    # will equate to True if the numeric values are the same
+    test_id4 = 4.0
+    test_id5 = np.array((5.0, 6.0))
+    results = check_valid_ids(test_id1, test_id2, test_id3, test_id4, test_id5)
+    # Check that the output ids have been converted to int
+    assert type(results[3]) is int
+    assert np.issubdtype(results[4].dtype, np.integer)
+
+
+@pytest.mark.parametrize(
+    "input, expected_error",
+    [
+        [1.4, FloatIDError],
+        [-4, NegativeIDError],
+        [0, ZeroIDError],
+        [np.arange(-5, 5, dtype=int), NegativeIDError],
+        [np.arange(1.5, 10.5, 1, dtype=float), FloatIDError],
+        ["not an int", IDError],
+    ],
+)
+def test_check_valid_ids_invalid_inputs(input, expected_error):
+    try:
+        check_valid_ids(input)
+    except expected_error:
+        pass

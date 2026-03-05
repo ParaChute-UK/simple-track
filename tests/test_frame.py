@@ -6,8 +6,9 @@ import datetime as dt
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
-from frame import Frame, Timeline, label_features
+from frame import Frame, Timeline, label_features, FeaturesNotFoundError
 from feature import Feature
+from utils import ArrayShapeError, ArrayTypeError, NegativeIDError, FloatIDError
 
 
 def test_label_features_valid_inputs():
@@ -48,8 +49,8 @@ test_field = np.zeros((10, 10))
         [test_field, "not a min area", 2, True, ValueError],
         [test_field, 2, "not a threshold", True, ValueError],
         [test_field, 2, 2, "not a bool", TypeError],
-        ["not a field", 2, 2, True, TypeError],
-        [np.zeros((10, 10, 10)), 2, 2, True, ValueError],
+        ["not a field", 2, 2, True, ArrayTypeError],
+        [np.zeros((10, 10, 10)), 2, 2, True, ArrayShapeError],
     ],
 )
 def test_label_features_invalid_inputs(
@@ -87,15 +88,14 @@ def test_populate_features_invalid_negative_features():
     test_frame.time = test_time
 
     test_feature_field = test_field.copy()
-    test_feature_field[3:5, 3:5] = -1
+    test_feature_field[3:5, 3:5] = -2
     test_feature_field[6:9, 6:9] = 2
 
     test_frame.feature_field = test_feature_field
-    test_frame.populate_features()
 
     try:
         test_frame.populate_features()
-    except ValueError:
+    except NegativeIDError:
         pass
 
 
@@ -109,11 +109,10 @@ def test_populate_features_invalid_float_features():
     test_feature_field[6:9, 6:9] = 2
 
     test_frame.feature_field = test_feature_field
-    test_frame.populate_features()
 
     try:
         test_frame.populate_features()
-    except TypeError:
+    except FloatIDError:
         pass
 
 
@@ -163,7 +162,7 @@ def test_assign_displacements_no_features_loaded():
 
     try:
         test_frame.assign_displacements(y_flow, x_flow)
-    except Exception:
+    except FeaturesNotFoundError:
         pass
 
 
@@ -180,7 +179,7 @@ def test_assign_displacements_invalid_inputs():
 
     try:
         test_frame.assign_displacements(y_flow, x_flow)
-    except TypeError:
+    except ArrayTypeError:
         pass
 
 
@@ -295,7 +294,7 @@ def test_update_fields_using_provisional_ids_with_no_feature_field():
     # Update the feature field without setting any provisional ids
     try:
         test_frame.update_fields_using_provisional_ids()
-    except Exception:
+    except FeaturesNotFoundError:
         pass
 
 
@@ -308,7 +307,7 @@ def test_update_fields_using_provisional_ids_with_no_features():
     # Update the feature field without any features
     try:
         test_frame.update_fields_using_provisional_ids()
-    except Exception:
+    except FeaturesNotFoundError:
         pass
 
 

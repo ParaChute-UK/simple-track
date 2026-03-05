@@ -5,7 +5,11 @@ sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
 from flow_solver import FlowSolver, pairwise_with_stride
-
+from utils import (
+    ArrayError,
+    ArrayShapeError,
+    ArrayTypeError,
+)
 import numpy as np
 
 of_solver = FlowSolver()
@@ -53,10 +57,11 @@ def test_get_2d_tukey_window_with_unequal_dims():
 @pytest.mark.parametrize(
     "arr_shape, expected_exception",
     [
-        [(5.5, 5), TypeError],
-        [5, TypeError],
-        [(5, 4, 7), ValueError],
-        [(-5, 5), ValueError],
+        [(5.5, 5), ArrayTypeError],
+        [(5), ArrayTypeError],
+        [(5,), ArrayShapeError],
+        [(5, 4, 7), ArrayShapeError],
+        [(-5, 5), ArrayTypeError],
     ],
 )
 def test_get_2d_tukey_window_with_invalid_input(arr_shape, expected_exception):
@@ -171,6 +176,73 @@ def test_interpolate_subdomain_flows_with_mostly_zero_subdomain_vals():
 
 
 @pytest.mark.parametrize(
+    "y_subdom, x_subdom, subdom_flow, full_shape, expected_error",
+    [
+        [
+            np.zeros((10, 10)),
+            np.zeros(10),
+            mwe_domain,
+            mwe_domain.shape,
+            ArrayShapeError,
+        ],
+        [
+            np.zeros((10, 10, 10)),
+            np.zeros(10),
+            mwe_domain,
+            mwe_domain.shape,
+            ArrayShapeError,
+        ],
+        [np.zeros(5), np.zeros(10), mwe_domain, mwe_domain.shape, ArrayShapeError],
+        [np.zeros(10), np.zeros(10), np.zeros(10), mwe_domain.shape, ArrayShapeError],
+        [
+            np.zeros(10),
+            np.zeros(10),
+            np.zeros((10, 10, 10)),
+            mwe_domain.shape,
+            ArrayShapeError,
+        ],
+        [
+            np.zeros(10),
+            np.zeros(10),
+            np.zeros(10, dtype=int),
+            mwe_domain.shape,
+            ArrayError,
+        ],
+        [
+            np.zeros(10),
+            np.zeros(10),
+            np.zeros((10, 10, 10), dtype=int),
+            mwe_domain.shape,
+            ArrayShapeError,
+        ],
+        [
+            np.zeros(10),
+            np.zeros(10),
+            np.zeros((10, 10), dtype=float),
+            mwe_domain.shape,
+            ArrayTypeError,
+        ],
+        [np.zeros(10), np.zeros(10), mwe_domain, np.array([1]), ArrayShapeError],
+        [np.zeros(10), np.zeros(10), mwe_domain, np.array([1, 2, 3]), ArrayShapeError],
+        [np.zeros(10), np.zeros(10), mwe_domain, mwe_domain, ArrayShapeError],
+        ["not an array", np.zeros(10), mwe_domain, mwe_domain.shape, ArrayError],
+        [np.zeros(10), "not an array", mwe_domain, mwe_domain.shape, ArrayError],
+        [np.zeros(10), np.zeros(10), "not an array", mwe_domain.shape, ArrayError],
+        [np.zeros(10), np.zeros(10), mwe_domain, "not an array", ArrayError],
+    ],
+)
+def test_interpolate_subdomain_flows_invalid_inputs(
+    y_subdom, x_subdom, subdom_flow, full_shape, expected_error
+):
+    try:
+        __ = of_solver.interpolate_subdomain_flows(
+            y_subdom, x_subdom, subdom_flow, full_shape
+        )
+    except expected_error:
+        pairwise_with_stride
+
+
+@pytest.mark.parametrize(
     "iterable, stride, expected_output",
     [
         [(0, 10, 20, 30), 1, ((0, 10), (10, 20), (20, 30))],
@@ -205,9 +277,9 @@ def test_subdomain_iter_valid_inputs():
         [(80, 80), (10, 10), (15, 15)],
         [(80, 100), (20, 20), (7, 9)],
         [(100, 100), (20, 10), (9, 19)],
-        [(100, -100), (10, 10), ValueError],
-        [(100.5, 100), (10, 10), TypeError],
-        [(100, 100, 100), (10, 10), ValueError],
+        [(100, -100), (10, 10), ArrayTypeError],
+        [(100.5, 100), (10, 10), ArrayTypeError],
+        [(100, 100, 100), (10, 10), ArrayShapeError],
     ],
 )
 def test_get_subdomain_containment_arrays(domain_shape, subdomain_shape, expected):
@@ -234,12 +306,12 @@ def test_get_subdomain_containment_arrays(domain_shape, subdomain_shape, expecte
         [(12, 16), (3, 3), ValueError],  # Odd subdomain shapes
         [(12, 16), (4, 3), ValueError],  # Odd subdomain shape in one dim
         [(12, 16), (6, 6), ValueError],  # Subdomain shape does not fit
-        [(12, 16), (-6, 6), ValueError],  # Negative subdomain shape
-        [(12, 16), (6.5, 6), TypeError],  # Non-integer subdomain shape
-        [(12, 16), (6, 6.5), TypeError],  # Non-integer subdomain shape in one dim
-        [(12, 16), (6, -6), ValueError],  # Negative subdomain shape in one dim
-        [(12, 16, 5), (4, 4), ValueError],  # Non-2D feature field
-        [(12,), (4,), ValueError],  # Non-2D feature field
+        [(12, 16), (-6, 6), ArrayTypeError],  # Negative subdomain shape
+        [(12, 16), (6.5, 6), ArrayTypeError],  # Non-integer subdomain shape
+        [(12, 16), (6, 6.5), ArrayTypeError],  # Non-integer subdomain shape in one dim
+        [(12, 16), (6, -6), ArrayTypeError],  # Negative subdomain shape in one dim
+        [(12, 16, 5), (4, 4), ArrayShapeError],  # Non-2D feature field
+        [(12,), (4,), ArrayShapeError],  # Non-2D feature field
     ],
 )
 def test_get_overlapping_subdomain_bounds(
@@ -275,8 +347,8 @@ def test_get_overlapping_subdomain_bounds(
         [(100, 100), (25, 25), False],  # Cannot be odd, overlap is not at a grid point
         [(100, 100), (30, 30), False],  # Does not fit in domain
         [(-10, -10), (2, 2), False],  # Does not accept negative values
-        [(100, 100), (5.5, 5.5), TypeError],  # Does not accept floats
-        [("abc", "abc"), (5, 5), TypeError],  # Does not accept strings
+        [(100, 100), (5.5, 5.5), False],  # Does not accept floats
+        [("abc", "abc"), (5, 5), False],  # Does not accept strings
         [(100, 100, 100), (50, 50, 50), False],  # Does not accept 3d fields
         [(100,), (50,), False],  # Does not accept 1D fields
     ],
@@ -335,6 +407,17 @@ def test_check_subdomain_variability_mutiple_neighbouring_outliers_higher_tolera
     of_solver = FlowSolver(subdomain_tolerance=10)
     filtered_vals = of_solver.check_subdomain_variability(subdomain_vals)
     np.testing.assert_array_equal(filtered_vals, subdomain_vals)
+
+
+@pytest.mark.parametrize(
+    "subdomain_vals, expected_error",
+    [[np.array((20)), ArrayShapeError], [np.zeros((10, 10, 10)), ArrayShapeError]],
+)
+def test_check_subdomain_variability_invalid_inputs(subdomain_vals, expected_error):
+    try:
+        of_solver.check_subdomain_variability(subdomain_vals)
+    except expected_error:
+        pass
 
 
 # If subdomains are chosen properly, we don't expect there to be much difference between
@@ -582,6 +665,31 @@ def test_shrinking_feature(
 
 
 @pytest.mark.parametrize(
+    "field1, field2, tukey_flag, expected_error",
+    [
+        ["not an array", mwe_domain, True, ArrayTypeError],
+        [mwe_domain, "not an array", True, ArrayTypeError],
+        [
+            mwe_domain.reshape(10, 10, 100),
+            mwe_domain.reshape(10, 10, 100),
+            True,
+            ArrayShapeError,
+        ],
+        [mwe_domain.reshape(10, 10, 100), mwe_domain, True, ArrayShapeError],
+        [mwe_domain.astype(float), mwe_domain, True, ArrayTypeError],
+        [mwe_domain, mwe_domain, "not a bool", TypeError],
+    ],
+)
+def test_derive_subdomain_flow_invalid_inputs(
+    field1, field2, tukey_flag, expected_error
+):
+    try:
+        of_solver.derive_subdomain_flow(field1, field2, tukey_flag)
+    except expected_error:
+        pass
+
+
+@pytest.mark.parametrize(
     "y_subdomain_bounds, x_subdomain_bounds, expected_subdomain_iter",
     [
         [
@@ -598,11 +706,11 @@ def test_shrinking_feature(
         [(0, 10), (0, 15), ()],
         [(0, 10, 20), (0, 15), ()],
         [(0, 10), (0, 15, 30), ()],
-        ["not a tuple", (0, 15, 30), TypeError],
-        [(0, 10, 20), "not a tuple", TypeError],
-        [(1.1, 1.2, 1.3), (0, 15, 30), TypeError],
-        [((0, 10, 20), (0, 15, 30)), (0, 15, 30), ValueError],
-        [(-10, 0, 10), (0, 15, 30), ValueError],
+        ["not a tuple", (0, 15, 30), ArrayTypeError],
+        [(0, 10, 20), "not a tuple", ArrayTypeError],
+        [(1.1, 1.2, 1.3), (0, 15, 30), ArrayTypeError],
+        [((0, 10, 20), (0, 15, 30)), (0, 15, 30), ArrayShapeError],
+        [(-10, 0, 10), (0, 15, 30), ArrayTypeError],
     ],
 )
 def test_subdomain_iter(

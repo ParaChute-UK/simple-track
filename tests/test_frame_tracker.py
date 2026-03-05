@@ -5,6 +5,15 @@ import pytest
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
+from utils import (
+    ArrayError,
+    ArrayShapeError,
+    ArrayTypeError,
+    NegativeIDError,
+    ZeroIDError,
+    FloatIDError,
+    IDError,
+)
 from frame_tracker import (
     FrameTracker,
     advect_field_using_motion_vectors,
@@ -15,99 +24,13 @@ from frame import Frame
 from feature import Feature
 import datetime as dt
 
-
-def test_advect_field():
-    """
-    Test the ability of the advect_field_using_motion_vectors function to
-    advect a simple feature field
-    """
-    test_field = np.zeros((10, 10), dtype=int)
-    test_y_flow = np.zeros_like(test_field)
-    test_x_flow = np.zeros_like(test_field)
-
-    feature_mask_y = slice(3, 6)
-    feature_mask_x = slice(2, 4)
-    test_field[feature_mask_y, feature_mask_x] = 1
-    test_y_flow[feature_mask_y, feature_mask_x] = 1
-    test_x_flow[feature_mask_y, feature_mask_x] = 1
-
-    expected_field = np.zeros_like(test_field)
-    expected_field[4:7, 3:5] = 1
-
-    advected_field = advect_field_using_motion_vectors(
-        test_field, test_y_flow, test_x_flow
-    )
-
-    err_msg = "Test failed: advected array is not equal to expected array."
-    np.testing.assert_array_equal(advected_field, expected_field, err_msg)
+zero_arr = np.zeros((10, 10), dtype=int)
 
 
-def test_advect_field_with_feature_conflict():
-    """
-    Test the advect_field_using_motion_vectors functtion to choose the correct feature
-    during an advection conflict. Feature should be he one where the centroid
-    is closest to the conflict area.
-    """
-
-    test_field = np.zeros((10, 10), dtype=int)
-    test_y_flow = np.zeros_like(test_field)
-    test_x_flow = np.zeros_like(test_field)
-
-    feature1_mask_y = slice(3, 6)
-    feature1_mask_x = slice(2, 4)
-    test_field[feature1_mask_y, feature1_mask_x] = 1
-    test_y_flow[feature1_mask_y, feature1_mask_x] = 1
-    test_x_flow[feature1_mask_y, feature1_mask_x] = 1
-
-    # Have feature 2 also move into the same area as feature 1, but it is
-    # more elongated in x direction so its centroid should be further
-    # from the conflicting areas
-    feature2_mask_y = slice(3, 6)
-    feature2_mask_x = slice(5, 9)
-    test_field[feature2_mask_y, feature2_mask_x] = 2
-    test_y_flow[feature2_mask_y, feature2_mask_x] = 1
-    test_x_flow[feature2_mask_y, feature2_mask_x] = -1
-    # test_field (x = conflict area, should be chosen as 1)
-    # ([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 1, 1, 0, 2, 2, 2, 2, 0],
-    # [0, 0, 1, 1, x, 2, 2, 2, 2, 0],
-    # [0, 0, 1, 1, x, 2, 2, 2, 2, 0],
-    # [0, 0, 0, 0, x, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
-
-    expected_field = np.zeros_like(test_field)
-    expected_field[4:7, 3:5] = 1
-    expected_field[4:7, 5:8] = 2
-    # expected_field
-    # ([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 1, 1, 2, 2, 2, 0, 0],
-    # [0, 0, 0, 1, 1, 2, 2, 2, 0, 0],
-    # [0, 0, 0, 1, 1, 2, 2, 2, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
-
-    advected_field = advect_field_using_motion_vectors(
-        test_field, test_y_flow, test_x_flow
-    )
-    err_msg = "Test failed: advected array is not equal to expected array."
-    np.testing.assert_array_equal(advected_field, expected_field, err_msg)
-
-
-# TODO: add tests for junk inputs
-# TODO: add test for different values of xflow, yflow across the feature.
-
-
+@pytest.fixture
 def construct_test_fields():
     """
-    Constructs test fields used for these tests.
+    Constructs test fields used in this file.
     """
     test_field = np.zeros((10, 10), dtype=int)
     feature1_mask_y = slice(3, 6)
@@ -216,12 +139,114 @@ def construct_test_fields():
     return test_field, test_field2, test_field3, test_field4, test_field5
 
 
-def test_generate_radial_mask():
+def test_advect_field():
+    """
+    Test the ability of the advect_field_using_motion_vectors function to
+    advect a simple feature field
+    """
+    test_field = np.zeros((10, 10), dtype=int)
+    test_y_flow = np.zeros_like(test_field)
+    test_x_flow = np.zeros_like(test_field)
+
+    feature_mask_y = slice(3, 6)
+    feature_mask_x = slice(2, 4)
+    test_field[feature_mask_y, feature_mask_x] = 1
+    test_y_flow[feature_mask_y, feature_mask_x] = 1
+    test_x_flow[feature_mask_y, feature_mask_x] = 1
+
+    expected_field = np.zeros_like(test_field)
+    expected_field[4:7, 3:5] = 1
+
+    advected_field = advect_field_using_motion_vectors(
+        test_field, test_y_flow, test_x_flow
+    )
+
+    err_msg = "Test failed: advected array is not equal to expected array."
+    np.testing.assert_array_equal(advected_field, expected_field, err_msg)
+
+
+def test_advect_field_with_feature_conflict():
+    """
+    Test the advect_field_using_motion_vectors functtion to choose the correct feature
+    during an advection conflict. Feature should be he one where the centroid
+    is closest to the conflict area.
+    """
+
+    test_field = np.zeros((10, 10), dtype=int)
+    test_y_flow = np.zeros_like(test_field)
+    test_x_flow = np.zeros_like(test_field)
+
+    feature1_mask_y = slice(3, 6)
+    feature1_mask_x = slice(2, 4)
+    test_field[feature1_mask_y, feature1_mask_x] = 1
+    test_y_flow[feature1_mask_y, feature1_mask_x] = 1
+    test_x_flow[feature1_mask_y, feature1_mask_x] = 1
+
+    # Have feature 2 also move into the same area as feature 1, but it is
+    # more elongated in x direction so its centroid should be further
+    # from the conflicting areas
+    feature2_mask_y = slice(3, 6)
+    feature2_mask_x = slice(5, 9)
+    test_field[feature2_mask_y, feature2_mask_x] = 2
+    test_y_flow[feature2_mask_y, feature2_mask_x] = 1
+    test_x_flow[feature2_mask_y, feature2_mask_x] = -1
+    # test_field (x = conflict area, should be chosen as 1)
+    # ([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 1, 1, 0, 2, 2, 2, 2, 0],
+    # [0, 0, 1, 1, x, 2, 2, 2, 2, 0],
+    # [0, 0, 1, 1, x, 2, 2, 2, 2, 0],
+    # [0, 0, 0, 0, x, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
+
+    expected_field = np.zeros_like(test_field)
+    expected_field[4:7, 3:5] = 1
+    expected_field[4:7, 5:8] = 2
+    # expected_field
+    # ([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 1, 1, 2, 2, 2, 0, 0],
+    # [0, 0, 0, 1, 1, 2, 2, 2, 0, 0],
+    # [0, 0, 0, 1, 1, 2, 2, 2, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]])
+
+    advected_field = advect_field_using_motion_vectors(
+        test_field, test_y_flow, test_x_flow
+    )
+    err_msg = "Test failed: advected array is not equal to expected array."
+    np.testing.assert_array_equal(advected_field, expected_field, err_msg)
+
+
+@pytest.mark.parametrize(
+    "field, yflow, xflow, expected_error",
+    [
+        ["not an array", zero_arr, zero_arr, ArrayTypeError],
+        [zero_arr, "not an array", zero_arr, ArrayTypeError],
+        [zero_arr, zero_arr, "not an array", ArrayTypeError],
+        [np.zeros((5, 5), dtype=int), zero_arr, zero_arr, ArrayShapeError],
+        [np.zeros((10, 10, 10), dtype=int), zero_arr, zero_arr, ArrayShapeError],
+        [np.zeros(10, dtype=int), zero_arr, zero_arr, ArrayShapeError],
+    ],
+)
+def test_advect_field_invalid_inputs(field, yflow, xflow, expected_error):
+    try:
+        __ = advect_field_using_motion_vectors(field, yflow, xflow)
+    except expected_error:
+        pass
+
+
+def test_generate_radial_mask(construct_test_fields):
     """
     Tests the generate_radial_mask function in FrameTracker
     """
-    test_field, __, __, __, __ = construct_test_fields()
-
+    test_field = construct_test_fields[0]
     centroid = (6, 7)
     radius = 3
 
@@ -243,23 +268,57 @@ def test_generate_radial_mask():
     np.testing.assert_array_equal(mask, expected_mask, err_msg)
 
 
-def test_get_centroid():
+@pytest.mark.parametrize(
+    "field, coord, mask_radius, expected_error",
+    [
+        [np.zeros(10, dtype=int), (5, 5), 3, ArrayShapeError],
+        [np.zeros((10, 10, 10), dtype=int), (5, 5), 3, ArrayShapeError],
+        [zero_arr, 5, 3, ArrayTypeError],
+        [zero_arr, (5, 5, 5), 3, ArrayShapeError],
+        [zero_arr, (5, 5), 3.4, TypeError],
+        [zero_arr, (5, 5), -3, ValueError],
+    ],
+)
+def test_generate_radial_mask_invalid_inputs(field, coord, mask_radius, expected_error):
+    try:
+        __ = generate_radial_mask(field, coord, mask_radius)
+    except expected_error:
+        pass
+
+
+def test_get_centroid(construct_test_fields):
     """
     Test the get_centroid function using test field
     """
-    test_field, __, __, __, __ = construct_test_fields()
+    test_field = construct_test_fields[0]
     # Find centroid for value 1
     expected_centroid = np.array((4, 2.5))
     centroid = get_centroid(test_field, 1)
     np.testing.assert_array_equal(expected_centroid, centroid)
 
 
-def test_find_ids_of_closest_size_with_single_closest_size():
+@pytest.mark.parametrize(
+    "field, value, expected_error",
+    [
+        [np.zeros(10, dtype=int), 3, ArrayShapeError],
+        [np.zeros((10, 10, 10), dtype=int), 3, ArrayShapeError],
+        [zero_arr, 3.4, FloatIDError],
+        [zero_arr, -3, NegativeIDError],
+    ],
+)
+def test_check_centroid_invalid_inputs(field, value, expected_error):
+    try:
+        __ = get_centroid(field, value)
+    except expected_error:
+        pass
+
+
+def test_find_ids_of_closest_size_with_single_closest_size(construct_test_fields):
     """
     Test the find_id_of_closest_size function when there is a single candidate id
     with closest size to the target feature
     """
-    test_field, test_field2, __, __, __ = construct_test_fields()
+    test_field, test_field2 = construct_test_fields[0:2]
 
     closest_size_id = FrameTracker().find_ids_of_closest_size(
         test_field, test_field2, 1, [1, 2]
@@ -269,12 +328,14 @@ def test_find_ids_of_closest_size_with_single_closest_size():
     np.testing.assert_equal(closest_size_id, expected_id, err_msg)
 
 
-def test_find_ids_of_closest_size_with_multiple_equally_closest_sizes():
+def test_find_ids_of_closest_size_with_multiple_equally_closest_sizes(
+    construct_test_fields,
+):
     """
     Test the find_id_of_closest_size function when there are multiple candidate ids
     with equally close sizes to the target feature
     """
-    __, test_field2, __, __, __ = construct_test_fields()
+    test_field2 = construct_test_fields[1]
 
     test_field4 = np.zeros((10, 10), dtype=int)
     feature3_mask_y = slice(0, 4)
@@ -305,18 +366,19 @@ def test_find_ids_of_closest_size_with_multiple_equally_closest_sizes():
     np.testing.assert_array_equal(closest_size_ids, expected_ids, err_msg)
 
 
-def test_overlap_histogram():
+def test_overlap_histogram(construct_test_fields):
     """
     Tests whether the calculate_overlap_histogram produces the correct degree of overlap
     """
 
-    test_field, test_field2, __, __, __ = construct_test_fields()
+    test_field, test_field2 = construct_test_fields[0:2]
 
     # Expect to find overlap of 2/3 for label 1
     # And overlap = 12/16 = 0.75 for label 2
     # Label 0 is reserved for the background, which should be set to 0
-    ids = [0, 1, 2]
-    expected_results = [0, 2 / 3, 0.75]
+    # But this is not tested here since this would throw an IDError
+    ids = [1, 2]
+    expected_results = [2 / 3, 0.75]
     for id, expected_result in zip(ids, expected_results):
         hist = FrameTracker().calculate_overlap_histogram(
             test_field, test_field2, feature_id=id
@@ -326,19 +388,19 @@ def test_overlap_histogram():
         np.testing.assert_equal(result, expected_result, err_msg)
 
 
-def test_overlap_histogram_with_nbhood():
+def test_overlap_histogram_with_nbhood(construct_test_fields):
     """
     Tests whether the calculate_overlap_histogram produces the correct degree of overlap
     when a nbhood is used to expand the mask around the first input.
     """
 
-    test_field, test_field2, __, __, __ = construct_test_fields()
+    test_field, test_field2 = construct_test_fields[0:2]
 
     # Using a mask of radius 3 pixels around each feature, we now expect
     # to encompass all of the features with the same label in each field
     # Therefore, for label 1 and 2, expect an overlap of 1 (full overlap)
-    ids = [0, 1, 2]
-    expected_results = [0, 1, 1]
+    ids = [1, 2]
+    expected_results = [1, 1]
     for id, expected_result in zip(ids, expected_results):
         hist = FrameTracker().calculate_overlap_histogram(
             test_field, test_field2, feature_id=id, nbhood=3
@@ -348,12 +410,15 @@ def test_overlap_histogram_with_nbhood():
         np.testing.assert_equal(result, expected_result, err_msg)
 
 
-def test_overlap_histogram_with_multiple_overlaps_and_different_labels():
+def test_overlap_histogram_with_multiple_overlaps_and_different_labels(
+    construct_test_fields,
+):
     """
     Test calculate_overlap_histogram when there are multiple overlapping labels
     for the requested feature id
     """
-    __, test_field2, __, test_field4, __ = construct_test_fields()
+    test_field2 = construct_test_fields[1]
+    test_field4 = construct_test_fields[3]
 
     # Use test_field4 as the advected field (containing multiple overlap labels)
     # and test_field2 as the current field that we want to find the overlap for
@@ -369,12 +434,44 @@ def test_overlap_histogram_with_multiple_overlaps_and_different_labels():
     np.testing.assert_array_equal(hist, expected_hist, err_msg)
 
 
-def test_find_id_of_closest_overlap_with_single_label_overlap():
+@pytest.mark.parametrize(
+    "advected_field, current_field, feature_id, nbhood, expected_error",
+    [
+        [np.zeros((10), dtype=int), zero_arr, 1, 0, ArrayShapeError],
+        [
+            np.zeros((10, 10, 10), dtype=int),
+            np.zeros((10, 10, 10)),
+            1,
+            0,
+            ArrayShapeError,
+        ],
+        [np.zeros((10), dtype=int), np.zeros((10), dtype=int), 1, 0, ArrayShapeError],
+        [np.zeros((5, 10), dtype=int), zero_arr, 1, 0, ArrayShapeError],
+        [np.zeros((10, 10), dtype=float), np.zeros((10, 10)), 1, 0, ArrayTypeError],
+        [zero_arr, zero_arr, -1, 0, NegativeIDError],
+        [zero_arr, zero_arr, 1.5, 0, FloatIDError],
+        [zero_arr, zero_arr, 0, 0, ZeroIDError],
+        [zero_arr, zero_arr, 1, 0.5, TypeError],
+        [zero_arr, zero_arr, 1, -1, ValueError],
+    ],
+)
+def test_overlap_histogram_invalid_inputs(
+    advected_field, current_field, feature_id, nbhood, expected_error
+):
+    try:
+        FrameTracker().calculate_overlap_histogram(
+            advected_field, current_field, feature_id, nbhood
+        )
+    except expected_error:
+        pass
+
+
+def test_find_id_of_closest_overlap_with_single_label_overlap(construct_test_fields):
     """
     Test the find_ids_of_closest_overlaps function when there is a single overlapping label
     """
     # Test should find the same id is the best overlap between fields
-    test_field1, test_field2, __, __, __ = construct_test_fields()
+    test_field1, test_field2 = construct_test_fields[0:2]
 
     for id in range(1, 3):
         hist = FrameTracker().calculate_overlap_histogram(
@@ -387,12 +484,13 @@ def test_find_id_of_closest_overlap_with_single_label_overlap():
         np.testing.assert_equal(id, matching_id, err_msg)
 
 
-def test_find_id_of_closest_overlap_with_no_overlap():
+def test_find_id_of_closest_overlap_with_no_overlap(construct_test_fields):
     """
     Test the find_ids_of_closest_overlaps function when there is no overlapping label
     """
     # test should find no overlap between fields
-    test_field1, __, test_field3, __, __ = construct_test_fields()
+    test_field1, __, test_field3, __, __ = construct_test_fields
+    test_field3 = construct_test_fields[2]
 
     hist = FrameTracker().calculate_overlap_histogram(
         test_field1, test_field3, feature_id=1, nbhood=0
@@ -407,14 +505,16 @@ def test_find_id_of_closest_overlap_with_no_overlap():
         raise ValueError(f"Test failed: Expected no other ids, got {others}")
 
 
-def test_find_id_of_closest_overlap_with_multiple_overlaps_but_only_one_sufficient():
+def test_find_id_of_closest_overlap_with_multiple_overlaps_but_only_one_sufficient(
+    construct_test_fields,
+):
     """
     Test the find_ids_of_closest_overlaps function when there are multiple overlapping labels
     but only one meets the overlap threshold
     """
     # Using same data as test_overlap_histogram_with_multiple_overlaps_and_different_labels():
     # From this test, we expect the function to choose label 3 as the best overlap
-    __, test_field2, __, __, test_field5 = construct_test_fields()
+    __, test_field2, __, __, test_field5 = construct_test_fields
     hist = FrameTracker().calculate_overlap_histogram(
         test_field5, test_field2, feature_id=2, nbhood=0
     )
@@ -429,7 +529,9 @@ def test_find_id_of_closest_overlap_with_multiple_overlaps_but_only_one_sufficie
         raise ValueError(f"Test failed: Expected no other ids, got {others}")
 
 
-def test_find_id_of_closest_overlap_with_multiple_unequal_sufficient_overlaps():
+def test_find_id_of_closest_overlap_with_multiple_unequal_sufficient_overlaps(
+    construct_test_fields,
+):
     """
     Test the find_ids_of_closest_overlaps function when there are multiple overlapping labels
     that each exceed the overlap threshold, but one is clearly more overlapping than the other
@@ -439,7 +541,7 @@ def test_find_id_of_closest_overlap_with_multiple_unequal_sufficient_overlaps():
     # Since label 3 still has a much larger overlap it should still be chosen
     # However, need to set the overlap threshold to 0.1 for label 4 to be considered suitable
     # (see test_overlap_histogram_with_multiple_overlaps_and_different_labels() for overlap hist)
-    __, test_field2, __, test_field4, __ = construct_test_fields()
+    __, test_field2, __, test_field4, __ = construct_test_fields
     hist = FrameTracker().calculate_overlap_histogram(
         test_field4, test_field2, feature_id=2, nbhood=0
     )
@@ -457,7 +559,9 @@ def test_find_id_of_closest_overlap_with_multiple_unequal_sufficient_overlaps():
     np.testing.assert_array_equal(others, expected_others, err_msg)
 
 
-def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps():
+def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps(
+    construct_test_fields,
+):
     """
     Test the find_ids_of_closest_overlaps function when there are multiple overlapping labels
     that each exceed the overlap threshold by the same degree, but one is closer in centroid distance
@@ -466,7 +570,7 @@ def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps():
     # enforce overlap of 6 pixels with label 2 of test_field2 for each of the new labels
     # But, make feature 3 much larger than feature 4 so its centroid is further from the label 2 centroid
 
-    __, test_field2, __, __, __ = construct_test_fields()
+    test_field2 = construct_test_fields[1]
     # test_field2
     # ([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -519,7 +623,9 @@ def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps():
     np.testing.assert_array_equal(others, expected_others, err_msg)
 
 
-def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps_and_equal_centroid_distances():
+def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps_and_equal_centroid_distances(
+    construct_test_fields,
+):
     """
     Test the find_ids_of_closest_overlaps function when there are multiple overlapping labels
     that each exceed the overlap threshold by the same degree, AND have the same centroid distance.
@@ -527,7 +633,7 @@ def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps_an
     """
     # Now, construct symmetric features so that they have the same overlap and the same centroid distance
     # We expect code to therefore choose the feature with the lower value
-    __, test_field2, __, __, __ = construct_test_fields()
+    test_field2 = construct_test_fields[1]
     # test_field2
     # ([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -577,6 +683,42 @@ def test_find_id_of_closest_overlap_with_multiple_equally_sufficient_overlaps_an
         f"Test failed: expected to find other label {expected_others}, got {others}"
     )
     np.testing.assert_array_equal(others, expected_others, err_msg)
+
+
+@pytest.mark.parametrize(
+    "overlap_hist, advected_field, current_field, feature_id, expected_error",
+    [
+        [zero_arr, zero_arr, zero_arr, 1, ArrayShapeError],
+        [np.arange(-5, 5), zero_arr, zero_arr, 1, ArrayTypeError],
+        [
+            np.arange(5),
+            np.zeros((10), dtype=int),
+            np.zeros((10), dtype=int),
+            1,
+            ArrayError,
+        ],
+        [
+            np.arange(5),
+            np.zeros((10, 10, 10), dtype=int),
+            np.zeros((10, 10, 10), dtype=int),
+            1,
+            ArrayShapeError,
+        ],
+        [np.arange(5), np.zeros((5, 5), dtype=int), zero_arr, 1, ArrayShapeError],
+        [np.arange(5), zero_arr, zero_arr, -1, NegativeIDError],
+        [np.arange(5), zero_arr, zero_arr, 1.5, FloatIDError],
+        [np.arange(5), zero_arr, zero_arr, 0, ZeroIDError],
+    ],
+)
+def test_find_ids_closest_overlap_invalid_inputs(
+    overlap_hist, advected_field, current_field, feature_id, expected_error
+):
+    try:
+        FrameTracker().find_ids_of_closest_overlaps(
+            overlap_hist, advected_field, current_field, feature_id
+        )
+    except expected_error:
+        pass
 
 
 def test_identify_parent_and_child_features_with_complete_overlap():
@@ -1087,22 +1229,34 @@ matching_features = [
 @pytest.mark.parametrize(
     "parent_id, matching_features, advected_field, current_field, expected_error",
     [
-        [1, matching_features, "not an array", current_field, TypeError],
-        [1, matching_features, advected_field, "not an array", TypeError],
+        [1, matching_features, "not an array", current_field, ArrayTypeError],
+        [1, matching_features, advected_field, "not an array", ArrayTypeError],
         # ndim != 2
-        [1, matching_features, advected_field, np.array((1), dtype=int), ValueError],
+        [
+            1,
+            matching_features,
+            advected_field,
+            np.array((1), dtype=int),
+            ArrayShapeError,
+        ],
         # unequal shape
-        [1, matching_features, advected_field, np.array((1, 1), dtype=int), ValueError],
+        [
+            1,
+            matching_features,
+            advected_field,
+            np.array((1, 1), dtype=int),
+            ArrayShapeError,
+        ],
         # Array of ints
         [
             1,
             matching_features,
             advected_field,
-            np.array((10, 10), dtype=float),
-            ValueError,
+            np.zeros((10, 10), dtype=float),
+            ArrayTypeError,
         ],
         [1, ["not a feature list"], advected_field, current_field, TypeError],
-        ["not an int", matching_features, advected_field, current_field, TypeError],
+        ["not an int", matching_features, advected_field, current_field, IDError],
     ],
 )
 def test_identify_parent_and_child_features_invalid_inputs(
@@ -1120,4 +1274,58 @@ def test_identify_parent_and_child_features_invalid_inputs(
             )
         )
     except expected_error:
+        pass
+
+
+current_field = np.zeros((10, 10), dtype=int)
+advected_field = np.zeros((10, 10), dtype=int)
+# Create a single parent feature in the advected field
+current_field[2:8, 2:8] = 1
+current_field[8:9, 8:9] = 2
+
+# Create multiple features in current field with same overlap
+advected_field[1:6, 3:6] = 10
+advected_field[7:9, 6:9] = 20
+
+closest_id_tests = [
+    [current_field, advected_field, 1, [10, 20], [10]],
+    [current_field, advected_field, 2, [10, 20], [20]],
+    [current_field, "not an array", 1, [10, 20], ArrayTypeError],
+    ["not an array", advected_field, 1, [10, 20], ArrayTypeError],
+    [current_field, advected_field, 1.4, [10, 20], FloatIDError],
+    [current_field, advected_field, -1, [10, 20], NegativeIDError],
+    [current_field, advected_field, 1, [-10, 20], NegativeIDError],
+    [current_field, advected_field, 1, [10.5, 20], FloatIDError],
+]
+
+
+@pytest.mark.parametrize(
+    "field_with_id, field_to_search, target_feature_id, candidate_ids, expected_result",
+    closest_id_tests,
+)
+def test_find_id_of_closest_size(
+    field_with_id, field_to_search, target_feature_id, candidate_ids, expected_result
+):
+    try:
+        result = FrameTracker().find_ids_of_closest_size(
+            field_with_id, field_to_search, target_feature_id, candidate_ids
+        )
+        assert result == expected_result
+    except expected_result:
+        pass
+
+
+@pytest.mark.parametrize(
+    "field_with_id, field_to_search, target_feature_id, candidate_ids, expected_result",
+    closest_id_tests,
+)
+def test_find_id_of_closest_centroid(
+    field_with_id, field_to_search, target_feature_id, candidate_ids, expected_result
+):
+    try:
+        result = FrameTracker().find_ids_of_closest_centroid(
+            field_with_id, field_to_search, target_feature_id, candidate_ids
+        )
+        assert result == expected_result
+    except expected_result:
         pass

@@ -3,7 +3,7 @@ from numpy.typing import NDArray
 from typing import Union
 from frame import Frame
 from feature import Feature
-from utils import check_arrays
+from utils import check_arrays, check_valid_ids, native
 
 
 class FrameTracker:
@@ -233,6 +233,7 @@ class FrameTracker:
             list[Feature, list[Feature]]:
                 [parent_feature, list of child_features]
         """
+        parent_id = check_valid_ids(parent_id)
 
         advected_feature_field, current_feature_field = check_arrays(
             advected_feature_field,
@@ -241,9 +242,6 @@ class FrameTracker:
             equal_shape=True,
             dtype=int,
         )
-
-        if not isinstance(parent_id, int) or parent_id < 1:
-            raise TypeError(f"Expected parent_id type int, for {type(parent_id)}")
 
         if not all([isinstance(feature, Feature) for feature in matching_features]):
             raise TypeError(
@@ -317,6 +315,7 @@ class FrameTracker:
         matching_ids: list,
         nbhood: int = 0,
     ) -> list:
+        advected_id, matching_ids = check_valid_ids(advected_id, matching_ids)
         overlap_sizes = []
         for feature_id in matching_ids:
             advected_feature_mask = advected_feature_field == advected_id
@@ -491,6 +490,15 @@ class FrameTracker:
                 best overlap. If None, there are no other sufficient ids.
 
         """
+        overlap_hist = check_arrays(overlap_hist, ndim=1, non_negative=True)
+        advected_feature_field, current_feature_field = check_arrays(
+            advected_feature_field,
+            current_feature_field,
+            equal_shape=True,
+            non_negative=True,
+            dtype=int,
+        )
+        current_feature_id = check_valid_ids(current_feature_id)
         # Check number of sufficient overlaps. Get bool array of values meeting threshold
         sufficient_overlaps = overlap_hist >= self.overlap_threshold
         len_sufficient_overlaps = np.count_nonzero(sufficient_overlaps)
@@ -574,6 +582,9 @@ class FrameTracker:
             equal_shape=True,
             dtype=int,
         )
+        target_feature_id, candidate_ids = check_valid_ids(
+            target_feature_id, candidate_ids
+        )
 
         size_of_target_feature_in_target_field = np.size(
             np.where(field_with_id == target_feature_id), 1
@@ -618,6 +629,17 @@ class FrameTracker:
             list[int]:
                 Candidate ids that have the closest size to the target feature
         """
+        field_with_id, field_to_search = check_arrays(
+            field_with_id,
+            field_to_search,
+            ndim=2,
+            equal_shape=True,
+            dtype=int,
+        )
+        target_feature_id, candidate_ids = check_valid_ids(
+            target_feature_id, candidate_ids
+        )
+
         # Get the closest centroid for each feature sharing a minimum distance
         centroid_distances = {}
         current_feature_centroid = get_centroid(field_with_id, target_feature_id)
@@ -673,8 +695,7 @@ class FrameTracker:
             equal_shape=True,
             dtype=int,
         )
-        if not isinstance(feature_id, (int, np.integer)):
-            raise TypeError(f"Expected int, got {type(feature_id)}")
+        feature_id = check_valid_ids(feature_id)
         if not isinstance(nbhood, (int, np.integer)):
             raise TypeError(f"Expected int, got {type(nbhood)}")
         if nbhood < 0:
@@ -849,6 +870,16 @@ def generate_radial_mask(field: NDArray, coord: NDArray, mask_radius: int) -> ND
     Returns:
         NDArray: Mask of values.
     """
+    field = check_arrays(field, ndim=2)
+    coord = check_arrays(coord, shape=(2,))
+    mask_radius = native(mask_radius)  # If this is a numpy int, convert to native int
+    if not isinstance(mask_radius, int):
+        raise TypeError(f"Expected mask_radius to be int, got {type(mask_radius)}")
+    if mask_radius < 1:
+        raise ValueError(
+            f"Expected mask_radius to be a positive, nonzero integer: got {mask_radius}"
+        )
+
     temp_y = np.arange(field.shape[0])
     temp_x = np.arange(field.shape[1])
 
@@ -874,6 +905,7 @@ def get_centroid(field: NDArray, value: int) -> NDArray:
     """
 
     field = check_arrays(field, ndim=2)
+    value = check_valid_ids(value)
 
     if not np.issubdtype(type(value), np.integer):
         raise TypeError(f"Expected int, got {type(value)}")

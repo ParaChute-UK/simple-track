@@ -4,7 +4,12 @@ from numpy.typing import NDArray
 import scipy.ndimage as ndimage
 from typing import Union
 from feature import Feature
-from utils import check_arrays
+from utils import check_arrays, check_valid_ids
+
+
+class FeaturesNotFoundError(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)
 
 
 class Frame:
@@ -49,6 +54,7 @@ class Frame:
         return self.lifetime_field
 
     def get_feature(self, feature_id: int) -> Feature:
+        feature_id = check_valid_ids(feature_id)
         if feature_id in self.features.keys():
             return self.features[feature_id]
         else:
@@ -70,8 +76,7 @@ class Frame:
         return self.max_id
 
     def set_max_id(self, max_id: int) -> None:
-        if not np.issubdtype(type(max_id), int):
-            raise TypeError(f"Expected type int, got {type(max_id)}")
+        max_id = check_valid_ids(max_id)
         self.max_id = max_id
 
     def identify_features(
@@ -112,16 +117,13 @@ class Frame:
             return
 
         feature_ids = np.unique(self.feature_field)
-        feature_ids = np.delete(feature_ids, 0)
-
-        if any(feature_ids < 0):
-            raise ValueError("Values in feature field cannot be negative")
-
-        if np.issubdtype(feature_ids.dtype, np.integer):
-            raise TypeError("Feature field dtype must be int")
+        # Remove 0 from the list of ids (usually this is at idx 0 but can't guarantee this)
+        feature_ids = np.delete(feature_ids, np.where(feature_ids == 0)[0][0])
+        feature_ids = check_valid_ids(feature_ids)
 
         # Don't include 0 in Feature population, this is reserved for background
         for feature_id in feature_ids:
+            print(feature_id)
             # Get the pixel locations of the feature in the field
             # For 2D data, np.where returns two arrays containing y, x locations
             feature_coords = np.array(np.where(self.feature_field == feature_id))
@@ -141,7 +143,7 @@ class Frame:
             x_flow (NDArray): _description_
         """
         if self.feature_field is None or not self.features:
-            raise Exception(
+            raise FeaturesNotFoundError(
                 "Features have not been loaded into this Frame. Cannot assign displacements"
             )
 
@@ -193,12 +195,12 @@ class Frame:
         Update the feature_field to reflect provisional ids.
         """
         if self.feature_field is None:
-            raise Exception(
+            raise FeaturesNotFoundError(
                 "Feature field is not set. Cannot update using provisional ids."
             )
 
         if not self.features:
-            raise Exception(
+            raise FeaturesNotFoundError(
                 "Features have not been loaded into this Frame. Cannot update using provisional ids."
             )
 

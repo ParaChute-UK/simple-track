@@ -2,7 +2,7 @@ from numpy.typing import NDArray
 import numpy as np
 from typing import Union
 import datetime as dt
-from utils import check_arrays, native
+from utils import check_arrays, check_valid_ids, native
 
 
 class Feature:
@@ -10,6 +10,7 @@ class Feature:
         self, id: int, feature_coords: NDArray[np.integer], time: dt.datetime
     ) -> None:
         check_arrays(feature_coords, ndim=2, dtype=int)
+        id = check_valid_ids(id)
         self._id = native(id)
         self._provisional_id = None
         self._feature_coords = feature_coords
@@ -96,10 +97,12 @@ class Feature:
 
     @parent.setter
     def parent(self, parent_id: int) -> None:
+        parent_id = check_valid_ids(parent_id)
         self._parent = native(parent_id)
 
     @children.setter
     def children(self, child_ids: list[int]) -> None:
+        child_ids = check_valid_ids(child_ids)
         if isinstance(child_ids, int):
             self._children = native([child_ids])
         elif isinstance(child_ids, list):
@@ -113,6 +116,7 @@ class Feature:
 
     @id.setter
     def id(self, _id: int) -> None:
+        _id = check_valid_ids(_id)
         self._id = native(_id)
 
     @lifetime.setter
@@ -120,11 +124,16 @@ class Feature:
         self._lifetime = native(lifetime)
 
     @provisional_id.setter
-    def provisional_id(self, id: int) -> None:
-        self._provisional_id = native(id)
+    def provisional_id(self, _id: int) -> None:
+        if _id is not None:
+            _id = check_valid_ids(_id)
+        self._provisional_id = native(_id)
 
     @accreted.setter
     def accreted(self, accreted_ids: Union[int, list]) -> None:
+        print(accreted_ids)
+        accreted_ids = check_valid_ids(accreted_ids)
+        print(accreted_ids)
         if isinstance(accreted_ids, int):
             self._accreted = [accreted_ids]
         elif isinstance(accreted_ids, np.ndarray):
@@ -142,8 +151,7 @@ class Feature:
 
     @accreted_in_next_frame_by.setter
     def accreted_in_next_frame_by(self, id_of_accreting_feature: int):
-        if not isinstance(id_of_accreting_feature, int):
-            raise TypeError(f"Expected type in, got {type(id_of_accreting_feature)}")
+        id_of_accreting_feature = check_valid_ids(id_of_accreting_feature)
         self._accreted_in_next_frame_by = id_of_accreting_feature
 
     def calculate_centroid(self) -> tuple:
@@ -152,6 +160,7 @@ class Feature:
         return (y_centroid, x_centroid)
 
     def accrete_ids(self, feature_ids: int | list[int]) -> None:
+        feature_ids = check_valid_ids(feature_ids)
         if self._accreted is None:
             self._accreted = []
         if isinstance(feature_ids, int):
@@ -162,6 +171,7 @@ class Feature:
             self._accreted.extend(feature_ids)
 
     def spawns(self, feature_ids: int | list[int]) -> None:
+        feature_ids = check_valid_ids(feature_ids)
         if self._child is None:
             self._child = []
         if isinstance(feature_ids, int):

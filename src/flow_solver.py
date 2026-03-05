@@ -3,7 +3,7 @@ from numpy.typing import NDArray
 from scipy.interpolate import LinearNDInterpolator, RectBivariateSpline
 from frame import Frame
 from typing import Union
-from utils import check_arrays
+from utils import check_arrays, ArrayError
 import itertools
 from skimage.registration import phase_cross_correlation
 from scipy.signal.windows import tukey
@@ -305,7 +305,7 @@ class FlowSolver:
                 shape=(2,),
                 non_negative=True,
             )
-        except ValueError:
+        except ArrayError:
             return False
 
         # First, check if subdomain shape/2 is an integer
@@ -343,7 +343,11 @@ class FlowSolver:
         """
 
         feature_field_shape, subdomain_shape = check_arrays(
-            feature_field_shape, subdomain_shape, dtype=int, shape=(2,)
+            feature_field_shape,
+            subdomain_shape,
+            dtype=int,
+            shape=(2,),
+            non_negative=True,
         )
 
         if not self.check_subdomain_size_fits_in_full_domain(
@@ -393,6 +397,10 @@ class FlowSolver:
         field1, field2 = check_arrays(
             field1, field2, ndim=2, equal_shape=True, dtype=int, non_negative=True
         )
+        if not isinstance(tukey_filtering, bool):
+            raise TypeError(
+                f"Expected tukey_filtering type bool, got {type(tukey_filtering)}"
+            )
 
         # Filter inputs if flagged
         if tukey_filtering:
