@@ -33,7 +33,7 @@ class Frame:
             return False
         return self.time == other.time
 
-    def import_data_and_time(self, data: NDArray, time: dt.datetime) -> None:
+    def import_time_and_data(self, time: dt.datetime, data: NDArray) -> None:
         self.raw_field = check_arrays(data, ndim=2)
         if not isinstance(time, dt.datetime):
             raise TypeError(

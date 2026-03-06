@@ -1,6 +1,16 @@
 from numpy.typing import NDArray
 import datetime as dt
 from utils import check_arrays
+from typing import Union
+
+
+class ConfigError(Exception):
+    """
+    Error thrown when one or more config input parameters are not valid
+    """
+
+    def __init__(self, message):
+        super().__init__(message)
 
 
 def get_loader(loader_key: str):
@@ -17,19 +27,36 @@ def get_loader(loader_key: str):
 
 
 class BaseLoader:
-    def __init__(self):
+    def __init__(self, input_data: Union[list[str] | dict]) -> None:
         self.domain_shape = None
+        self.input_data = input_data
+        # Set the iterating list
+        if not isinstance(input_data, (list, tuple)):
+            raise TypeError(f"Expected input_data type list, got {type(input_data)}")
 
-    def _load(self, filename: str) -> list[NDArray, dt.datetime]:
-        data, time = self.user_definable_load(filename)
-        self._check_outputs(data, time)
-        return data, time
+    def __iter__(self):
+        self.iter_idx = 0
+        return self
+
+    def __next__(self) -> list[NDArray, dt.datetime]:
+        if self.iter_idx >= len(self.input_data):
+            raise StopIteration
+        next_fnm = self.input_data[self.iter_idx]
+        self.iter_idx += 1
+        data, time = self.user_definable_load(next_fnm)
+        self._check_loaded_data(data, time)
+        return time, data
+
+    # def _load(self, filename: str) -> list[NDArray, dt.datetime]:
+    #     data, time = self.user_definable_load(filename)
+    #     self._check_loaded_data(data, time)
+    #     return data, time
 
     # TODO: rename this to something better
     def user_definable_load(self, filename: str) -> list[NDArray, dt.datetime]:
         raise NotImplementedError
 
-    def _check_outputs(self, output_arr: NDArray, output_time: dt.datetime) -> None:
+    def _check_loaded_data(self, output_arr: NDArray, output_time: dt.datetime) -> None:
         # Check consistency of data shape
         if self.domain_shape is None:
             self.domain_shape = output_arr.shape
@@ -38,8 +65,29 @@ class BaseLoader:
         # Check output time is a sensible type
         if not isinstance(output_time, dt.datetime):
             raise TypeError(
-                f"Expected 'output_time' to be datetime objcet, got {type(output_time)}"
+                f"Expected 'output_time' to be datetime object, got {type(output_time)}"
             )
+
+
+class DictIterator(BaseLoader):
+    def __init__(self, input_dict: dict) -> None:
+        self.domain_shape = None
+        self.input_data = input_dict
+        # Set the iterating list
+        if not isinstance(input_dict, dict):
+            raise ConfigError(f"Expected input_data type dict, got {type(input_dict)}")
+        self.iterator = sorted(input_dict.keys())
+        if not all([isinstance(key, dt.datetime) for key in self.iterator]):
+            raise ConfigError("Expected all input keys to be of type dt.datetime")
+
+    def __next__(self) -> list[NDArray, dt.datetime]:
+        if self.iter_idx >= len(self.iterator):
+            raise StopIteration
+        time = self.iterator[self.iter_idx]
+        data = self.input_data[time]
+        self.iter_idx += 1
+        self._check_loaded_data(data, time)
+        return time, data
 
 
 class MWELoader(BaseLoader):

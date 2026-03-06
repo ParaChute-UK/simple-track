@@ -8,7 +8,7 @@ sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
 from simple_track import SimpleTrack
-from load import BaseLoader
+from load import BaseLoader, ConfigError
 from frame import Frame
 from utils import ArrayShapeError, ArrayTypeError
 
@@ -36,7 +36,7 @@ def test_catch_missing_sections_in_config():
     }
     try:
         SimpleTrack._check_config(None, test_config)
-    except Exception:
+    except ConfigError:
         pass
 
     test_config = {
@@ -48,23 +48,11 @@ def test_catch_missing_sections_in_config():
     }
     try:
         SimpleTrack._check_config(None, test_config)
-    except Exception:
+    except ConfigError:
         pass
 
 
 def test_catch_missing_keys_in_config():
-    test_config = {
-        "PATH": {
-            # "data": "path",
-            "loader": "loader",
-        },
-        "FEATURE": {"threshold": 4},
-    }
-    try:
-        SimpleTrack._check_config(None, test_config)
-    except Exception:
-        pass
-
     test_config = {
         "PATH": {
             "data": "path",
@@ -74,7 +62,7 @@ def test_catch_missing_keys_in_config():
     }
     try:
         SimpleTrack._check_config(None, test_config)
-    except Exception:
+    except ConfigError:
         pass
 
     test_config = {
@@ -86,7 +74,19 @@ def test_catch_missing_keys_in_config():
     }
     try:
         SimpleTrack._check_config(None, test_config)
-    except Exception:
+    except ConfigError:
+        pass
+
+
+def test_invalid_config_input():
+    try:
+        SimpleTrack(54)
+    except TypeError:
+        pass
+
+    try:
+        SimpleTrack([4, 5, 6])
+    except TypeError:
         pass
 
 
@@ -110,7 +110,7 @@ def test_get_filenames_from_input_path(tmp_path, extensions, expected_result):
     expected_files = [f for f in files if f.suffix in [".nc", ".npy"]]
 
     try:
-        retrieved_files = SimpleTrack._get_filenames_from_input_path(None, tmp_path)
+        retrieved_files = SimpleTrack.get_filenames_from_input_path(None, tmp_path)
         assert expected_files == retrieved_files
     except expected_result as e:
         print(e)
@@ -129,18 +129,19 @@ input_tests = (
 
 @pytest.mark.parametrize("test_arr, test_time, expected_result", *input_tests)
 def test_BaseLoader(test_arr, test_time, expected_result):
-    loader = BaseLoader()
+    # Pass empty list for the purposes of these tests
+    loader = BaseLoader([])
     loader.domain_shape = (10, 10)
     try:
-        loader._check_outputs(test_arr, test_time)
+        loader._check_loaded_data(test_arr, test_time)
     except expected_result:
         pass
 
 
 @pytest.mark.parametrize("test_arr, test_time, expected_result", *input_tests)
-def test_Frame_import_data_and_time(test_arr, test_time, expected_result):
+def test_Frame_import_time_and_data(test_arr, test_time, expected_result):
     frame = Frame()
     try:
-        frame.import_data_and_time(test_arr, test_time)
+        frame.import_time_and_data(test_time, test_arr)
     except expected_result:
         pass

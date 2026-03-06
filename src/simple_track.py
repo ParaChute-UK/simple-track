@@ -6,32 +6,40 @@ import sys
 from yaml import safe_load
 from pathlib import Path
 import multiprocessing as mp
+from typing import Union
 
 from frame import Timeline, Frame
 from frame_output import FrameOutputManager
 from frame_tracker import FrameTracker
 from flow_solver import FlowSolver
-from load import LoadingBar, get_loader
+from load import LoadingBar, get_loader, DictIterator, ConfigError
 
 
 class SimpleTrack:
-    def __init__(self, config_path: str):
+    def __init__(self, config_input: Union[str | dict]) -> None:
         """
         Initialize SimpleTrack with configuration file
 
         Args:
-            config_path (str):
-                Path to the configuration file
+            config_iput (str|dict):
+                If str, provides Path to the configuration file
+                If dict, containts pre-loaded config parameters
         """
-        self.config = self._read_config(config_path)
+        if isinstance(config_input, str):
+            config_path = config_input
+            self.config = self._read_config(config_input)
+        elif isinstance(config_input, dict):
+            config_path = None
+            self._check_config(config_input)
+            self.config = config_input
+        else:
+            raise TypeError(
+                f"Expected config_input type str or dict, got {type(config_input)}"
+            )
+
         self.start_time = self.config["DATETIME"]["start_time"]
-        # TODO: make this optional: data might be passed in from external source
-        self.filenames = self._get_filenames_from_input_path(
-            self.config["PATH"]["data"]
-        )
-        self.loader = get_loader(self.config["PATH"]["loader"])
         self.timeline = Timeline()
-        self.of_solver = FlowSolver(**self.config["FLOW_SOLVER"])
+        self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
         self.frame_tracker = FrameTracker(**self.config["TRACKING"])
 
         if "output" not in self.config["PATH"].keys():
@@ -51,53 +59,71 @@ class SimpleTrack:
             config_path,
         )
 
-    def run(self, filenames=None):
-        # If filesnames is provided, iterate only over these files.
-        # This is useful for parallel processing.
-        # Otherwise, iterate over all files in self.filenames
-        if filenames is None:
-            filenames = self.filenames
+    def run(self, input_data: Union[list[str] | dict]):
+        """
+        Runs SimpleTrack using the designated config options.
 
-        self.loading_bar = LoadingBar(total=len(filenames))
+        Input data can either be read in from filenames (list(str)) or provided
+        as input using dictionary
+
+        If data is being read in using filenames, there must also be an associated
+        Loader class argument in config["PATH"]["loader"] that defines how the data
+        should be pre-processed and how the validity time should be determined.
+        Filenames should be ordered by time. Loaded data will be checked for consistent
+        array shapes. See docs or src.load.py for more.
+
+        If data is being provided as input using dict, it should be passed
+        with the respective datetime object as the key, and the numpy array to run
+        tracking on as the value. This will not use a predetermined Loader class to
+        load the data, although the same checks on consistent array shapes will be applied.
+        """
+
+        if isinstance(input_data, list):
+            if not all([isinstance(fnm, str) for fnm in input_data]):
+                types = [isinstance(fnm, str) for fnm in input_data]
+                raise TypeError(
+                    f"If input_data is passed a list, it must only contain str, got {types}"
+                )
+            self.loading_bar = LoadingBar(total=len(input_data))
+            self.loader = get_loader(self.config["PATH"]["loader"])(input_data)
+
+        elif isinstance(input_data, dict):
+            self.loading_bar = LoadingBar(total=len(input_data.values()))
+            self.loader = DictIterator(input_data)
+
+        else:
+            raise TypeError(
+                f"Expected input_data type list(str) or dict, got {type(input_data)}"
+            )
         # print(f"Hello from process {mp.current_process().name} with arg {filenames}\n")
 
         # Run the things
-        for fnm_idx, filename in enumerate(filenames):
+        for fnm_idx, time_and_data in enumerate(self.loader):
             frame = Frame()
-            # frame.load_mwe_data(filename)
-            # frame.load_data(filename)
-            # frame.load_india_data(filename)
-            frame.import_data_and_time(*self.loader._load(filename))
+            frame.import_time_and_data(*time_and_data)
             frame.identify_features(**self.config["FEATURE"])
             self.timeline.add_to_timelime(frame)
 
             # If this is the first frame, skip tracking
             if len(self.timeline.timeline) == 1:
-                # print(frame.get_time())
-                # print(frame.get_features())
-                # Output frame data to text file
+                # Output frame data to text file or npy file
                 self.frame_output.features_to_txt(frame)
                 self.frame_output.fields_to_npy(frame)
                 continue
 
-            # Now run optical flow between previous and current event
+            # Now run flow solver between previous and current frame
             prev_frame = self.timeline.get_previous_frame(frame.get_time())
             # Set max id for assigning to new features
             frame.set_max_id(prev_frame.get_max_id())
-            y_flow, x_flow = self.of_solver.analyse_flow(prev_frame, frame)
+            y_flow, x_flow = self.flow_solver.analyse_flow(prev_frame, frame)
 
             # Update the previous Frame with these displacements which is
             # needed for tracking Features.
-            # Also update the current frame with displacements for outputs
-            # TODO: this choice may need to be revisited so that flow field
-            # is output at the correct time (currently, it is a bit misleading)
-            # that it is output at the timestep after it is used to displace features.
             if y_flow is not None or x_flow is not None:
                 prev_frame.assign_displacements(y_flow, x_flow)
                 frame.assign_displacements(y_flow, x_flow)
 
             # Track Features between difference Frames
-            # print(frame.get_time())
             self.frame_tracker.run(prev_frame, frame)
 
             # Output frame data to text file and field to npy
@@ -105,8 +131,6 @@ class SimpleTrack:
             self.frame_output.fields_to_npy(frame)
 
             self.loading_bar.update_progress(fnm_idx + 1)
-            # print("Final ids")
-            # print(frame.get_features())
 
         self.frame_output.output_density_field(
             self.timeline, "init", centroid_only=False
@@ -114,37 +138,6 @@ class SimpleTrack:
         self.frame_output.output_density_field(
             self.timeline, "dissipation", centroid_only=False
         )
-
-    def run_cset(self, time_and_data_dict: dict):
-        # Run the things
-        for time, data in time_and_data_dict.items():
-            frame = Frame()
-            frame.import_data_and_time(data, time)
-
-            # frame.load_data(filename)
-            frame.identify_features(**self.config["FEATURE"])
-            self.timeline.add_to_timelime(frame)
-
-            # If this is the first frame, skip tracking
-            if len(self.timeline.timeline) == 1:
-                continue
-
-            # Now run optical flow between previous and current event
-            prev_frame = self.timeline.get_previous_frame(frame.get_time())
-            # Set max id for assigning to new features
-            frame.set_max_id(prev_frame.get_max_id())
-            y_flow, x_flow = self.of_solver.analyse_flow(prev_frame, frame)
-
-            # Update the previous Frame with these displacements which is
-            # needed for tracking Features
-            # TODO:: is this actually needed??
-            prev_frame.assign_displacements(y_flow, x_flow)
-
-            # Track Features between difference Frames
-            self.frame_tracker.run(prev_frame, frame)
-
-            # self.loading_bar.update_progress(fnm_idx + 1)
-        return self.timeline.get_timeline()
 
     def run_parallel(self, processes=4):
         # Split filenames into chunks for each process
@@ -155,6 +148,8 @@ class SimpleTrack:
         ]
 
         with mp.Pool(processes=processes) as pool:
+            # TODO: figure out how to do this with the new version of run above, where
+            # not having filename inputs means it tries to get it from config...
             pool.map(self.run, filename_chunks)
 
         # TODO: then need a way to make the results consistent between
@@ -166,7 +161,9 @@ class SimpleTrack:
         # This is apparently already solved in Will Keats/Callum Scullion MO
         # code so don't need to reinvent the wheel here.
 
-    def _get_filenames_from_input_path(self, input_path: str) -> list:
+    def get_filenames_from_input_path(self, input_path: str = None) -> list:
+        if input_path is None:
+            input_path = self.config["PATH"]["data"]
         supported_filetypes = [".nc", ".npy"]
         filenames = sorted(
             [
@@ -201,30 +198,31 @@ class SimpleTrack:
         # Check required top-level sections are present
         required_sections = ["PATH", "FEATURE"]
         input_section = config.keys()
-        section_check = [section in required_sections for section in input_section]
+        section_check = [section in input_section for section in required_sections]
         if not all(section_check):
-            raise Exception(
+            raise ConfigError(
                 f"config missing one or more required sections: {required_sections}"
             )
         # Check required parameters are present
-        required_params = ["data", "loader"]
+        required_params = ["data"]
         input_keys = config["PATH"].keys()
         required_input_check = [key in input_keys for key in required_params]
-        # TODO: make ConfigError in utils
+
         if not all(required_input_check):
-            raise Exception(
+            raise ConfigError(
                 f"config missing one or more required inputs: {required_params}"
             )
         if "threshold" not in config["FEATURE"].keys():
-            raise Exception("config missing required threshold input")
+            raise ConfigError("config missing required threshold input")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         raise Exception("Running SimpleTrack requires path to at least one config")
 
-    # For parallelisation, may need to setup the filenames here instead??
-
     config_paths = sys.argv[1:]
     for config_path in config_paths:
-        SimpleTrack(config_path).run()
+        tracker = SimpleTrack(config_path)
+        # With None passed into method, uses input path in config
+        files = tracker.get_filenames_from_input_path()
+        tracker.run(files)
