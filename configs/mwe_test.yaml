@@ -1,6 +1,6 @@
 # Test config file for MWE
 PATH:
-  data: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Code/simple-track/tests/mwe_test_files
+  data: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/tests/mwe_test_files
   loader: MWELoader
   output: ./output_mwe_oost
 
@@ -16,21 +16,18 @@ DATETIME:
   time_interval_tolerance: 15 # Maximum separation in time allowed between consecutive images
   # Should default the above to be 3 * time_interval if not specified
 
-RADAR:
-  is_radar: False
-
 FEATURE:
   threshold: 0.5 ## Threshold used to identify objects (with value of variable greater than this threshold)
   under_threshold: false ## True = labelling areas *under* the threshold (e.g. brightness temperature), False = labelling areas *above* threshold (e.g. rainfall)
   min_size: 4 # Minimum size of feature to be tracked (in pixels)
 
-OF_SOLVER:
+FLOW_SOLVER:
   overlap_threshold: 0.2 ## Minimum fraction of overlap (0.6 in TITAN)
-  subdomain_size: 20 ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
+  subdomain_size: 10 ## Size in pixels of individual squares to run fft for (dx,dy) displacement. Must divide (x,y) lengths of the array!
   min_fractional_coverage: 0.01  ## Minimum fractional cover of objects required for fft to obtain (dx,dy) displacement
   subdomain_tolerance: 3.0  # Maximum difference in displacement values between adjacent squares (to remove spurious values) - scaled by num_dt if necessary
   apply_tukey_filtering: True
 
 TRACKING:
-  overlap_nbhood: 5  ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
+  overlap_nbhood: 0.5  ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
   overlap_threshold: 0.3 ## Minimum fraction of overlap (0.6 in TITAN)

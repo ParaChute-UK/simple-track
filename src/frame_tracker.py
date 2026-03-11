@@ -326,11 +326,13 @@ class FrameTracker:
                     advected_feature_field,
                     get_centroid(advected_feature_field, advected_id),
                     nbhood * np.count_nonzero(advected_feature_mask),
+                    # nbhood,
                 )
                 current_feature_mask += generate_radial_mask(
                     current_feature_field,
                     get_centroid(current_feature_field, feature_id),
                     nbhood * np.count_nonzero(current_feature_mask),
+                    # nbhood,
                 )
 
             overlap_size = np.size(
@@ -706,6 +708,7 @@ class FrameTracker:
         feature_mask = np.where(current_feature_field == feature_id, True, False)
         if nbhood:
             centroid = get_centroid(current_feature_field, feature_id)
+            # radial_mask_size = nbhood
             radial_mask_size = nbhood * np.count_nonzero(feature_mask)
             feature_mask += generate_radial_mask(
                 current_feature_field, centroid, radial_mask_size

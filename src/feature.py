@@ -110,10 +110,12 @@ class Feature:
         child_ids = check_valid_ids(child_ids)
         if isinstance(child_ids, int):
             self._children = native([child_ids])
-        elif isinstance(child_ids, list):
+        elif isinstance(child_ids, (list, tuple, np.ndarray)):
             self._children = native(child_ids)
         else:
-            raise TypeError("children must be set to an int or list of ints")
+            raise TypeError(
+                "children must be set to an int or list/tuple/NDArray of ints"
+            )
 
     @dydx.setter
     def dydx(self, dy_dx: tuple) -> None:
@@ -136,9 +138,7 @@ class Feature:
 
     @accreted.setter
     def accreted(self, accreted_ids: Union[int, list]) -> None:
-        print(accreted_ids)
         accreted_ids = check_valid_ids(accreted_ids)
-        print(accreted_ids)
         if isinstance(accreted_ids, int):
             self._accreted = [accreted_ids]
         elif isinstance(accreted_ids, np.ndarray):

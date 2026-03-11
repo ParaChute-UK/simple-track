@@ -1,0 +1,83 @@
+import sys
+from pathlib import Path
+import pytest
+import numpy as np
+import datetime as dt
+
+sys.path.append(
+    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
+)
+from simple_track import SimpleTrack
+from load import BaseLoader, ConfigError, DictIterator
+
+
+def generate_mwe_files(save_path=None):
+    # Make containing directory if it doesn't exist
+    Path(save_path).mkdir(parents=True, exist_ok=True)
+
+    # Setup initial timestep with a single square cell
+    mwe_domain = np.zeros((100, 100))
+
+    mwe_dt1 = mwe_domain.copy()
+    mwe_dt1[10:30, 10:30] = 1
+
+    # Second timestep: advection of initial cell
+    mwe_dt2 = mwe_domain.copy()
+    mwe_dt2[15:35, 10:30] = 1
+
+    # Third timestep: advection of initial cell, and creation of a new cell
+    mwe_dt3 = mwe_domain.copy()
+    mwe_dt3[20:40, 10:30] = 1
+    # New cell created to the right
+    mwe_dt3[15:35, 50:70] = 1
+
+    # Fourth timestep: dissipation of inital cell, new cell advects
+    mwe_dt4 = mwe_domain.copy()
+    mwe_dt4[20:40, 50:70] = 1
+
+    # Fifth timestep: new cell advects
+    mwe_dt5 = mwe_domain.copy()
+    mwe_dt5[25:45, 50:70] = 1
+
+    # Sixth timestep: cell splitting
+    mwe_dt6 = mwe_domain.copy()
+    # Cell splits into two
+    mwe_dt6[30:50, 48:58] = 1
+    mwe_dt6[30:50, 62:72] = 1
+
+    # Seventh timestep: advcetion merges cells
+    mwe_dt7 = mwe_domain.copy()
+    # Cells merge
+    mwe_dt7[30:55, 50:70] = 1
+
+    # Eigth timestep: advcetion
+    mwe_dt8 = mwe_domain.copy()
+    # Cells merge
+    mwe_dt8[35:60, 50:70] = 1
+
+    mwe_fields = [
+        mwe_dt1,
+        mwe_dt2,
+        mwe_dt3,
+        mwe_dt4,
+        mwe_dt5,
+        mwe_dt6,
+        mwe_dt7,
+        mwe_dt8,
+    ]
+    if save_path is not None:
+        for mwe_idx, mwe in enumerate(mwe_fields):
+            np.save(f"{save_path}/mwe_dt{mwe_idx + 1}.npy", mwe)
+    return mwe_fields
+
+
+def run_mwe_simple_track(config_path):
+    SimpleTrack(config_path).run()
+
+
+@pytest.fixture(scope="session")
+def setup_mwe_tests():
+    generate_mwe_files()
+
+    mwe_config_path = "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/configs/chilbolton.yaml"
+    run_mwe_simple_track(mwe_config_path)

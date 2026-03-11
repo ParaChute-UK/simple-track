@@ -8,7 +8,7 @@ sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
 from simple_track import SimpleTrack
-from load import BaseLoader, ConfigError
+from load import BaseLoader, ConfigError, DictIterator
 from frame import Frame
 from utils import ArrayShapeError, ArrayTypeError
 
@@ -55,8 +55,7 @@ def test_catch_missing_sections_in_config():
 def test_catch_missing_keys_in_config():
     test_config = {
         "PATH": {
-            "data": "path",
-            # "loader": "loader",
+            # "data": "path",
         },
         "FEATURE": {"threshold": 4},
     }
@@ -68,9 +67,8 @@ def test_catch_missing_keys_in_config():
     test_config = {
         "PATH": {
             "data": "path",
-            "loader": "loader",
         },
-        # "FEATURE": {"threshold": 4},
+        "FEATURE": {},
     }
     try:
         SimpleTrack._check_config(None, test_config)
@@ -145,3 +143,64 @@ def test_Frame_import_time_and_data(test_arr, test_time, expected_result):
         frame.import_time_and_data(test_time, test_arr)
     except expected_result:
         pass
+
+
+@pytest.mark.parametrize(
+    "invalid_input",
+    [
+        [1, 2, 3],
+        [1.0, 2.0, 3.0],
+        np.array((1, 2, 3)),
+        3,
+        4.5,
+        {"not a datetime": np.zeros((10, 10))},
+        {dt.datetime.now: "not an array"},
+    ],
+)
+def test_catch_invalid_SimpleTrack_run_inputs(invalid_input):
+    test_config = {
+        "DATETIME": {"start_time": dt.datetime.now()},
+        "PATH": {
+            "data": "path",
+            "loader": "loader",
+        },
+        "FEATURE": {"threshold": 4},
+    }
+    try:
+        tracker = SimpleTrack(test_config)
+        tracker.run(invalid_input)
+    except TypeError:
+        pass
+
+
+@pytest.mark.parametrize(
+    "invalid_input", [[1, 2, 3], [1.0, 2.0, 3.0], np.array((1, 2, 3)), 3, 4.5]
+)
+def test_catch_invalid_SimpleTrack_run_dict_inputs(invalid_input):
+    test_config = {
+        "DATETIME": {"start_time": dt.datetime.now()},
+        "PATH": {
+            "data": "path",
+            "loader": "loader",
+        },
+        "FEATURE": {"threshold": 4},
+    }
+    try:
+        tracker = SimpleTrack(test_config)
+        tracker.run(invalid_input)
+    except TypeError:
+        pass
+
+
+def test_DictIterator_keys_properly_ordered():
+    minutes = [48, 55, 20]
+    test_times = [
+        dt.datetime(year=2026, month=3, day=6, hour=14, minute=min) for min in minutes
+    ]
+    ordered_times = [test_times[2], test_times[0], test_times[1]]
+    test_arr = np.zeros((10, 10))
+    test_dict = {time: test_arr for time in test_times}
+
+    test_iter = DictIterator(test_dict)
+    for expected_time, (iter_time, __) in zip(ordered_times, test_iter):
+        assert expected_time == iter_time

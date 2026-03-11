@@ -39,18 +39,27 @@ class SimpleTrack:
 
         self.start_time = self.config["DATETIME"]["start_time"]
         self.timeline = Timeline()
-        self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
-        self.frame_tracker = FrameTracker(**self.config["TRACKING"])
+
+        if "FLOW_SOLVER" in self.config.keys():
+            self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
+        else:
+            self.flow_solver = FlowSolver()
+
+        if "TRACKING" in self.config.keys():
+            self.frame_tracker = FrameTracker(**self.config["TRACKING"])
+        else:
+            self.frame_tracker = FrameTracker()
 
         if "output" not in self.config["PATH"].keys():
             output_path = "./output"
         else:
             output_path = self.config["PATH"]["output"]
 
-        if "experiment_name" not in self.config["OUTPUT"].keys():
-            expt_name = "Simple-Track Experiment"
+        if "OUTPUT" in self.config.keys():
+            if "experiment_name" in self.config["OUTPUT"].keys():
+                expt_name = self.config["OUTPUT"]["experiment_name"]
         else:
-            expt_name = self.config["OUTPUT"]["experiment_name"]
+            expt_name = "Simple-Track Experiment"
 
         self.frame_output = FrameOutputManager(
             output_path,
@@ -59,7 +68,7 @@ class SimpleTrack:
             config_path,
         )
 
-    def run(self, input_data: Union[list[str] | dict]):
+    def run(self, input_data: Union[list[str] | dict] = None):
         """
         Runs SimpleTrack using the designated config options.
 
@@ -77,10 +86,13 @@ class SimpleTrack:
         tracking on as the value. This will not use a predetermined Loader class to
         load the data, although the same checks on consistent array shapes will be applied.
         """
+        if input_data is None:
+            input_data = self.get_filenames_from_input_path()
 
         if isinstance(input_data, list):
-            if not all([isinstance(fnm, str) for fnm in input_data]):
-                types = [isinstance(fnm, str) for fnm in input_data]
+            valid_types = (str, Path)
+            if not all([isinstance(fnm, valid_types) for fnm in input_data]):
+                types = [type(fnm) for fnm in input_data]
                 raise TypeError(
                     f"If input_data is passed a list, it must only contain str, got {types}"
                 )
@@ -222,7 +234,5 @@ if __name__ == "__main__":
 
     config_paths = sys.argv[1:]
     for config_path in config_paths:
-        tracker = SimpleTrack(config_path)
-        # With None passed into method, uses input path in config
-        files = tracker.get_filenames_from_input_path()
-        tracker.run(files)
+        # With None passed into run method, uses input path in config
+        SimpleTrack(config_path).run()

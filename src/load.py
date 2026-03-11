@@ -19,10 +19,12 @@ def get_loader(loader_key: str):
         "CSETIndiaLoader": CSETIndiaLoader,
         "ChilboltonLoader": ChilboltonLoader,
     }
-    loader = available_loaders[loader_key]()
-    if not issubclass(type(loader), BaseLoader):
-        print(type(loader))
-        raise TypeError("Requested loader is not type LoadingManager")
+    try:
+        loader = available_loaders[loader_key]
+    except KeyError:
+        raise KeyError(f"Unknown loader: {loader_key}")
+    if not issubclass(loader, BaseLoader):
+        raise TypeError(f"Requested loader ({loader}) is not type BaseLoader")
     return loader
 
 
@@ -47,11 +49,6 @@ class BaseLoader:
         self._check_loaded_data(data, time)
         return time, data
 
-    # def _load(self, filename: str) -> list[NDArray, dt.datetime]:
-    #     data, time = self.user_definable_load(filename)
-    #     self._check_loaded_data(data, time)
-    #     return data, time
-
     # TODO: rename this to something better
     def user_definable_load(self, filename: str) -> list[NDArray, dt.datetime]:
         raise NotImplementedError
@@ -75,10 +72,10 @@ class DictIterator(BaseLoader):
         self.input_data = input_dict
         # Set the iterating list
         if not isinstance(input_dict, dict):
-            raise ConfigError(f"Expected input_data type dict, got {type(input_dict)}")
+            raise TypeError(f"Expected input_data type dict, got {type(input_dict)}")
         self.iterator = sorted(input_dict.keys())
         if not all([isinstance(key, dt.datetime) for key in self.iterator]):
-            raise ConfigError("Expected all input keys to be of type dt.datetime")
+            raise TypeError("Expected all input keys to be of type dt.datetime")
 
     def __next__(self) -> list[NDArray, dt.datetime]:
         if self.iter_idx >= len(self.iterator):
@@ -91,8 +88,8 @@ class DictIterator(BaseLoader):
 
 
 class MWELoader(BaseLoader):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, filenames: list):
+        super().__init__(filenames)
 
     def user_definable_load(self, filename):
         import numpy as np
@@ -106,8 +103,8 @@ class MWELoader(BaseLoader):
 
 
 class ChilboltonLoader(BaseLoader):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, filenames: list):
+        super().__init__(filenames)
 
     def user_definable_load(self, filename):
         import numpy as np
@@ -116,14 +113,21 @@ class ChilboltonLoader(BaseLoader):
         nc = ncfile(filename)
         data = nc.variables["var"][200:600, 250:550] / 32
         data = np.flipud(np.transpose(data))
-        file_id = str(filename)[-9:-5]
-        time = dt.time(hour=int(file_id[0:2]), minute=int(file_id[2:4]))
+        date_id = str(filename)[-18:-11]
+        time_id = str(filename)[-9:-5]
+        time = dt.datetime(
+            year=int(date_id[0:4]),
+            month=int(date_id[4:6]),
+            day=int(date_id[6:]),
+            hour=int(time_id[0:2]),
+            minute=int(time_id[2:4]),
+        )
         return data, time
 
 
 class CSETIndiaLoader(BaseLoader):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, filenames):
+        super().__init__(filenames)
 
     def user_definable_load(self, filename):
         import iris
