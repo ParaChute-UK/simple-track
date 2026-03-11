@@ -2,6 +2,8 @@ from frame import Frame, Timeline
 from pathlib import Path
 import numpy as np
 from utils import check_arrays
+from typing import Union
+import csv
 
 
 class FrameOutputManager:
@@ -26,11 +28,10 @@ class FrameOutputManager:
         Args:
             frame (Frame): _description_
         """
-        # Check output path exists
-
         frame_time = frame.get_time()
         frame_time_str = frame_time.strftime("%Y%m%d_%H%M")
         output_fnm = f"{self.output_path}/frame_{frame_time_str}.txt"
+
         with open(output_fnm, "w") as output_file:
             output_file.write(self.expt_name + "\n")
             if self.config_path is not None:
@@ -40,9 +41,40 @@ class FrameOutputManager:
             output_file.write(f"Frame time: {frame_time_str}\n")
             output_file.write(f"Total tracked features: {frame.get_max_id()}\n")
 
-            for feature in frame.get_features().values():
+            frame_features_dict = frame.get_features()
+
+            for feature_id in sorted(frame_features_dict):
+                feature = frame_features_dict[feature_id]
                 output_line = feature.summarise(output_type="str")
                 output_file.write(output_line + "\n")
+
+    def features_to_csv(self, frame: Frame) -> None:
+        frame_time = frame.get_time()
+        frame_time_str = frame_time.strftime("%Y%m%d_%H%M")
+        output_fnm = f"{self.output_path}/frame_{frame_time_str}.csv"
+
+        with open(output_fnm, "w") as output_file:
+            # Write headers
+            writer = csv.writer(output_file)
+            writer.writerow([self.expt_name])
+            if self.config_path is not None:
+                writer.writerow([f"Config path: {self.config_path}"])
+            if self.start_time is not None:
+                writer.writerow([f"Start time: {self.start_time}"])
+            writer.writerow([f"Frame time: {frame_time_str}"])
+            writer.writerow([f"Total tracked features: {frame.get_max_id()}"])
+
+            # Write data
+            frame_features_dict = frame.get_features()
+            # Get data headers by looking at any feature in the frame features dict
+            random_feature = frame_features_dict[list(frame_features_dict.keys())[0]]
+            data_headers = random_feature.summarise("dict").keys()
+            dict_writer = csv.DictWriter(output_file, fieldnames=data_headers)
+            dict_writer.writeheader()
+
+            for feature_id in sorted(frame_features_dict):
+                feature = frame_features_dict[feature_id]
+                dict_writer.writerow(feature.summarise("dict"))
 
     def fields_to_npy(self, frame: Frame) -> None:
         """
@@ -100,3 +132,19 @@ class FrameOutputManager:
 
         output_fnm = f"{self.output_path}/{field_type}_density.npy"
         np.save(output_fnm, field_density)
+
+
+class LoadOutput:
+    """
+    Contains functionality for reading previous outputs back into a Timeline object (contanining
+    Frames of field and Feature data) for further inspection and analysis.
+    """
+
+    def __init__(self, data_path: Union[str | Path]):
+        self.path = Path(data_path)
+
+    def load(self) -> Timeline:
+        timeline = Timeline()
+
+        all_output_fields = self.path.rglob("*.npy")
+        all_txt_files = self.path.rglob("*.txt")

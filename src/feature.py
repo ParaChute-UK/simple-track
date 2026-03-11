@@ -224,6 +224,7 @@ class Feature:
             "centroid": self.centroid,
             "size": self.get_size(),
             "dydx": self.dydx,
+            "extreme": self._extreme,
             "lifetime": self.lifetime,
             "accreted": self.accreted,
             "parent": self.parent,

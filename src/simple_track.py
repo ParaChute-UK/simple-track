@@ -140,6 +140,7 @@ class SimpleTrack:
 
             # Output frame data to text file and field to npy
             self.frame_output.features_to_txt(frame)
+            self.frame_output.features_to_csv(frame)
             self.frame_output.fields_to_npy(frame)
 
             self.loading_bar.update_progress(fnm_idx + 1)
@@ -150,6 +151,7 @@ class SimpleTrack:
         self.frame_output.output_density_field(
             self.timeline, "dissipation", centroid_only=False
         )
+        return self.timeline
 
     def run_parallel(self, processes=4):
         # Split filenames into chunks for each process
