@@ -12,7 +12,7 @@ class FrameTracker:
         overlap_nbhood: int = 5,
         overlap_threshold: float = 0.6,
         retain_lifetime_on_split: bool = True,
-        _nbhood_coeff_test=True,
+        _nbhood_coeff_test=False,
     ):
         """
         Initialise FrameTracker class to track Features between Frames
