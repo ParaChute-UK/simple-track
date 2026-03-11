@@ -12,6 +12,7 @@ class FrameTracker:
         overlap_nbhood: int = 5,
         overlap_threshold: float = 0.6,
         retain_lifetime_on_split: bool = True,
+        _nbhood_coeff_test=True,
     ):
         """
         Initialise FrameTracker class to track Features between Frames
@@ -36,6 +37,7 @@ class FrameTracker:
         self.overlap_nbhood = int(overlap_nbhood)
         self.overlap_threshold = overlap_threshold
         self.retain_lifetime_on_split = retain_lifetime_on_split
+        self._nbhood_coeff_test = _nbhood_coeff_test
 
     def run(self, prev_frame: Frame, current_frame: Frame) -> None:
         """
@@ -322,17 +324,22 @@ class FrameTracker:
             current_feature_mask = current_feature_field == feature_id
 
             if nbhood > 0:
+                if self._nbhood_coeff_test:
+                    adv_nb = nbhood * np.count_nonzero(advected_feature_mask)
+                    curr_nb = nbhood * np.count_nonzero(current_feature_mask)
+                else:
+                    adv_nb = nbhood
+                    curr_nb = nbhood
+
                 advected_feature_mask += generate_radial_mask(
                     advected_feature_field,
                     get_centroid(advected_feature_field, advected_id),
-                    nbhood * np.count_nonzero(advected_feature_mask),
-                    # nbhood,
+                    adv_nb,
                 )
                 current_feature_mask += generate_radial_mask(
                     current_feature_field,
                     get_centroid(current_feature_field, feature_id),
-                    nbhood * np.count_nonzero(current_feature_mask),
-                    # nbhood,
+                    curr_nb,
                 )
 
             overlap_size = np.size(
@@ -708,8 +715,10 @@ class FrameTracker:
         feature_mask = np.where(current_feature_field == feature_id, True, False)
         if nbhood:
             centroid = get_centroid(current_feature_field, feature_id)
-            # radial_mask_size = nbhood
-            radial_mask_size = nbhood * np.count_nonzero(feature_mask)
+            if self._nbhood_coeff_test:
+                radial_mask_size = nbhood * np.count_nonzero(feature_mask)
+            else:
+                radial_mask_size = nbhood
             feature_mask += generate_radial_mask(
                 current_feature_field, centroid, radial_mask_size
             )
