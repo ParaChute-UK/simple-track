@@ -89,7 +89,7 @@ class Feature:
         Returns:
             tuple: (dy, dx)
         """
-        return self._dydx
+        return native(self._dydx)
 
     @property
     def extreme(self) -> float:
@@ -102,11 +102,19 @@ class Feature:
 
     @parent.setter
     def parent(self, parent_id: int) -> None:
+        if parent_id is None:
+            self._parent = None
+            return
+
         parent_id = check_valid_ids(parent_id)
         self._parent = native(parent_id)
 
     @children.setter
     def children(self, child_ids: list[int]) -> None:
+        if child_ids is None:
+            self._children = None
+            return
+
         child_ids = check_valid_ids(child_ids)
         if isinstance(child_ids, int):
             self._children = native([child_ids])
@@ -137,7 +145,11 @@ class Feature:
         self._provisional_id = native(_id)
 
     @accreted.setter
-    def accreted(self, accreted_ids: Union[int, list]) -> None:
+    def accreted(self, accreted_ids: Union[int, list, None]) -> None:
+        if accreted_ids is None:
+            self._accreted = None
+            return
+
         accreted_ids = check_valid_ids(accreted_ids)
         if isinstance(accreted_ids, int):
             self._accreted = [accreted_ids]
@@ -218,18 +230,22 @@ class Feature:
     def set_as_final_timestep(self) -> None:
         self._final_timestep = True
 
-    def summarise(self, output_type="str"):
+    def summarise(self, output_type="str", headers_only=False):
         summary = {
-            "id": self.id,
+            "id": self._id,
             "centroid": self.centroid,
             "size": self.get_size(),
-            "dydx": self.dydx,
+            # native() does not convert dydx to python type for some reason
+            "dydx": tuple([val.item() for val in self._dydx]),
             "extreme": self._extreme,
-            "lifetime": self.lifetime,
-            "accreted": self.accreted,
-            "parent": self.parent,
-            "children": self.children,
+            "lifetime": self._lifetime,
+            "accreted": self._accreted,
+            "accredted_in_next_frame_by": self._accreted_in_next_frame_by,
+            "parent": self._parent,
+            "children": self._children,
         }
+        if headers_only:
+            return list(summary.keys())
         if output_type == "str":
             return str(summary)
         elif output_type == "dict":

@@ -1,9 +1,12 @@
 from frame import Frame, Timeline
 from pathlib import Path
 import numpy as np
-from utils import check_arrays
+from utils import check_arrays, native
 from typing import Union
 import csv
+import datetime
+from feature import Feature
+from ast import literal_eval
 
 
 class FrameOutputManager:
@@ -20,6 +23,7 @@ class FrameOutputManager:
         self.expt_name = expt_name
         self.start_time = start_time
         self.config_path = config_path
+        self.strftime = "%Y%m%d_%H%M"
 
     def features_to_txt(self, frame: Frame) -> None:
         """
@@ -29,7 +33,7 @@ class FrameOutputManager:
             frame (Frame): _description_
         """
         frame_time = frame.get_time()
-        frame_time_str = frame_time.strftime("%Y%m%d_%H%M")
+        frame_time_str = frame_time.strftime(self.strftime)
         output_fnm = f"{self.output_path}/frame_{frame_time_str}.txt"
 
         with open(output_fnm, "w") as output_file:
@@ -50,7 +54,7 @@ class FrameOutputManager:
 
     def features_to_csv(self, frame: Frame) -> None:
         frame_time = frame.get_time()
-        frame_time_str = frame_time.strftime("%Y%m%d_%H%M")
+        frame_time_str = frame_time.strftime(self.strftime)
         output_fnm = f"{self.output_path}/frame_{frame_time_str}.csv"
 
         with open(output_fnm, "w") as output_file:
@@ -86,14 +90,16 @@ class FrameOutputManager:
         outputs = {
             "features": frame.get_feature_field(),
             "lifetime": frame.get_lifetime_field(),
-            "y_flow": frame.get_flow()[0],
-            "x_flow": frame.get_flow()[1],
+            "y-flow": frame.get_flow()[0],
+            "x-flow": frame.get_flow()[1],
         }
         frame_time = frame.get_time()
         frame_time_str = frame_time.strftime("%Y%m%d_%H%M")
         for output_fnm, output in outputs.items():
-            full_fnm = f"{self.output_path}/{output_fnm}_{frame_time_str}.npy"
-            np.save(full_fnm, output)
+            if output is None:
+                continue
+            full_fnm = f"{self.output_path}/{output_fnm}_{frame_time_str}.field"
+            np.savetxt(full_fnm, output)
 
     def output_density_field(
         self, timeline: Timeline, field_type: str, centroid_only: bool = True
@@ -140,11 +146,143 @@ class LoadOutput:
     Frames of field and Feature data) for further inspection and analysis.
     """
 
-    def __init__(self, data_path: Union[str | Path]):
-        self.path = Path(data_path)
+    def __init__(self, st_data_path: Union[str | Path]):
+        self.path = Path(st_data_path)
+        self.strftime = "%Y%m%d_%H%M"
+        # Links field type names in outputs to attribute names in Frame
+        self.field_attributes = {
+            "features": "feature_field",
+            "lifetime": "lifetime_field",
+            "x-flow": "x_flow",
+            "y-flow": "y_flow",
+        }
 
     def load(self) -> Timeline:
         timeline = Timeline()
 
-        all_output_fields = self.path.rglob("*.npy")
-        all_txt_files = self.path.rglob("*.txt")
+        # Get list of times from output fields.
+        frame_times = self.get_frame_times_from_field_filenames()
+
+        # Load blank Frames into Timeline
+        for frame_time in frame_times:
+            frame = Frame()
+            frame.set_time(frame_time)
+            timeline.add_to_timelime(frame)
+
+        # Load fields into blank Frames
+        self.load_frame_fields(timeline)
+        # Load raw data into frame
+        # TODO: will need config file for this to determine
+        # if a Loader has been used, and location of input data
+        # self.load_raw_fields(timeline)
+
+        # Populate features in each Frame
+        for frame in timeline.get_timeline().values():
+            frame.populate_features()
+
+        # Finally, fill these Features with data loaded from outputs
+        self.load_feature_data(timeline)
+        return timeline
+
+    def load_feature_data(self, timeline: Timeline) -> None:
+        # Get list of headers from blank Feature class
+        blank_feature = Feature(
+            id=1,
+            feature_coords=np.array(((0, 0), (0, 0))),
+            time=datetime.datetime.now(),
+        )
+        headers = blank_feature.summarise(headers_only=True)
+        # Set the number of headers to skip in each csv file
+        number_header_rows = 5
+        list_properties = ["size", "accreted", "children"]
+
+        for frame_time, frame in timeline.get_timeline().items():
+            # Load all data for the current time
+            frame_time_str = frame_time.strftime(self.strftime)
+            frame_time_fnames = self.path.rglob(f"*{frame_time_str}.csv")
+
+            for fname in frame_time_fnames:
+                # Read data from output
+                with open(fname, "r") as csv_file:
+                    reader = csv.DictReader(csv_file, fieldnames=headers)
+                    all_feature_data = [
+                        row
+                        for row_idx, row in enumerate(reader)
+                        if row_idx > number_header_rows
+                    ]
+
+                # Add data to feature object in Frame
+                for feature_data in all_feature_data:
+                    id = int(feature_data["id"])
+                    feature = frame.get_feature(id)
+
+                    # Loop over all features, set attribute to value
+                    for property, value in feature_data.items():
+                        if property == "id" or property == "centroid":
+                            continue
+
+                        if len(value) == 0:
+                            setattr(feature, property, None)
+                        else:
+                            # Literal eval converts str to inferred python type
+                            setattr(feature, property, literal_eval(value))
+
+    def load_frame_fields(self, timeline: Timeline) -> None:
+        for frame_time, frame in timeline.get_timeline().items():
+            # Load all data for the current time
+            frame_time_str = frame_time.strftime(self.strftime)
+            frame_time_fnames = self.path.rglob(f"*{frame_time_str}.field")
+
+            for fname in frame_time_fnames:
+                ftype = fname.name.split("_")[0]
+                # Set the relevant attribute of frame, as mapped using
+                # self.field_attributes
+                setattr(frame, self.field_attributes[ftype], np.loadtxt(fname))
+
+    def get_frame_times_from_field_filenames(self) -> list:
+        """
+        Using a list of all field filenames from a given run of SimpleTrack,
+        determine the frame times. Checks whether data is present for all
+        field types
+
+        Returns:
+            list: list of all frame times as datetime.datetime object
+        """
+        # Containing dict for these times
+        times_from_each_field_type = {}
+
+        # Iterate over each field type to find time the data is available for
+        for ftype in self.field_attributes.keys():
+            # Setup containing array for times
+            field_filenames = self.path.rglob(f"{ftype}*.field")
+            field_times = []
+
+            for field_fname in sorted(field_filenames):
+                fname_parts = str(field_fname.name).split("_")
+                yyyymmdd = fname_parts[1]
+                hhmm = fname_parts[2]
+                field_times.append(
+                    datetime.datetime(
+                        year=int(yyyymmdd[0:4]),
+                        month=int(yyyymmdd[4:6]),
+                        day=int(yyyymmdd[6:8]),
+                        hour=int(hhmm[0:2]),
+                        minute=int(hhmm[2:4]),
+                    )
+                )
+            times_from_each_field_type[ftype] = field_times
+
+        # Check times from each field type to check consistency
+        # If all times are the same (have previously been sorted), should only
+        # be one set of unqiue dict values
+        times_list = times_from_each_field_type.values()
+        times_set = [set(tuple(times)) for times in times_list]
+        if len(times_set) == 1:
+            # All times are the same, can return any list
+            return times_from_each_field_type["features"]
+
+        else:
+            # Get the longest list to return
+            key_func = lambda x: len(times_from_each_field_type[x])
+            max_arr_key = max(times_from_each_field_type, key=key_func)
+            return times_from_each_field_type[max_arr_key]

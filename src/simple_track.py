@@ -120,6 +120,7 @@ class SimpleTrack:
             if len(self.timeline.timeline) == 1:
                 # Output frame data to text file or npy file
                 self.frame_output.features_to_txt(frame)
+                self.frame_output.features_to_csv(frame)
                 self.frame_output.fields_to_npy(frame)
                 continue
 

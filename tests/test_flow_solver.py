@@ -239,7 +239,7 @@ def test_interpolate_subdomain_flows_invalid_inputs(
             y_subdom, x_subdom, subdom_flow, full_shape
         )
     except expected_error:
-        pairwise_with_stride
+        pass
 
 
 @pytest.mark.parametrize(

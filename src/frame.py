@@ -24,8 +24,8 @@ class Frame:
         self.x_flow = None
 
     def __repr__(self) -> str:
-        repr_str = f"Event file_id: {self.file_id}, time: {self.time}, "
-        repr_str += f"num_features: {len(self.features)}"
+        repr_str = f"Frame time: {self.time}, "
+        repr_str += f"Number of Features: {len(self.features)}"
         return repr_str
 
     def __eq__(self, other) -> bool:
@@ -80,7 +80,11 @@ class Frame:
         self.max_id = max_id
 
     def identify_features(
-        self, min_size: int, threshold: float, under_threshold: bool
+        self,
+        min_size: int,
+        threshold: float,
+        under_threshold: bool,
+        set_lifetime_field: bool = False,
     ) -> None:
         """
         Call the "label_features" function to identify distinct regions in the input field
