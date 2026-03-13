@@ -75,6 +75,9 @@ class SimpleTrack:
         Input data can either be read in from filenames (list(str)) or provided
         as input using dictionary
 
+        If input_data is None, SimpleTrack finds all valid files in ["PATH"]["data]
+        config input using "SimpleTrack.get_filenames_from_input_path"
+
         If data is being read in using filenames, there must also be an associated
         Loader class argument in config["PATH"]["loader"] that defines how the data
         should be pre-processed and how the validity time should be determined.
@@ -109,7 +112,6 @@ class SimpleTrack:
             )
         # print(f"Hello from process {mp.current_process().name} with arg {filenames}\n")
 
-        # Run the things
         for fnm_idx, time_and_data in enumerate(self.loader):
             frame = Frame()
             frame.import_time_and_data(*time_and_data)
@@ -126,8 +128,6 @@ class SimpleTrack:
 
             # Now run flow solver between previous and current frame
             prev_frame = self.timeline.get_previous_frame(frame.get_time())
-            # Set max id for assigning to new features
-            frame.set_max_id(prev_frame.get_max_id())
             y_flow, x_flow = self.flow_solver.analyse_flow(prev_frame, frame)
 
             # Update the previous Frame with these displacements which is
@@ -136,6 +136,8 @@ class SimpleTrack:
                 prev_frame.assign_displacements(y_flow, x_flow)
                 frame.assign_displacements(y_flow, x_flow)
 
+            # Set max id for assigning to new features
+            frame.set_max_id(prev_frame.get_max_id())
             # Track Features between difference Frames
             self.frame_tracker.run(prev_frame, frame)
 
@@ -154,27 +156,27 @@ class SimpleTrack:
         )
         return self.timeline
 
-    def run_parallel(self, processes=4):
-        # Split filenames into chunks for each process
-        chunk_size = len(self.filenames) // processes
-        filename_chunks = [
-            self.filenames[i : i + chunk_size]
-            for i in range(0, len(self.filenames), chunk_size)
-        ]
+    # def run_parallel(self, processes=4):
+    #     # Split filenames into chunks for each process
+    #     chunk_size = len(self.filenames) // processes
+    #     filename_chunks = [
+    #         self.filenames[i : i + chunk_size]
+    #         for i in range(0, len(self.filenames), chunk_size)
+    #     ]
 
-        with mp.Pool(processes=processes) as pool:
-            # TODO: figure out how to do this with the new version of run above, where
-            # not having filename inputs means it tries to get it from config...
-            pool.map(self.run, filename_chunks)
+    #     with mp.Pool(processes=processes) as pool:
+    #         # TODO: figure out how to do this with the new version of run above, where
+    #         # not having filename inputs means it tries to get it from config...
+    #         pool.map(self.run, filename_chunks)
 
-        # TODO: then need a way to make the results consistent between
-        # different chunks.
-        # I.e., if the last event of chunk 1 contains a storm that is
-        # also present in the first event of chunk 2, then the chunk 2
-        # storm needs to have a consistent ID, needs to have updated lifetimes
-        # etc.
-        # This is apparently already solved in Will Keats/Callum Scullion MO
-        # code so don't need to reinvent the wheel here.
+    #     # TODO: then need a way to make the results consistent between
+    #     # different chunks.
+    #     # I.e., if the last event of chunk 1 contains a storm that is
+    #     # also present in the first event of chunk 2, then the chunk 2
+    #     # storm needs to have a consistent ID, needs to have updated lifetimes
+    #     # etc.
+    #     # This is apparently already solved in Will Keats/Callum Scullion MO
+    #     # code so don't need to reinvent the wheel here.
 
     def get_filenames_from_input_path(self, input_path: str = None) -> list:
         if input_path is None:
