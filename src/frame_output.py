@@ -1,7 +1,7 @@
 from frame import Frame, Timeline
 from pathlib import Path
 import numpy as np
-from utils import check_arrays, native
+from utils import check_arrays
 from typing import Union
 import csv
 import datetime
@@ -88,18 +88,18 @@ class FrameOutputManager:
             frame (Frame): _description_
         """
         outputs = {
-            "features": frame.get_feature_field(),
-            "lifetime": frame.get_lifetime_field(),
-            "y-flow": frame.get_flow()[0],
-            "x-flow": frame.get_flow()[1],
+            "features": [frame.get_feature_field(), "%.6e"],
+            "lifetime": [frame.get_lifetime_field(), "%.4e"],
+            "y-flow": [frame.get_flow()[0], "%.2e"],
+            "x-flow": [frame.get_flow()[1], "%.2e"],
         }
         frame_time = frame.get_time()
         frame_time_str = frame_time.strftime("%Y%m%d_%H%M")
-        for output_fnm, output in outputs.items():
+        for output_fnm, [output, output_fmt] in outputs.items():
             if output is None:
                 continue
             full_fnm = f"{self.output_path}/{output_fnm}_{frame_time_str}.field"
-            np.savetxt(full_fnm, output)
+            np.savetxt(full_fnm, output, fmt=output_fmt)
 
     def output_density_field(
         self, timeline: Timeline, field_type: str, centroid_only: bool = True
@@ -194,7 +194,6 @@ class LoadOutput:
         headers = blank_feature.summarise(headers_only=True)
         # Set the number of headers to skip in each csv file
         number_header_rows = 5
-        list_properties = ["size", "accreted", "children"]
 
         for frame_time, frame in timeline.get_timeline().items():
             # Load all data for the current time
@@ -283,6 +282,8 @@ class LoadOutput:
 
         else:
             # Get the longest list to return
-            key_func = lambda x: len(times_from_each_field_type[x])
-            max_arr_key = max(times_from_each_field_type, key=key_func)
+            max_arr_key = max(
+                times_from_each_field_type,
+                key=lambda x: len(times_from_each_field_type[x]),
+            )
             return times_from_each_field_type[max_arr_key]
