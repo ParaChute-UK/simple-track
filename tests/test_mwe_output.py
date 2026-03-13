@@ -8,13 +8,9 @@ sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
 from simple_track import SimpleTrack
-from load import BaseLoader, ConfigError, DictIterator
 
 
 def generate_mwe_files(save_path=None):
-    # Make containing directory if it doesn't exist
-    Path(save_path).mkdir(parents=True, exist_ok=True)
-
     # Setup initial timestep with a single square cell
     mwe_domain = np.zeros((100, 100))
 
@@ -66,18 +62,52 @@ def generate_mwe_files(save_path=None):
         mwe_dt8,
     ]
     if save_path is not None:
+        # Make containing directory if it doesn't exist
+        Path(save_path).mkdir(parents=True, exist_ok=True)
+
         for mwe_idx, mwe in enumerate(mwe_fields):
             np.save(f"{save_path}/mwe_dt{mwe_idx + 1}.npy", mwe)
     return mwe_fields
 
 
-def run_mwe_simple_track(config_path):
-    SimpleTrack(config_path).run()
-
-
+# pytest fixture with scope "session" means this setup will only run once, with the output used by
+# any test that includes "mwe_timeline" as arg input
 @pytest.fixture(scope="session")
-def setup_mwe_tests():
-    generate_mwe_files()
+def mwe_timeline():
+    mwe_fields = generate_mwe_files()
 
-    mwe_config_path = "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/configs/chilbolton.yaml"
-    run_mwe_simple_track(mwe_config_path)
+    # Construct dict for passing to SimpleTrack
+    base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
+    mwe_dict = {
+        base_time + dt.timedelta(minutes=5 * int(mwe_idx)): mwe_data
+        for mwe_idx, mwe_data in enumerate(mwe_fields)
+    }
+
+    mwe_config = {
+        "DATETIME": {"start_time": "2012-08-25 14:05:00", "time_interval": 5},
+        "FEATURE": {
+            "threshold": 0.5,
+            "under_threshold": False,
+        },
+        "FLOW_SOLVER": {
+            "overlap_threshold": 0.2,  # Lower overlap needed for some reason
+            "subdomain_size": 10,
+        },
+        "TRACKING": {"overlap_nbhood": 5, "overlap_threshold": 0.3},
+    }
+    timeline = SimpleTrack(mwe_config).run(mwe_dict)
+    return timeline
+
+
+def test_first_mwe_outputs(mwe_timeline):
+    base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
+    frame = mwe_timeline.get_frame(base_time)
+    print(frame)
+
+
+def test_second_mwe_outputs(mwe_timeline):
+    base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
+    mwe_idx = 1
+    frame_time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
+    frame = mwe_timeline.get_frame(frame_time)
+    print(frame)

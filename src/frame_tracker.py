@@ -12,7 +12,7 @@ class FrameTracker:
         overlap_nbhood: int = 5,
         overlap_threshold: float = 0.6,
         retain_lifetime_on_split: bool = True,
-        _nbhood_coeff_test=False,
+        _nbhood_coeff_test=False,  # If True, uses overlap_nbhood to multiply feature size to get radial mask size
     ):
         """
         Initialise FrameTracker class to track Features between Frames
@@ -70,9 +70,9 @@ class FrameTracker:
 
         Args:
             prev_frame (Frame):
-                Frame containing Features at the previous timestep
+                Frame containing Features at the previous timestep and flow field between timesteps
             current_frame (Frame):
-                Frame containing Features and flow field at the current timestep
+                Frame containing Features at the current timestep
 
         Raises:
             TypeError: _description_

@@ -81,10 +81,9 @@ class Frame:
 
     def identify_features(
         self,
-        min_size: int,
         threshold: float,
-        under_threshold: bool,
-        set_lifetime_field: bool = False,
+        under_threshold: bool = False,
+        min_size: int = 5,
     ) -> None:
         """
         Call the "label_features" function to identify distinct regions in the input field
@@ -185,7 +184,7 @@ class Frame:
 
     def promote_provisional_ids(self) -> None:
         """
-        Promote provisional ids to final ids for all features.
+        Promote "provisional_id" to final "id" for all features.
         """
         # Construct updated features dictionary with new ids as keys
         new_features_dict = {}

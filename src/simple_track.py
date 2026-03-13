@@ -5,7 +5,8 @@ Run the SimpleTrack algorithm to track objects through a sequence of images
 import sys
 from yaml import safe_load
 from pathlib import Path
-import multiprocessing as mp
+
+# import multiprocessing as mp
 from typing import Union
 
 from frame import Timeline, Frame
@@ -50,10 +51,11 @@ class SimpleTrack:
         else:
             self.frame_tracker = FrameTracker()
 
-        if "output" not in self.config["PATH"].keys():
-            output_path = "./output"
-        else:
-            output_path = self.config["PATH"]["output"]
+        if "PATH" in self.config.keys():
+            if "output" not in self.config["PATH"].keys():
+                output_path = "./output"
+            else:
+                output_path = self.config["PATH"]["output"]
 
         if "OUTPUT" in self.config.keys():
             if "experiment_name" in self.config["OUTPUT"].keys():
@@ -61,12 +63,16 @@ class SimpleTrack:
         else:
             expt_name = "Simple-Track Experiment"
 
-        self.frame_output = FrameOutputManager(
-            output_path,
-            expt_name,
-            self.start_time,
-            config_path,
-        )
+        # Output only if flagged in config
+        self.frame_output = None
+        if "OUTPUT" in self.config.keys():
+            if self.config["OUTPUT"]["save_data"]:
+                self.frame_output = FrameOutputManager(
+                    output_path,
+                    expt_name,
+                    self.start_time,
+                    config_path,
+                )
 
     def run(self, input_data: Union[list[str] | dict] = None):
         """
@@ -120,10 +126,11 @@ class SimpleTrack:
 
             # If this is the first frame, skip tracking
             if len(self.timeline.timeline) == 1:
-                # Output frame data to text file or npy file
-                self.frame_output.features_to_txt(frame)
-                self.frame_output.features_to_csv(frame)
-                self.frame_output.fields_to_npy(frame)
+                # Output frame data to text file or npy file if flagged
+                if self.frame_output is not None:
+                    self.frame_output.features_to_txt(frame)
+                    self.frame_output.features_to_csv(frame)
+                    self.frame_output.fields_to_npy(frame)
                 continue
 
             # Now run flow solver between previous and current frame
@@ -141,19 +148,22 @@ class SimpleTrack:
             # Track Features between difference Frames
             self.frame_tracker.run(prev_frame, frame)
 
-            # Output frame data to text file and field to npy
-            self.frame_output.features_to_txt(frame)
-            self.frame_output.features_to_csv(frame)
-            self.frame_output.fields_to_npy(frame)
+            # Output frame data to text file and field to npy if flagged
+            if self.frame_output is not None:
+                self.frame_output.features_to_txt(frame)
+                self.frame_output.features_to_csv(frame)
+                self.frame_output.fields_to_npy(frame)
 
             self.loading_bar.update_progress(fnm_idx + 1)
 
-        self.frame_output.output_density_field(
-            self.timeline, "init", centroid_only=False
-        )
-        self.frame_output.output_density_field(
-            self.timeline, "dissipation", centroid_only=False
-        )
+        # Output additional fields if flagged
+        if self.frame_output is not None:
+            self.frame_output.output_density_field(
+                self.timeline, "init", centroid_only=False
+            )
+            self.frame_output.output_density_field(
+                self.timeline, "dissipation", centroid_only=False
+            )
         return self.timeline
 
     # def run_parallel(self, processes=4):
@@ -213,22 +223,22 @@ class SimpleTrack:
 
     def _check_config(self, config: dict) -> None:
         # Check required top-level sections are present
-        required_sections = ["PATH", "FEATURE"]
+        required_sections = ["FEATURE"]
         input_section = config.keys()
         section_check = [section in input_section for section in required_sections]
         if not all(section_check):
             raise ConfigError(
                 f"config missing one or more required sections: {required_sections}"
             )
-        # Check required parameters are present
-        required_params = ["data"]
-        input_keys = config["PATH"].keys()
-        required_input_check = [key in input_keys for key in required_params]
+        # # Check required parameters are present
+        # required_params = ["data"]
+        # input_keys = config["PATH"].keys()
+        # required_input_check = [key in input_keys for key in required_params]
 
-        if not all(required_input_check):
-            raise ConfigError(
-                f"config missing one or more required inputs: {required_params}"
-            )
+        # if not all(required_input_check):
+        #     raise ConfigError(
+        #         f"config missing one or more required inputs: {required_params}"
+        #     )
         if "threshold" not in config["FEATURE"].keys():
             raise ConfigError("config missing required threshold input")
 
