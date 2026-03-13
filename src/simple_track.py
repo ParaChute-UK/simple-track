@@ -3,17 +3,16 @@ Run the SimpleTrack algorithm to track objects through a sequence of images
 """
 
 import sys
-from yaml import safe_load
 from pathlib import Path
-
-# import multiprocessing as mp
 from typing import Union
 
-from frame import Timeline, Frame
+from yaml import safe_load
+
+from flow_solver import FlowSolver
+from frame import Frame, Timeline
 from frame_output import FrameOutputManager
 from frame_tracker import FrameTracker
-from flow_solver import FlowSolver
-from load import LoadingBar, get_loader, DictIterator, ConfigError
+from load import ConfigError, DictIterator, LoadingBar, get_loader
 
 
 class SimpleTrack:

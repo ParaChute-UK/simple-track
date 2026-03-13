@@ -1,15 +1,17 @@
-import numpy as np
-from numpy.typing import NDArray
-from scipy.interpolate import LinearNDInterpolator, RectBivariateSpline
-from frame import Frame
-from typing import Union
-from utils import check_arrays, ArrayError
 import itertools
-from skimage.registration import phase_cross_correlation
-from scipy.signal.windows import tukey
-import scipy.ndimage as ndimage
 import warnings
 from collections.abc import Iterable
+from typing import Union
+
+import numpy as np
+import scipy.ndimage as ndimage
+from numpy.typing import NDArray
+from scipy.interpolate import LinearNDInterpolator, RectBivariateSpline
+from scipy.signal.windows import tukey
+from skimage.registration import phase_cross_correlation
+
+from frame import Frame
+from utils import ArrayError, check_arrays
 
 
 class FlowSolver:

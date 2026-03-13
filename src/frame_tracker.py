@@ -1,8 +1,10 @@
+from typing import Union
+
 import numpy as np
 from numpy.typing import NDArray
-from typing import Union
-from frame import Frame
+
 from feature import Feature
+from frame import Frame
 from utils import check_arrays, check_valid_ids, native
 
 

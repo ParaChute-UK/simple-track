@@ -1,8 +1,9 @@
+import datetime as dt
 import sys
 from pathlib import Path
-import pytest
+
 import numpy as np
-import datetime as dt
+import pytest
 
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"

@@ -1,15 +1,16 @@
+import datetime as dt
 import sys
 from pathlib import Path
-import pytest
+
 import numpy as np
-import datetime as dt
+import pytest
 
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
-from simple_track import SimpleTrack
-from load import BaseLoader, ConfigError, DictIterator
 from frame import Frame
+from load import BaseLoader, ConfigError, DictIterator
+from simple_track import SimpleTrack
 from utils import ArrayShapeError, ArrayTypeError
 
 test_time = dt.datetime(2026, 1, 1, 0, 0, 0)

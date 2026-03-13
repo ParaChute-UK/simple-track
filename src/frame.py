@@ -1,8 +1,10 @@
 import datetime as dt
-import numpy as np
-from numpy.typing import NDArray
-import scipy.ndimage as ndimage
 from typing import Union
+
+import numpy as np
+import scipy.ndimage as ndimage
+from numpy.typing import NDArray
+
 from feature import Feature
 from utils import check_arrays, check_valid_ids
 

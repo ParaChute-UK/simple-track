@@ -1,7 +1,9 @@
-from numpy.typing import NDArray
-import numpy as np
-from typing import Union
 import datetime as dt
+from typing import Union
+
+import numpy as np
+from numpy.typing import NDArray
+
 from utils import check_arrays, check_valid_ids, native
 
 

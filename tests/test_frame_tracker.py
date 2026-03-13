@@ -1,28 +1,30 @@
-import numpy as np
 import sys
+
+import numpy as np
 import pytest
 
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
-from utils import (
-    ArrayError,
-    ArrayShapeError,
-    ArrayTypeError,
-    NegativeIDError,
-    ZeroIDError,
-    FloatIDError,
-    IDError,
-)
+import datetime as dt
+
+from feature import Feature
+from frame import Frame
 from frame_tracker import (
     FrameTracker,
     advect_field_using_motion_vectors,
     generate_radial_mask,
     get_centroid,
 )
-from frame import Frame
-from feature import Feature
-import datetime as dt
+from utils import (
+    ArrayError,
+    ArrayShapeError,
+    ArrayTypeError,
+    FloatIDError,
+    IDError,
+    NegativeIDError,
+    ZeroIDError,
+)
 
 zero_arr = np.zeros((10, 10), dtype=int)
 

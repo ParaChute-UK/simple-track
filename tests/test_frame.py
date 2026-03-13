@@ -1,14 +1,15 @@
-import sys
-import pytest
-import numpy as np
 import datetime as dt
+import sys
+
+import numpy as np
+import pytest
 
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
-from frame import Frame, Timeline, label_features, FeaturesNotFoundError
 from feature import Feature
-from utils import ArrayShapeError, ArrayTypeError, NegativeIDError, FloatIDError
+from frame import FeaturesNotFoundError, Frame, Timeline, label_features
+from utils import ArrayShapeError, ArrayTypeError, FloatIDError, NegativeIDError
 
 
 def test_label_features_valid_inputs():

@@ -1,16 +1,18 @@
 import sys
+
 import pytest
 
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
+import numpy as np
+
 from flow_solver import FlowSolver, pairwise_with_stride
 from utils import (
     ArrayError,
     ArrayShapeError,
     ArrayTypeError,
 )
-import numpy as np
 
 of_solver = FlowSolver()
 mwe_domain = np.zeros((100, 100), dtype=int)

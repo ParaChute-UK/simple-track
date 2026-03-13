@@ -1,20 +1,22 @@
 import sys
+
 import pytest
 
 sys.path.append(
     "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
 )
+import numpy as np
+
 from utils import (
-    check_arrays,
-    check_valid_ids,
     ArrayShapeError,
     ArrayTypeError,
-    NegativeIDError,
-    ZeroIDError,
     FloatIDError,
     IDError,
+    NegativeIDError,
+    ZeroIDError,
+    check_arrays,
+    check_valid_ids,
 )
-import numpy as np
 
 
 def test_check_arrays_with_ndarray_inputs():
