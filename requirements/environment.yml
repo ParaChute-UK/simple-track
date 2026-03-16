@@ -1,0 +1,11 @@
+name: simpletrack
+channels:
+  - conda-forge
+dependencies:
+  - numpy >= 2.3.4
+  - pytest >= 9.0
+  - pytest-cov
+  - pytest-xdist
+  - pyyaml
+  - scipy >= 1.16.3
+  - scikit-image >= 0.25.2
