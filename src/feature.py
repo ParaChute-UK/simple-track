@@ -202,30 +202,6 @@ class Feature:
         else:
             self._child.extend(feature_ids)
 
-    def get_x_centroid(self) -> float:
-        return self.centroid[1]
-
-    def get_y_centroid(self) -> float:
-        return self.centroid[0]
-
-    def get_x_min(self) -> int:
-        return np.min(self._feature_coords[1, :])
-
-    def get_x_max(self) -> int:
-        return np.max(self._feature_coords[1, :])
-
-    def get_y_min(self) -> int:
-        return np.min(self._feature_coords[0, :])
-
-    def get_y_max(self) -> int:
-        return np.max(self._feature_coords[0, :])
-
-    def get_x_extent(self) -> int:
-        return self.get_x_max() - self.get_x_min()
-
-    def get_y_extent(self) -> int:
-        return self.get_y_max() - self.get_y_min()
-
     def get_size(self) -> int:
         return len(self._feature_coords[0])
 

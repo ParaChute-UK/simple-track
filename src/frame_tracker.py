@@ -114,28 +114,153 @@ class FrameTracker:
         # Feature in the current Frame. This is useful for output statistics
         self.identify_unmatched_features_in_prev_frame(prev_frame, current_frame)
 
-    def identify_unmatched_features_in_prev_frame(
-        self, prev_frame: Frame, current_frame: Frame
-    ) -> None:
+    def advect_frame(self, frame: Frame) -> Frame:
         """
-        Identify Features in the previous Frame that are not matched with a Feature in the current Frame.
-        This is useful for output statistics, e.g., for tracing dissipation events.
-        Any feature that is not matched is designated as a final timestep by setting the final_timestep
-        property to True.
+        Construct a new Frame with all Features in the input Frame advected by the given flow field
 
         Args:
-            prev_frame (Frame): Frame containing Features at previous timestep
-            current_frame (Frame): Frame containing Features at current timestep
-        """
-        if not isinstance(prev_frame, Frame) or not isinstance(current_frame, Frame):
-            raise TypeError("Expected type Frame for both prev_frame and current_frame")
+            frame (Frame): Frame containing Features and a flow field
 
-        current_frame_ids = [
-            feature.id for feature in current_frame.get_features().values()
-        ]
-        for feature_id, feature in prev_frame.get_features().items():
-            if feature_id not in current_frame_ids:
-                feature.set_as_final_timestep()
+        Returns:
+            Frame: advected Frame
+        """
+
+        if not isinstance(frame, Frame):
+            raise TypeError(f"Expected 'Frame', got {type(frame)}")
+
+        # If there is no flow field, return the un-advected frame
+        y_flow, x_flow = frame.get_flow()
+        if y_flow is None or x_flow is None:
+            print(f"y_flow: {y_flow}")
+            print(f"x_flow: {x_flow}")
+            print("Continuing with unadvected Frame")
+            return frame
+
+        feature_field = frame.get_feature_field()
+        advected_feature_field = advect_field_using_motion_vectors(
+            feature_field, y_flow, x_flow
+        )
+
+        advected_frame = Frame()
+        advected_frame.set_feature_field(advected_feature_field)
+        advected_frame.populate_features()
+
+        # Transfer lifetimes to advected frame
+        for advected_feature in advected_frame.get_features().values():
+            advected_id = advected_feature.id
+            advected_feature.lifetime = frame.get_feature(advected_id).lifetime
+
+        return advected_frame
+
+    def match_advected_and_current_frame_features(
+        self, advected_frame: Frame, current_frame: Frame, prev_frame: Frame
+    ) -> None:
+        """
+        For each Feature in the current Frame, attempt to match it to a Feature in
+        the advected Frame by calcualating the overlap between the two fields.
+
+        Matched Features are assigned to the provisional id property of the current
+        Feature and inherit the lifetime from the advected Feature.
+
+        Other Features in the advected field that contain a sufficient overlap but
+        that are not the best match are added to the accreted property of the current Feature.
+
+        Unmatched Features in the current Frame are assigned a new provisional id.
+
+        Args:
+            advected_frame (Frame):
+                Frame containing advected Features from previous timestep
+            current_frame (Frame):
+                Frame containing Features at current timestep
+        """
+        # Get the feature fields to analyse
+        advected_feature_field = advected_frame.get_feature_field()
+        current_feature_field = current_frame.get_feature_field()
+
+        # Attempt to match features in the advected frame with current frame
+        for current_feature in current_frame.get_features().values():
+            if not isinstance(current_feature, Feature):
+                raise TypeError(f"Expected Feature, got {type(current_feature)}")
+
+            feature_id = current_feature.id
+
+            # Count the ids contained in advected_feature_field that are in the same
+            # position as the feature_id in the current_feature_field (normalised by
+            # the feature sizes)
+            overlap_hist = self.calculate_overlap_histogram(
+                advected_feature_field, current_feature_field, feature_id, nbhood=0
+            )
+
+            # If the maximum overlap is not achieved, rerun with a nbhood surrouding the
+            # feature centroid.
+            if np.max(overlap_hist) < self.overlap_threshold:
+                overlap_hist = self.calculate_overlap_histogram(
+                    advected_feature_field,
+                    current_feature_field,
+                    feature_id,
+                    nbhood=self.overlap_nbhood,
+                )
+
+            # Get the closest matching feature id to advected field, and any other ids
+            # that have a sufficient overlap
+            matching_id, other_sufficient_ids = self.find_ids_of_closest_overlaps(
+                overlap_hist, advected_feature_field, current_feature_field, feature_id
+            )
+
+            # If a matching feature couldn't be found, this is a new Feature
+            if matching_id is None:
+                matching_id = current_frame.get_next_available_feature_id()
+                current_feature.lifetime = 1
+            else:
+                # Inherit lifetime from matching feature
+                matching_feature = advected_frame.get_feature(matching_id)
+                current_feature.lifetime = matching_feature.lifetime + 1
+
+            # Provisionally assign the matching_id to this feature
+            current_feature.provisional_id = matching_id
+
+            if other_sufficient_ids is not None:
+                # Add other ids to Feature accretion list
+                current_feature.accrete_ids(other_sufficient_ids)
+
+                # Update the accreted_in_next_frame_by property of Features in prev_frame
+                for accreted_id in other_sufficient_ids:
+                    accreted_feature = prev_frame.get_feature(accreted_id)
+                    accreted_feature.accreted_in_next_frame_by = feature_id
+                    accreted_feature.set_as_final_timestep()
+
+    def check_accreted_feature_ids_are_not_provisional_ids(self, frame: Frame) -> None:
+        """
+        Any features that have been accreted by another feature should not therefore appear
+        as a provisional id in the feature field (since it should no longer exist). This method
+        checks that this is the case for all accreted ids. If any accreted ids are found to
+        still exist as a provisional id, the accreted id is removed from its respective Feature
+
+        Args:
+            frame (Frame): Frame to inspect accreted ids
+        """
+        if not isinstance(frame, Frame):
+            raise TypeError(f"Expected type Frame, got {type(frame)}")
+
+        all_features = frame.get_features().values()
+        all_provisional_ids = [feature.provisional_id for feature in all_features]
+
+        # Check each feature for accreted values
+        for feature in all_features:
+            if feature.accreted is None:
+                continue
+            if not isinstance(feature.accreted, list):
+                raise TypeError(f"Expected list, got f{type(feature.accreted)}")
+
+            # Copy accreted id to new list if it is not a provisional id
+            new_accreted_list = [
+                acc_id
+                for acc_id in feature.accreted
+                if acc_id not in all_provisional_ids
+            ]
+            # Reset the accreted feature id list
+            # If list is empty, gets replaced with None in accreted setter
+            feature.accreted = new_accreted_list
 
     def resolve_provisional_id_conflicts(
         self, advected_frame: Frame, current_frame: Frame
@@ -202,6 +327,29 @@ class FrameTracker:
             parent_feature.children = [
                 feature.provisional_id for feature in child_features
             ]
+
+    def identify_unmatched_features_in_prev_frame(
+        self, prev_frame: Frame, current_frame: Frame
+    ) -> None:
+        """
+        Identify Features in the previous Frame that are not matched with a Feature in the current Frame.
+        This is useful for output statistics, e.g., for tracing dissipation events.
+        Any feature that is not matched is designated as a final timestep by setting the final_timestep
+        property to True.
+
+        Args:
+            prev_frame (Frame): Frame containing Features at previous timestep
+            current_frame (Frame): Frame containing Features at current timestep
+        """
+        if not isinstance(prev_frame, Frame) or not isinstance(current_frame, Frame):
+            raise TypeError("Expected type Frame for both prev_frame and current_frame")
+
+        current_frame_ids = [
+            feature.id for feature in current_frame.get_features().values()
+        ]
+        for feature_id, feature in prev_frame.get_features().items():
+            if feature_id not in current_frame_ids:
+                feature.set_as_final_timestep()
 
     def identify_parent_and_child_features(
         self,
@@ -310,155 +458,6 @@ class FrameTracker:
         # The remaining features are the child features
         parent_feature = matching_features.pop(max_overlap_idx)
         return parent_feature, matching_features
-
-    def _get_overlap_sizes(
-        self,
-        advected_feature_field: NDArray,
-        current_feature_field: NDArray,
-        advected_id: int,
-        matching_ids: list,
-        nbhood: int = 0,
-    ) -> list:
-        advected_id, matching_ids = check_valid_ids(advected_id, matching_ids)
-        overlap_sizes = []
-        for feature_id in matching_ids:
-            advected_feature_mask = advected_feature_field == advected_id
-            current_feature_mask = current_feature_field == feature_id
-
-            if nbhood > 0:
-                if self._nbhood_coeff_test:
-                    adv_nb = nbhood * np.count_nonzero(advected_feature_mask)
-                    curr_nb = nbhood * np.count_nonzero(current_feature_mask)
-                else:
-                    adv_nb = nbhood
-                    curr_nb = nbhood
-
-                advected_feature_mask += generate_radial_mask(
-                    advected_feature_field,
-                    get_centroid(advected_feature_field, advected_id),
-                    adv_nb,
-                )
-                current_feature_mask += generate_radial_mask(
-                    current_feature_field,
-                    get_centroid(current_feature_field, feature_id),
-                    curr_nb,
-                )
-
-            overlap_size = np.size(
-                np.where(advected_feature_mask & current_feature_mask), 1
-            )
-            overlap_sizes.append(overlap_size)
-        return overlap_sizes
-
-    def check_accreted_feature_ids_are_not_provisional_ids(self, frame: Frame) -> None:
-        """
-        Any features that have been accreted by another feature should not therefore appear
-        as a provisional id in the feature field (since it should no longer exist). This method
-        checks that this is the case for all accreted ids. If any accreted ids are found to
-        still exist as a provisional id, the accreted id is removed from its respective Feature
-
-        Args:
-            frame (Frame): Frame to inspect accreted ids
-        """
-        if not isinstance(frame, Frame):
-            raise TypeError(f"Expected type Frame, got {type(frame)}")
-
-        all_features = frame.get_features().values()
-        all_provisional_ids = [feature.provisional_id for feature in all_features]
-
-        # Check each feature for accreted values
-        for feature in all_features:
-            if feature.accreted is None:
-                continue
-            if not isinstance(feature.accreted, list):
-                raise TypeError(f"Expected list, got f{type(feature.accreted)}")
-
-            # Copy accreted id to new list if it is not a provisional id
-            new_accreted_list = [
-                acc_id
-                for acc_id in feature.accreted
-                if acc_id not in all_provisional_ids
-            ]
-            # Reset the accreted feature id list
-            # If list is empty, gets replaced with None in accreted setter
-            feature.accreted = new_accreted_list
-
-    def match_advected_and_current_frame_features(
-        self, advected_frame: Frame, current_frame: Frame, prev_frame: Frame
-    ) -> None:
-        """
-        For each Feature in the current Frame, attempt to match it to a Feature in
-        the advected Frame by calcualating the overlap between the two fields.
-
-        Matched Features are assigned to the provisional id property of the current
-        Feature and inherit the lifetime from the advected Feature.
-
-        Other Features in the advected field that contain a sufficient overlap but
-        that are not the best match are added to the accreted property of the current Feature.
-
-        Unmatched Features in the current Frame are assigned a new provisional id.
-
-        Args:
-            advected_frame (Frame):
-                Frame containing advected Features from previous timestep
-            current_frame (Frame):
-                Frame containing Features at current timestep
-        """
-        # Get the feature fields to analyse
-        advected_feature_field = advected_frame.get_feature_field()
-        current_feature_field = current_frame.get_feature_field()
-
-        # Attempt to match features in the advected frame with current frame
-        for current_feature in current_frame.get_features().values():
-            if not isinstance(current_feature, Feature):
-                raise TypeError(f"Expected Feature, got {type(current_feature)}")
-
-            feature_id = current_feature.id
-
-            # Count the ids contained in advected_feature_field that are in the same
-            # position as the feature_id in the current_feature_field (normalised by
-            # the feature sizes)
-            overlap_hist = self.calculate_overlap_histogram(
-                advected_feature_field, current_feature_field, feature_id, nbhood=0
-            )
-
-            # If the maximum overlap is not achieved, rerun with a nbhood surrouding the
-            # feature centroid.
-            if np.max(overlap_hist) < self.overlap_threshold:
-                overlap_hist = self.calculate_overlap_histogram(
-                    advected_feature_field,
-                    current_feature_field,
-                    feature_id,
-                    nbhood=self.overlap_nbhood,
-                )
-
-            # Get the closest matching feature id to advected field, and any other ids
-            # that have a sufficient overlap
-            matching_id, other_sufficient_ids = self.find_ids_of_closest_overlaps(
-                overlap_hist, advected_feature_field, current_feature_field, feature_id
-            )
-
-            # If a matching feature couldn't be found, this is a new Feature
-            if matching_id is None:
-                matching_id = current_frame.get_next_available_feature_id()
-                current_feature.lifetime = 1
-            else:
-                # Inherit lifetime from matching feature
-                matching_feature = advected_frame.get_feature(matching_id)
-                current_feature.lifetime = matching_feature.lifetime + 1
-
-            # Provisionally assign the matching_id to this feature
-            current_feature.provisional_id = matching_id
-
-            if other_sufficient_ids is not None:
-                # Add other ids to Feature accretion list
-                current_feature.accrete_ids(other_sufficient_ids)
-
-                # Update the accreted_in_next_frame_by property of Features in prev_frame
-                for accreted_id in other_sufficient_ids:
-                    accreted_feature = prev_frame.get_feature(accreted_id)
-                    accreted_feature.accreted_in_next_frame_by = feature_id
-                    accreted_feature.set_as_final_timestep()
 
     def find_ids_of_closest_overlaps(
         self,
@@ -750,43 +749,44 @@ class FrameTracker:
         overlap_normed = overlap_hist / norm_sizes
         return overlap_normed
 
-    def advect_frame(self, frame: Frame) -> Frame:
-        """
-        Construct a new Frame with all Features in the input Frame advected by the given flow field
+    def _get_overlap_sizes(
+        self,
+        advected_feature_field: NDArray,
+        current_feature_field: NDArray,
+        advected_id: int,
+        matching_ids: list,
+        nbhood: int = 0,
+    ) -> list:
+        advected_id, matching_ids = check_valid_ids(advected_id, matching_ids)
+        overlap_sizes = []
+        for feature_id in matching_ids:
+            advected_feature_mask = advected_feature_field == advected_id
+            current_feature_mask = current_feature_field == feature_id
 
-        Args:
-            frame (Frame): Frame containing Features and a flow field
+            if nbhood > 0:
+                if self._nbhood_coeff_test:
+                    adv_nb = nbhood * np.count_nonzero(advected_feature_mask)
+                    curr_nb = nbhood * np.count_nonzero(current_feature_mask)
+                else:
+                    adv_nb = nbhood
+                    curr_nb = nbhood
 
-        Returns:
-            Frame: advected Frame
-        """
+                advected_feature_mask += generate_radial_mask(
+                    advected_feature_field,
+                    get_centroid(advected_feature_field, advected_id),
+                    adv_nb,
+                )
+                current_feature_mask += generate_radial_mask(
+                    current_feature_field,
+                    get_centroid(current_feature_field, feature_id),
+                    curr_nb,
+                )
 
-        if not isinstance(frame, Frame):
-            raise TypeError(f"Expected 'Frame', got {type(frame)}")
-
-        # If there is no flow field, return the un-advected frame
-        y_flow, x_flow = frame.get_flow()
-        if y_flow is None or x_flow is None:
-            print(f"y_flow: {y_flow}")
-            print(f"x_flow: {x_flow}")
-            print("Continuing with unadvected Frame")
-            return frame
-
-        feature_field = frame.get_feature_field()
-        advected_feature_field = advect_field_using_motion_vectors(
-            feature_field, y_flow, x_flow
-        )
-
-        advected_frame = Frame()
-        advected_frame.set_feature_field(advected_feature_field)
-        advected_frame.populate_features()
-
-        # Transfer lifetimes to advected frame
-        for advected_feature in advected_frame.get_features().values():
-            advected_id = advected_feature.id
-            advected_feature.lifetime = frame.get_feature(advected_id).lifetime
-
-        return advected_frame
+            overlap_size = np.size(
+                np.where(advected_feature_mask & current_feature_mask), 1
+            )
+            overlap_sizes.append(overlap_size)
+        return overlap_sizes
 
 
 def advect_field_using_motion_vectors(

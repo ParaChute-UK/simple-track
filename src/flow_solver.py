@@ -36,26 +36,6 @@ class FlowSolver:
         self.overlap_threshold = overlap_threshold
         self.apply_tukey_filtering = apply_tukey_filtering
 
-    def _check_inputs(self, arr1: NDArray, arr2: NDArray) -> bool:
-        # Check both fields have features
-        if not np.count_nonzero(arr1) and not np.count_nonzero(arr2):
-            print("No features detected in both fields. Skipping optical flow.")
-            return None, None
-
-        # If there are too few features, don't proceed with optical flow
-        # TODO: what is actually the check here??
-        subdomain_count = np.prod(self.subdomain_shape)
-        min_feature_coverage = subdomain_count * self.min_fractional_coverage
-        if np.sum(arr1) < min_feature_coverage or np.sum(arr2) < min_feature_coverage:
-            print(f"Threshold for running optical flow: {self.min_fractional_coverage}")
-            print(f"Number of pixels above threshold in arr1: {np.sum(arr1)}")
-            print(f"Number of pixels above threshold in arr2: {np.sum(arr2)}")
-            print("Number of features in arr1 and/or arr2 less than threshold. ")
-            print("Skipping optical flow")
-            return None, None
-
-        return arr1, arr2
-
     def analyse_flow(
         self, prev_field: Union[Frame, NDArray], current_field: Union[Frame, NDArray]
     ) -> list[NDArray, NDArray]:
@@ -514,6 +494,26 @@ class FlowSolver:
         x_range = range(full_domain_shape[1])
         newumat = fu(x_range, y_range).T
         return newumat
+
+    def _check_inputs(self, arr1: NDArray, arr2: NDArray) -> bool:
+        # Check both fields have features
+        if not np.count_nonzero(arr1) and not np.count_nonzero(arr2):
+            print("No features detected in both fields. Skipping optical flow.")
+            return None, None
+
+        # If there are too few features, don't proceed with optical flow
+        # TODO: what is actually the check here??
+        subdomain_count = np.prod(self.subdomain_shape)
+        min_feature_coverage = subdomain_count * self.min_fractional_coverage
+        if np.sum(arr1) < min_feature_coverage or np.sum(arr2) < min_feature_coverage:
+            print(f"Threshold for running optical flow: {self.min_fractional_coverage}")
+            print(f"Number of pixels above threshold in arr1: {np.sum(arr1)}")
+            print(f"Number of pixels above threshold in arr2: {np.sum(arr2)}")
+            print("Number of features in arr1 and/or arr2 less than threshold. ")
+            print("Skipping optical flow")
+            return None, None
+
+        return arr1, arr2
 
     def _fill_nans(self, arr: NDArray) -> NDArray:
         """
