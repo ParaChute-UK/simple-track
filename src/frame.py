@@ -36,26 +36,49 @@ class Frame:
         return self.time == other.time
 
     def import_time_and_data(self, time: dt.datetime, data: NDArray) -> None:
+        """
+        Load time and raw data into the frame.
+
+        Args:
+            time (dt.datetime): Time the frame is valid for.
+            data (NDArray): Raw data to perform tracking on
+        """
         self.raw_field = check_arrays(data, ndim=2)
+        self.set_time(time)
+
+    def set_time(self, time: dt.datetime) -> None:
+        """
+        Set time for the current frame, as a datetime.datetime object
+        """
         if not isinstance(time, dt.datetime):
             raise TypeError(
                 f"Expected 'output_time' to be datetime objcet, got {type(time)}"
             )
         self.time = time
 
-    def set_time(self, time: dt.datetime):
-        self.time = time
-
-    def get_time(self):
+    def get_time(self) -> dt.datetime:
+        """
+        Get the datetime object that the current frame is valid for
+        """
         return self.time
 
     def get_feature_field(self) -> NDArray[np.integer]:
+        """
+        Get the feature id field for the current frame
+        """
         return self.feature_field
 
     def get_lifetime_field(self) -> NDArray:
+        """
+        Get the feature lifetime field for the current frame
+        """
         return self.lifetime_field
 
     def get_feature(self, feature_id: int) -> Feature:
+        """
+        Get a feature matching the given id if present in the current field,
+        otherwise returns None.
+        """
         feature_id = check_valid_ids(feature_id)
         if feature_id in self.features.keys():
             return self.features[feature_id]
@@ -63,21 +86,44 @@ class Frame:
             return None
 
     def get_features(self) -> dict:
+        """
+        Get all features identified in the frame as a dict, with the feature ids as the dict keys
+        and the corresponding Feature objects as the dicts vals
+        """
         return self.features
 
     def get_flow(self) -> Union[NDArray, None]:
+        """
+        Get a list of the y-flow and x-flow fields derived by comparing features between this frame
+        and a frame from a previous timestep. Flow fields are both numpy arrays, with order [y_flow, x_flow].
+        If flow was not previously derived, returns [None, None]
+        """
         return self.y_flow, self.x_flow
 
     def set_feature_field(self, feature_field: NDArray) -> None:
-        self.feature_field = feature_field
+        """
+        Sets the self.feature_field attribute of the frame
+        """
+        self.feature_field = check_arrays(feature_field, ndim=2, dtype=int)
 
     def replace_features(self, new_features: dict) -> None:
+        """
+        Replaces the self.features dict with the input argument. Used when updating Feature properties
+        after matching with a frame from a previous timestep.
+        """
         self.features = new_features
 
     def get_max_id(self) -> int:
+        """
+        Returns max_id of features in the frame.
+        """
         return self.max_id
 
     def set_max_id(self, max_id: int) -> None:
+        """
+        Sets the max_id used for assigning to features that do not match to another feature from a
+        previous timestep
+        """
         max_id = check_valid_ids(max_id)
         self.max_id = max_id
 
@@ -114,6 +160,10 @@ class Frame:
         self.populate_features()
 
     def populate_features(self) -> None:
+        """
+        Uses the self.feature_field array to populate the self.features dict with new
+        Feature instances.
+        """
         # Check for existing features dict
         if self.features:
             self.features = {}
@@ -228,11 +278,19 @@ class Frame:
         self.lifetime_field = updated_lifetime_field
 
     def get_new_features(self) -> list:
+        """
+        Get a list of all features in the frame that do not match with a feature from the
+        previous frame and has not split from a feature in the previous frame
+        """
         if not self.features:
             return []
         return [feature for feature in self.features.values() if feature.is_new()]
 
     def get_dissipating_features(self) -> list:
+        """
+        Get a list of all features in the frame that do not match with a feature
+        in the subsequent frame and have not merged with a feature in the subsequent frame
+        """
         if not self.features:
             return []
         return [
@@ -240,12 +298,40 @@ class Frame:
         ]
 
     def get_init_field(self, centroid_only: bool = True) -> NDArray:
+        """
+        Get a binary field of locations where features are newly initialising, where
+        new features are ones that are not matched with a feature in the previous frame,
+        and have not split from a feature in the previous frame
+        """
         return self.get_field("init", centroid_only)
 
     def get_dissipation_field(self, centroid_only: bool = True) -> NDArray:
+        """
+        Get a binary field of locations where features are dissipating, where
+        these are ones that are not matched with a feature in the next frame, and
+        do not merge with a feature in the next frame
+        """
         return self.get_field("dissipation", centroid_only)
 
     def get_field(self, field_type: str, centroid_only: bool = True) -> NDArray:
+        """
+        Get a binary field of locations where features meet the input requirement,
+        as speicified by field type
+
+        Args:
+            field_type (str):
+                "init": Get the field of all new features in the frame, where new features
+                are ones that are not matched with a feature in the previous frame, and have
+                not split from a feature in the previous frame
+                "dissipation" Get the fields of all dissipating feature in the frame, where
+                these are ones that are not matched with a feature in the next frame, and
+                do not merge with a feature in the next frame
+            centroid_only (bool, optional):
+                Whether the binary output should contain just the feature centroids or should
+                span the full feature shape.
+                Defaults to True.
+
+        """
         feature_methods = {
             "init": self.get_new_features,
             "dissipation": self.get_dissipating_features,
@@ -271,7 +357,11 @@ class Timeline:
     def __init__(self):
         self.timeline = {}
 
-    def add_to_timelime(self, frame: Frame):
+    def add_to_timelime(self, frame: Frame) -> None:
+        """
+        Add the input frame to the timeline, using the frame.get_time() to
+        determine the frame time.
+        """
         if not isinstance(frame, Frame):
             raise TypeError(f"Expected type Frame, got {type(frame)}")
         if frame.get_time() is None:
@@ -279,6 +369,10 @@ class Timeline:
         self.timeline[frame.get_time()] = frame
 
     def get_previous_frame(self, current_time: dt.time) -> Frame:
+        """
+        Finds the frame with the closest time to the input frame, and which
+        is in the past.
+        """
         if len(self.timeline) == 0:
             raise ValueError("Timeline is empty. No previous frame to return.")
         if len(self.timeline) == 1:
@@ -294,10 +388,18 @@ class Timeline:
         # Remove any frames that aren't needed anymore, as defined by max_frames
         pass
 
-    def get_timeline(self):
+    def get_timeline(self) -> dict:
+        """
+        Return the timeline as a dictionary of values, with keys being the validity time and
+        values being the frame at that validity time.
+        """
         return self.timeline
 
     def get_frame(self, time: dt.datetime) -> Frame:
+        """
+        Get the frame that is valid at the input time. Raises ValueError if frame matching
+        the input time is not found.
+        """
         if time not in self.timeline.keys():
             raise ValueError(f"No frame found for time {time}")
         return self.timeline[time]
