@@ -37,7 +37,7 @@ class SimpleTrack:
                 f"Expected config_input type str or dict, got {type(config_input)}"
             )
 
-        self.start_time = self.config["DATETIME"]["start_time"]
+        self.start_time = None  # Will be set during run()
         self.timeline = Timeline()
 
         if "FLOW_SOLVER" in self.config.keys():
@@ -118,6 +118,9 @@ class SimpleTrack:
         # print(f"Hello from process {mp.current_process().name} with arg {filenames}\n")
 
         for fnm_idx, time_and_data in enumerate(self.loader):
+            if self.start_time is None:
+                self.start_time = time_and_data[0]
+
             frame = Frame()
             frame.import_time_and_data(*time_and_data)
             frame.identify_features(**self.config["FEATURE"])
