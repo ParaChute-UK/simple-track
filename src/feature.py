@@ -218,7 +218,10 @@ class Feature:
             "extreme": self._extreme,
             "lifetime": self._lifetime,
             "accreted": self._accreted,
-            "accredted_in_next_frame_by": self._accreted_in_next_frame_by,
+            # This will not be output properly in the current workflow, since each output occurs
+            # after the current frame analysis has finished, but this can only be set after comparison
+            # with the next frame of data.
+            # "accredted_in_next_frame_by": self._accreted_in_next_frame_by,
             "parent": self._parent,
             "children": self._children,
         }

@@ -47,15 +47,19 @@ class BaseLoader:
             raise StopIteration
         next_fnm = self.input_data[self.iter_idx]
         self.iter_idx += 1
-        data, time = self.user_definable_load(next_fnm)
-        self._check_loaded_data(data, time)
+        time, data = self.user_definable_load(next_fnm)
+        self._check_loaded_data(time, data)
         return time, data
 
     # TODO: rename this to something better
     def user_definable_load(self, filename: str) -> list[NDArray, dt.datetime]:
         raise NotImplementedError
 
-    def _check_loaded_data(self, output_arr: NDArray, output_time: dt.datetime) -> None:
+    def _check_loaded_data(
+        self,
+        output_time: dt.datetime,
+        output_arr: NDArray,
+    ) -> None:
         # Check consistency of data shape
         if self.domain_shape is None:
             self.domain_shape = output_arr.shape
@@ -101,7 +105,7 @@ class MWELoader(BaseLoader):
         self.file_id = str(filename)
         mwe_idx = str(filename)[-5]
         time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
-        return data, time
+        return time, data
 
 
 class ChilboltonLoader(BaseLoader):
@@ -124,7 +128,7 @@ class ChilboltonLoader(BaseLoader):
             hour=int(time_id[0:2]),
             minute=int(time_id[2:4]),
         )
-        return data, time
+        return time, data
 
 
 class CSETIndiaLoader(BaseLoader):
@@ -142,7 +146,7 @@ class CSETIndiaLoader(BaseLoader):
         time_points = tcoord.units.num2pydate(tcoord.points)
         assert len(time_points) == 1
         time_points = time_points[0]
-        return data, time_points
+        return time_points, data
 
 
 class LoadingBar:

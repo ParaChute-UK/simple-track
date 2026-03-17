@@ -17,12 +17,33 @@ from utils import ArrayError, check_arrays
 class FlowSolver:
     def __init__(
         self,
-        subdomain_size=None,
-        min_fractional_coverage=0.01,
-        subdomain_tolerance=3,
-        overlap_threshold=0.6,
-        apply_tukey_filtering=True,
+        subdomain_size: int = None,
+        min_fractional_coverage: float = 0.01,
+        subdomain_tolerance: int = 3,
+        overlap_threshold: float = 0.6,
+        apply_tukey_filtering: bool = True,
     ) -> None:
+        """
+            Class containing funcitonality for deriving flow between two input frames
+
+        Args:
+            subdomain_size (int, optional):
+                Size in pixels of individual squares to run fft for (dy, dx) displacement.
+                Must divide (y,x) lengths of the array. Defaults to domain size / 5
+            min_fractional_coverage (float, optional):
+                Minimum fractional cover of objects required for fft to obtain (dy, dx) displacement
+                Defaults to 0.01.
+            subdomain_tolerance (int, optional):
+                Maximum difference in displacement values between adjacent squares (to remove
+                spurious values)
+                Defaults to 3.
+            overlap_threshold (float, optional):
+                Minimum fraction of overlap between features for use in flow_solver
+                Defaults to 0.6.
+            apply_tukey_filtering (bool, optional):
+                Apply a 2D Tukey window to each subdomain before phase cross-correlation
+                Defaults to True.
+        """
         if isinstance(subdomain_size, int):
             self.subdomain_shape = np.array([subdomain_size, subdomain_size], dtype=int)
         elif isinstance(subdomain_size, float):

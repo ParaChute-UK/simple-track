@@ -1,12 +1,14 @@
-from frame import Frame, Timeline
-from pathlib import Path
-import numpy as np
-from utils import check_arrays
-from typing import Union
 import csv
 import datetime
-from feature import Feature
 from ast import literal_eval
+from pathlib import Path
+from typing import Union
+
+import numpy as np
+
+from feature import Feature
+from frame import Frame, Timeline
+from utils import check_arrays
 
 
 class FrameOutputManager:
@@ -157,7 +159,7 @@ class LoadOutput:
             "y-flow": "y_flow",
         }
 
-    def load(self) -> Timeline:
+    def load_to_timeline(self) -> Timeline:
         timeline = Timeline()
 
         # Get list of times from output fields.
