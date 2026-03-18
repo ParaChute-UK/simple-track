@@ -89,7 +89,7 @@ class DictIterator(BaseLoader):
         time = self.iterator[self.iter_idx]
         data = self.input_data[time]
         self.iter_idx += 1
-        self._check_loaded_data(data, time)
+        self._check_loaded_data(time, data)
         return time, data
 
 

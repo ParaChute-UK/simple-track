@@ -40,6 +40,11 @@ class SimpleTrack:
         self.start_time = None  # Will be set during run()
         self.timeline = Timeline()
 
+        self.file_type = None
+        if "INPUT" in self.config.keys():
+            if "file_type" in self.config["INPUT"].keys():
+                self.file_type = self.config["INPUT"]["file_type"]
+
         if "FLOW_SOLVER" in self.config.keys():
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
         else:
@@ -50,11 +55,11 @@ class SimpleTrack:
         else:
             self.frame_tracker = FrameTracker()
 
-        if "PATH" in self.config.keys():
-            if "output" not in self.config["PATH"].keys():
+        if "OUTPUT" in self.config.keys():
+            if "path" not in self.config["OUTPUT"].keys():
                 output_path = "./output"
             else:
-                output_path = self.config["PATH"]["output"]
+                output_path = self.config["OUTPUT"]["path"]
 
         if "OUTPUT" in self.config.keys():
             if "experiment_name" in self.config["OUTPUT"].keys():
@@ -95,7 +100,7 @@ class SimpleTrack:
         load the data, although the same checks on consistent array shapes will be applied.
         """
         if input_data is None:
-            input_data = self.get_filenames_from_input_path()
+            input_data = self.get_filenames_from_input_path(file_type=self.file_type)
 
         if isinstance(input_data, list):
             valid_types = (str, Path)
@@ -105,7 +110,7 @@ class SimpleTrack:
                     f"If input_data is passed a list, it must only contain str, got {types}"
                 )
             self.loading_bar = LoadingBar(total=len(input_data))
-            self.loader = get_loader(self.config["PATH"]["loader"])(input_data)
+            self.loader = get_loader(self.config["INPUT"]["loader"])(input_data)
 
         elif isinstance(input_data, dict):
             self.loading_bar = LoadingBar(total=len(input_data.values()))
@@ -190,10 +195,32 @@ class SimpleTrack:
     #     # This is apparently already solved in Will Keats/Callum Scullion MO
     #     # code so don't need to reinvent the wheel here.
 
-    def get_filenames_from_input_path(self, input_path: str = None) -> list:
+    def get_filenames_from_input_path(
+        self, input_path: str = None, file_type: str = None
+    ) -> list:
+        """
+        Get a list of filenames from a given input path matching a given
+        file type
+
+        Args:
+            input_path (str, optional):
+                Input path to search for filenames
+                Defaults to self.config["INPUT"]["path"]
+            file_type (str, optional):
+                File type to search input_path for
+                Defaults to .nc
+
+        Raises:
+            Exception: _description_
+
+        Returns:
+            list: _description_
+        """
         if input_path is None:
-            input_path = self.config["PATH"]["data"]
-        supported_filetypes = [".nc", ".npy"]
+            input_path = self.config["INPUT"]["path"]
+        supported_filetypes = [".nc"]
+        if file_type is not None:
+            supported_filetypes.append(file_type)
         filenames = sorted(
             [
                 p

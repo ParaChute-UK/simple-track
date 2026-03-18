@@ -1,20 +1,14 @@
 # Test config file for reading Chilbolton data
 
-PATH:
-  data: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/data
+INPUT:
+  path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/data
   loader: ChilboltonLoader
-  output: ./output_chilbolton_oost_test
+  file_type: .nc
 
 OUTPUT:
   experiment_name: chilbolton_test
+  path: ./output_chilbolton_oost_test
   save_data: true
-  save_plots: true
-  plot_format: png
-
-DATETIME:
-  time_interval: 5 
-  time_interval_tolerance: 15 # Maximum separation in time allowed between consecutive images
-  # Should default the above to be 3 * time_interval if not specified
 
 FEATURE:
   threshold: 3 ## Threshold used to identify objects (with value of variable greater than this threshold)

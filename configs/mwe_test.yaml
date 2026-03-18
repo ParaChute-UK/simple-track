@@ -1,19 +1,14 @@
 # Test config file for MWE
-PATH:
-  data: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/tests/mwe_test_files
+
+INPUT:
+  path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/tests/mwe_test_files
   loader: MWELoader
-  output: ./output_mwe_oost
+  file_type: .npy
 
 OUTPUT:
+  path: ./output_mwe_oost
   experiment_name: mwe_test
   save_data: true
-  save_plots: true
-  plot_format: png
-
-DATETIME:
-  time_interval: 5 
-  time_interval_tolerance: 15 # Maximum separation in time allowed between consecutive images
-  # Should default the above to be 3 * time_interval if not specified
 
 FEATURE:
   threshold: 0.5 ## Threshold used to identify objects (with value of variable greater than this threshold)

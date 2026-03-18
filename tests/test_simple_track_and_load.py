@@ -132,7 +132,7 @@ def test_BaseLoader(test_arr, test_time, expected_result):
     loader = BaseLoader([])
     loader.domain_shape = (10, 10)
     try:
-        loader._check_loaded_data(test_arr, test_time)
+        loader._check_loaded_data(test_time, test_arr)
     except expected_result:
         pass
 

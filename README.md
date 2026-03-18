@@ -40,8 +40,8 @@ Simple-Track can be run in one of two ways:
 * The `my_config.yaml` file contains the parameters for running Simple-Track. The necessary parameters for running Simple-Track from the command line are shown below:
 
 	```yaml
-	PATH:
-		data: /path_to_folder_containing_data
+	INPUT:
+		path: /path_to_folder_containing_data
 		loader: LoaderName # See next section
 	FEATURE:
 		threshold: 1 # Threshold used for defining a feature
@@ -166,12 +166,13 @@ Alternatively, the data that is output by Simple-Track can be read back in to a 
 A complete list of parameters and their deftault values are given below:
 
 ```yaml
-PATH:
-  data: ./path_to_input_data
+INPUT:
+  path: ./path_to_input_data
   loader: MyLoader # Custom loader class name
-  output: ./output
+  file_type: .nc # File extension to search for when compiling files to load and iterate over
 
 OUTPUT:
+  path: ./output
   experiment_name: Simple-Track Experiment # Name of experiment to add to output files 
   save_data: true # Whether to save data to output
 
@@ -179,6 +180,7 @@ FEATURE:
   threshold: 1 # Threshold used for defining a feature
   under_threshold: false # Whether features are defined above or below the threshold
   min_size: 4 # Minimum size of feature to be tracked (in pixels)
+  connectivity: all # Determines connectivity between feature pixels. Valid choices are "all", "diagonal", "cardinal"
 
 FLOW_SOLVER:
   overlap_threshold: 0.6 # Minimum fraction of overlap between features for use in flow_solver
