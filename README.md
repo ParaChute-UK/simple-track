@@ -61,8 +61,8 @@ Simple-Track can be run in one of two ways:
 	from simple_track import SimpleTrack
 
 	my_config = {
-		PATH: {
-			data: "/path_to_folder_containing_data",
+		INPUT: {
+			path: "/path_to_folder_containing_data",
 			loader: "LoaderName" # See next section
 		},
 		FEATURE: {
@@ -127,15 +127,15 @@ will perform additional checks to ensure the loaded data is in the correct forma
 * A Loader object can be used whether Simple-Track is being run [from the command line](#1-running-simple-track-from-the-command-line) or [from a python file](#2-importing-simple-track-to-a-python-file). 
 
 * The list of filenames which will be iteratively loaded using a custom `Loader` object can be obtained and input in multiple ways:
-	* If running Simple-Track [from the command line](#1-running-simple-track-from-the-command-line), the code will find all files in the config `[PATH][data]` directory matching a given extension defined in `SimpleTrack.get_filenames_from_input_path()`
-	* If running Simple-Track [from a python file](#2-importing-simple-track-to-a-python-file), a list of filenames can be passed to `SimpleTrack.run()`. Alternatively, if no filenames are passed to this method, the code will find all files in the config `[PATH][data]` directory matching a given extension defined in `SimpleTrack.get_filenames_from_input_path()`
+	* If running Simple-Track [from the command line](#1-running-simple-track-from-the-command-line), the code will find all files in the config `[INPUT][path]` directory matching a given extension defined in `SimpleTrack.get_filenames_from_input_path()`
+	* If running Simple-Track [from a python file](#2-importing-simple-track-to-a-python-file), a list of filenames can be passed to `SimpleTrack.run()`. Alternatively, if no filenames are passed to this method, the code will find all files in the config `[INPUT][path]` directory matching a given extension defined in `SimpleTrack.get_filenames_from_input_path()`
 
 ### 2. Passing a dict directly to SimpleTrack.run()
 * If SimpleTrack is being run [from a python file](#2-importing-simple-track-to-a-python-file) and a suitable set of data has already been loaded, this data can be passed directly to `SimpleTrack.run()` as a `dict`, with the `datetime` object as the key and a `numpy.array` object as the value
 
 * Any number of time:data pairs can be passed to `SimpleTrack.run()` and the code will iterate over the ordered dict.
 
-* Passing data into `SimpleTrack.run()` via this method will bypass any `Loader` or `[PATH][data]` inputs specified in the corresponding config file. 
+* Passing data into `SimpleTrack.run()` via this method will bypass any `Loader` or `[INPUT][path]` inputs specified in the corresponding config file. 
 
 
 # Outputs
