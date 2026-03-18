@@ -451,6 +451,10 @@ def label_features(
     # Check input types
     field = check_arrays(field, ndim=2)
 
+    # Handle isntance of MaskedArray by filling any masked areas with 0 (background)
+    if isinstance(field, np.ma.MaskedArray):
+        field = field.filled(fill_value=0)
+
     if not isinstance(min_area, (int, float)) or min_area < 0:
         raise ValueError("min_area must be a non-negative number")
     if not isinstance(threshold, (int, float)):

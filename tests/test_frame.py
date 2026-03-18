@@ -41,6 +41,25 @@ def test_label_features_with_values_under_min_area():
     np.testing.assert_array_equal(feature_field, expected_field)
 
 
+def test_label_features_masked_array():
+    test_data = np.zeros((10, 10))
+    test_data[3:5, 3:5] = 1
+    expected_field = test_data.copy()
+
+    # Add data to be masked
+    test_data[6:9, 6:9] = 1
+    test_mask = np.zeros_like(test_data)
+    test_mask[6:9, 6:9] = 1
+
+    test_arr = np.ma.MaskedArray(data=test_data, mask=test_mask)
+
+    frame = Frame()
+    frame.raw_field = test_arr
+
+    feature_field = label_features(test_arr, threshold=0.9, min_area=1)
+    np.testing.assert_array_equal(feature_field, expected_field)
+
+
 test_field = np.zeros((10, 10))
 
 
