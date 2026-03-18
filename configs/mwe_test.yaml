@@ -3,7 +3,7 @@
 INPUT:
   path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/tests/mwe_test_files
   loader: MWELoader
-  file_type: .npy
+  file_type: .field
 
 OUTPUT:
   path: ./output_mwe_oost

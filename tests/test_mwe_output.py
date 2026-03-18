@@ -67,7 +67,7 @@ def generate_mwe_files(save_path=None):
         Path(save_path).mkdir(parents=True, exist_ok=True)
 
         for mwe_idx, mwe in enumerate(mwe_fields):
-            np.save(f"{save_path}/mwe_dt{mwe_idx + 1}.npy", mwe)
+            np.savetxt(f"{save_path}/mwe_dt{mwe_idx + 1}.field", mwe)
     return mwe_fields
 
 
@@ -114,3 +114,9 @@ def test_second_mwe_outputs(mwe_timeline):
     frame_time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
     frame = mwe_timeline.get_frame(frame_time)
     print(frame)
+
+
+if __name__ == "__main__":
+    mwe_file_path = "./mwe_test_files"
+    Path(mwe_file_path).mkdir(parents=True, exist_ok=True)
+    generate_mwe_files("./mwe_test_files")

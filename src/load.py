@@ -101,9 +101,9 @@ class MWELoader(BaseLoader):
         import numpy as np
 
         base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
-        data = np.load(filename)
+        data = np.loadtxt(filename)
         self.file_id = str(filename)
-        mwe_idx = str(filename)[-5]
+        mwe_idx = str(filename)[-7]
         time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
         return time, data
 
