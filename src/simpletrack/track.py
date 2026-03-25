@@ -2,20 +2,19 @@
 Run the SimpleTrack algorithm to track objects through a sequence of images
 """
 
-import sys
 from pathlib import Path
 from typing import Union
 
 from yaml import safe_load
 
-from flow_solver import FlowSolver
-from frame import Frame, Timeline
-from frame_output import FrameOutputManager
-from frame_tracker import FrameTracker
-from load import ConfigError, DictIterator, LoadingBar, get_loader
+from simpletrack.flow_solver import FlowSolver
+from simpletrack.frame import Frame, Timeline
+from simpletrack.frame_output import FrameOutputManager
+from simpletrack.frame_tracker import FrameTracker
+from simpletrack.load import ConfigError, DictIterator, LoadingBar, get_loader
 
 
-class SimpleTrack:
+class Tracker:
     def __init__(self, config_input: Union[str | dict]) -> None:
         """
         Initialize SimpleTrack with configuration file
@@ -218,9 +217,21 @@ class SimpleTrack:
         """
         if input_path is None:
             input_path = self.config["INPUT"]["path"]
+
         supported_filetypes = [".nc"]
         if file_type is not None:
-            supported_filetypes.append(file_type)
+            if isinstance(file_type, str):
+                supported_filetypes.append(file_type)
+            elif isinstance(file_type, list):
+                if not all([isinstance(val, str) for val in file_type]):
+                    raise TypeError(
+                        f"Expected list to contain only str, gt {[type(val) for val in file_type]}"
+                    )
+                for ftype in file_type:
+                    supported_filetypes.append(ftype)
+            else:
+                raise TypeError(f"Expected list or str, got {type(file_type)}")
+
         filenames = sorted(
             [
                 p
@@ -229,7 +240,7 @@ class SimpleTrack:
             ]
         )
         if len(filenames) == 0:
-            raise Exception(f"No files found in directory: {input_path}")
+            raise FileNotFoundError(f"No files found in directory: {input_path}")
         return filenames
 
     def _read_config(self, config_path: str) -> dict:
@@ -270,13 +281,3 @@ class SimpleTrack:
         #     )
         if "threshold" not in config["FEATURE"].keys():
             raise ConfigError("config missing required threshold input")
-
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        raise Exception("Running SimpleTrack requires path to at least one config")
-
-    config_paths = sys.argv[1:]
-    for config_path in config_paths:
-        # With None passed into run method, uses input path in config
-        SimpleTrack(config_path).run()

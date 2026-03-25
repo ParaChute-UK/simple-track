@@ -10,8 +10,8 @@ from scipy.interpolate import LinearNDInterpolator, RectBivariateSpline
 from scipy.signal.windows import tukey
 from skimage.registration import phase_cross_correlation
 
-from frame import Frame
-from utils import ArrayError, check_arrays
+from simpletrack.frame import Frame
+from simpletrack.utils import ArrayError, check_arrays
 
 
 class FlowSolver:

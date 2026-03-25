@@ -6,9 +6,9 @@ from typing import Union
 
 import numpy as np
 
-from feature import Feature
-from frame import Frame, Timeline
-from utils import check_arrays
+from simpletrack.feature import Feature
+from simpletrack.frame import Frame, Timeline
+from simpletrack.utils import check_arrays
 
 
 class FrameOutputManager:

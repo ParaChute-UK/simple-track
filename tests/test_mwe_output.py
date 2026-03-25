@@ -1,14 +1,10 @@
 import datetime as dt
-import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-sys.path.append(
-    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
-)
-from simple_track import SimpleTrack
+from simpletrack.track import Tracker
 
 
 def generate_mwe_files(save_path=None):
@@ -96,7 +92,7 @@ def mwe_timeline():
         },
         "TRACKING": {"overlap_nbhood": 5, "overlap_threshold": 0.3},
     }
-    timeline = SimpleTrack(mwe_config).run(mwe_dict)
+    timeline = Tracker(mwe_config).run(mwe_dict)
     return timeline
 
 

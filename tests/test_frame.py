@@ -1,15 +1,16 @@
 import datetime as dt
-import sys
 
 import numpy as np
 import pytest
 
-sys.path.append(
-    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
+from simpletrack.feature import Feature
+from simpletrack.frame import FeaturesNotFoundError, Frame, Timeline, label_features
+from simpletrack.utils import (
+    ArrayShapeError,
+    ArrayTypeError,
+    FloatIDError,
+    NegativeIDError,
 )
-from feature import Feature
-from frame import FeaturesNotFoundError, Frame, Timeline, label_features
-from utils import ArrayShapeError, ArrayTypeError, FloatIDError, NegativeIDError
 
 
 def test_label_features_valid_inputs():

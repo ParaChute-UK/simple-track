@@ -3,7 +3,7 @@ from typing import Union
 
 from numpy.typing import NDArray
 
-from utils import check_arrays
+from simpletrack.utils import check_arrays
 
 
 class ConfigError(Exception):

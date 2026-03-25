@@ -1,22 +1,17 @@
-import sys
+import datetime as dt
 
 import numpy as np
 import pytest
 
-sys.path.append(
-    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
-)
-import datetime as dt
-
-from feature import Feature
-from frame import Frame
-from frame_tracker import (
+from simpletrack.feature import Feature
+from simpletrack.frame import Frame
+from simpletrack.frame_tracker import (
     FrameTracker,
     advect_field_using_motion_vectors,
     generate_radial_mask,
     get_centroid,
 )
-from utils import (
+from simpletrack.utils import (
     ArrayError,
     ArrayShapeError,
     ArrayTypeError,

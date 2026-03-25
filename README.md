@@ -34,7 +34,7 @@ Simple-Track can be run in one of two ways:
 * Simple-Track can be run from the command line with a config file as an additional argument:
 
 	```
-	python3 simple_track.py my_config.yaml 
+	python3 run_simple_track.py my_config.yaml 
 	```
 
 * The `my_config.yaml` file contains the parameters for running Simple-Track. The necessary parameters for running Simple-Track from the command line are shown below:
@@ -58,7 +58,7 @@ Simple-Track can be run in one of two ways:
 * Simple-Track can be run by importing the `SimpleTrack` class from `simple_track.py`. The config can be input either using a path to a yaml file, or by passing a dict when instantiating the object:
 
 	```python
-	from simple_track import SimpleTrack
+	from simpletrack import Tracker
 
 	my_config = {
 		INPUT: {
@@ -71,16 +71,16 @@ Simple-Track can be run in one of two ways:
 		}
 	}
 
-	timeline = SimpleTrack(my_config).run()
+	timeline = Tracker(my_config).run()
 
 	# Alternatively, if these parameters are saved in a config file, the path to this config can also be set as input
-	timeline = SimpleTrack("./my_config.yaml").run()
+	timeline = Tracker("./my_config.yaml").run()
 	```
 * Other parameters, such as `experiment_name`, `output_path` and `save_data`, along with more technical options, can also be set in this config. See [All Simple-Track Parameters](#all-simple-track-parameters) for a full list.
 
-* If `loader` is included as a config input, a valid `Loader` object is used for pre-processing input data before tracking. Alternatively, valid pre-processed data may be passed to the `SimpleTrack.run()` method, bypassing the use of the `Loader` class. See [Loading Data](#loading-data) for more information.
+* If `loader` is included as a config input, a valid `Loader` object is used for pre-processing input data before tracking. Alternatively, valid pre-processed data may be passed to the `Tracker.run()` method, bypassing the use of the `Loader` class. See [Loading Data](#loading-data) for more information.
 
-* `SimpleTrack.run()` returns a `Timeline` object which is used to store all tracking and feature data. This can be inspected and analysed beyond the [outputs](#outputs) that are saved as part of standard operation.
+* `Tracker.run()` returns a `Timeline` object which is used to store all tracking and feature data. This can be inspected and analysed beyond the [outputs](#outputs) that are saved as part of standard operation.
 
 ## Loading Data
 
@@ -127,15 +127,15 @@ will perform additional checks to ensure the loaded data is in the correct forma
 * A Loader object can be used whether Simple-Track is being run [from the command line](#1-running-simple-track-from-the-command-line) or [from a python file](#2-importing-simple-track-to-a-python-file). 
 
 * The list of filenames which will be iteratively loaded using a custom `Loader` object can be obtained and input in multiple ways:
-	* If running Simple-Track [from the command line](#1-running-simple-track-from-the-command-line), the code will find all files in the config `[INPUT][path]` directory matching a given extension defined in `SimpleTrack.get_filenames_from_input_path()`
-	* If running Simple-Track [from a python file](#2-importing-simple-track-to-a-python-file), a list of filenames can be passed to `SimpleTrack.run()`. Alternatively, if no filenames are passed to this method, the code will find all files in the config `[INPUT][path]` directory matching a given extension defined in `SimpleTrack.get_filenames_from_input_path()`
+	* If running Simple-Track [from the command line](#1-running-simple-track-from-the-command-line), the code will find all files in the config `[INPUT][path]` directory matching a given extension defined in `Tracker.get_filenames_from_input_path()`
+	* If running Simple-Track [from a python file](#2-importing-simple-track-to-a-python-file), a list of filenames can be passed to `Tracker.run()`. Alternatively, if no filenames are passed to this method, the code will find all files in the config `[INPUT][path]` directory matching a given extension defined in `Tracker.get_filenames_from_input_path()`
 
-### 2. Passing a dict directly to SimpleTrack.run()
-* If SimpleTrack is being run [from a python file](#2-importing-simple-track-to-a-python-file) and a suitable set of data has already been loaded, this data can be passed directly to `SimpleTrack.run()` as a `dict`, with the `datetime` object as the key and a `numpy.array` object as the value
+### 2. Passing a dict directly to Tracker.run()
+* If SimpleTrack is being run [from a python file](#2-importing-simple-track-to-a-python-file) and a suitable set of data has already been loaded, this data can be passed directly to `Tracker.run()` as a `dict`, with the `datetime` object as the key and a `numpy.array` object as the value
 
-* Any number of time:data pairs can be passed to `SimpleTrack.run()` and the code will iterate over the ordered dict.
+* Any number of time:data pairs can be passed to `Tracker.run()` and the code will iterate over the ordered dict.
 
-* Passing data into `SimpleTrack.run()` via this method will bypass any `Loader` or `[INPUT][path]` inputs specified in the corresponding config file. 
+* Passing data into `Tracker.run()` via this method will bypass any `Loader` or `[INPUT][path]` inputs specified in the corresponding config file. 
 
 
 # Outputs
@@ -158,12 +158,12 @@ Features (`.csv` or `.txt` files):
 * parent: ID of parent feature that this feature split from, if applicable
 * children: List of IDs of features that split from this feature, if applicable
 
-It it also possible to perform further analysis of tracking statistics using the data structures and tools of Simple-Track. This can be done using the `Timeline` object returned by `SimpleTrack.run()`, which contains `Frame` and `Feature` data and built-in methods for easily accessing relevant data. 
+It it also possible to perform further analysis of tracking statistics using the data structures and tools of Simple-Track. This can be done using the `Timeline` object returned by `Tracker.run()`, which contains `Frame` and `Feature` data and built-in methods for easily accessing relevant data. 
 
 Alternatively, the data that is output by Simple-Track can be read back in to a `Timeline` object using the `LoadOutput` class in `frame_output.py`. This object only requires a path to the stored Simple-Track data. The `LoadOutput.load_to_timeline()` method will return a `Timeline` object containing all of the loaded data in the same data structures that Simple-Track stores its data. (Note: this does not currently load the raw input data back into the system, and therefore some methods such as `Frame.identify_features()` will not work. This data can be added manually to the `Frame.raw_field` attribute). 
 
 # All Simple-Track Parameters
-A complete list of parameters and their deftault values are given below:
+A complete list of parameters and their default values are given below:
 
 ```yaml
 INPUT:

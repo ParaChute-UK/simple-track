@@ -1,17 +1,13 @@
 import datetime as dt
-import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
 
-sys.path.append(
-    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
-)
-from frame import Frame
-from load import BaseLoader, ConfigError, DictIterator
-from simple_track import SimpleTrack
-from utils import ArrayShapeError, ArrayTypeError
+from simpletrack.frame import Frame
+from simpletrack.load import BaseLoader, ConfigError, DictIterator
+from simpletrack.track import Tracker
+from simpletrack.utils import ArrayShapeError, ArrayTypeError
 
 test_time = dt.datetime(2026, 1, 1, 0, 0, 0)
 
@@ -24,7 +20,7 @@ def test_check_valid_config():
         },
         "FEATURE": {"threshold": 4},
     }
-    SimpleTrack._check_config(None, test_config)
+    Tracker._check_config(None, test_config)
 
 
 def test_catch_missing_sections_in_config():
@@ -36,7 +32,7 @@ def test_catch_missing_sections_in_config():
         # "FEATURE": {"threshold": 4},
     }
     try:
-        SimpleTrack._check_config(None, test_config)
+        Tracker._check_config(None, test_config)
     except ConfigError:
         pass
 
@@ -48,7 +44,7 @@ def test_catch_missing_sections_in_config():
         "FEATURE": {"threshold": 4},
     }
     try:
-        SimpleTrack._check_config(None, test_config)
+        Tracker._check_config(None, test_config)
     except ConfigError:
         pass
 
@@ -61,7 +57,7 @@ def test_catch_missing_keys_in_config():
         "FEATURE": {"threshold": 4},
     }
     try:
-        SimpleTrack._check_config(None, test_config)
+        Tracker._check_config(None, test_config)
     except ConfigError:
         pass
 
@@ -72,19 +68,19 @@ def test_catch_missing_keys_in_config():
         "FEATURE": {},
     }
     try:
-        SimpleTrack._check_config(None, test_config)
+        Tracker._check_config(None, test_config)
     except ConfigError:
         pass
 
 
 def test_invalid_config_input():
     try:
-        SimpleTrack(54)
+        Tracker(54)
     except TypeError:
         pass
 
     try:
-        SimpleTrack([4, 5, 6])
+        Tracker([4, 5, 6])
     except TypeError:
         pass
 
@@ -93,23 +89,58 @@ def test_invalid_config_input():
     "extensions, expected_result",
     [
         [["nc", "nc"], True],
-        [["npy", "npy"], True],
-        [["nc", "npy"], True],  # TODO: this should probably raise something
-        [["npy", "png"], True],
+        [["npy", "npy"], FileNotFoundError],
+        [["nc", "npy"], True],
+        [["npy", "png"], FileNotFoundError],
         [["pdf", "nc"], True],
-        [["png", "png"], Exception],
+        [["png", "png"], FileNotFoundError],
     ],
 )
 def test_get_filenames_from_input_path(tmp_path, extensions, expected_result):
     # Create two files in temp directory
+    tmp_path.mkdir(exist_ok=True)
     files = [Path(f"{tmp_path}/f{f}.{ext}") for f, ext in enumerate(extensions)]
-    files[0].parent.mkdir(exist_ok=True)
     for file in files:
         file.touch()
-    expected_files = [f for f in files if f.suffix in [".nc", ".npy"]]
+    expected_files = [f for f in files if f.suffix in [".nc"]]
 
     try:
-        retrieved_files = SimpleTrack.get_filenames_from_input_path(None, tmp_path)
+        retrieved_files = Tracker.get_filenames_from_input_path(None, tmp_path)
+        assert expected_files == retrieved_files
+    except expected_result as e:
+        print(e)
+
+
+@pytest.mark.parametrize(
+    "extensions_to_seed, extensions_to_find, expected_result",
+    [
+        [["field", "data"], [".field", ".data"], True],
+        [["field"], ".field", True],
+        [[".notdata"], [".field", ".data"], FileNotFoundError],
+        [["field", "data"], [".nc", 1, 2], TypeError],
+        [["field", "data"], 22, TypeError],
+    ],
+)
+def test_get_filenames_from_input_path_with_added_valid_inputs(
+    tmp_path, extensions_to_seed, extensions_to_find, expected_result
+):
+    # Create two files in temp directory
+    tmp_path.mkdir(exist_ok=True)
+    if isinstance(extensions_to_find, (list, str)):
+        files = [
+            Path(f"{tmp_path}/f{f}.{ext}") for f, ext in enumerate(extensions_to_seed)
+        ]
+    else:
+        files = []
+
+    for file in files:
+        file.touch()
+    expected_files = [f for f in files if f.suffix in extensions_to_find]
+
+    try:
+        retrieved_files = Tracker.get_filenames_from_input_path(
+            None, tmp_path, file_type=extensions_to_find
+        )
         assert expected_files == retrieved_files
     except expected_result as e:
         print(e)
@@ -158,7 +189,7 @@ def test_Frame_import_time_and_data(test_arr, test_time, expected_result):
         {dt.datetime.now: "not an array"},
     ],
 )
-def test_catch_invalid_SimpleTrack_run_inputs(invalid_input):
+def test_catch_invalid_Tracker_run_inputs(invalid_input):
     test_config = {
         "DATETIME": {"start_time": dt.datetime.now()},
         "PATH": {
@@ -168,7 +199,7 @@ def test_catch_invalid_SimpleTrack_run_inputs(invalid_input):
         "FEATURE": {"threshold": 4},
     }
     try:
-        tracker = SimpleTrack(test_config)
+        tracker = Tracker(test_config)
         tracker.run(invalid_input)
     except TypeError:
         pass
@@ -177,7 +208,7 @@ def test_catch_invalid_SimpleTrack_run_inputs(invalid_input):
 @pytest.mark.parametrize(
     "invalid_input", [[1, 2, 3], [1.0, 2.0, 3.0], np.array((1, 2, 3)), 3, 4.5]
 )
-def test_catch_invalid_SimpleTrack_run_dict_inputs(invalid_input):
+def test_catch_invalid_Tracker_run_dict_inputs(invalid_input):
     test_config = {
         "DATETIME": {"start_time": dt.datetime.now()},
         "PATH": {
@@ -187,7 +218,7 @@ def test_catch_invalid_SimpleTrack_run_dict_inputs(invalid_input):
         "FEATURE": {"threshold": 4},
     }
     try:
-        tracker = SimpleTrack(test_config)
+        tracker = Tracker(test_config)
         tracker.run(invalid_input)
     except TypeError:
         pass

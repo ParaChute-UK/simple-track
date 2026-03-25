@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Simple-Track"
+version = "2.0.0"
+authors = [
+  { name="Adam Gainford", email="adam.gainford@reading.ac.uk" },
+  { name="Thorwald Stein", email="t.h.m.stein@reading.ac.uk"} 
+]
+description = "Threshold-based object tracking algorithm for 2D data "
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MPL-2.0"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/ParaChute-UK/simple-track/"
+Issues = "https://github.com/ParaChute-UK/simple-track/issues"
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+minversion = "7"
+pythonpath = ["src"]
+testpaths = ["tests"]

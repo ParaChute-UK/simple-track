@@ -5,8 +5,8 @@ import numpy as np
 import scipy.ndimage as ndimage
 from numpy.typing import NDArray
 
-from feature import Feature
-from utils import check_arrays, check_valid_ids
+from simpletrack.feature import Feature
+from simpletrack.utils import check_arrays, check_valid_ids
 
 
 class FeaturesNotFoundError(Exception):

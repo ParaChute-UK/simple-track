@@ -1,13 +1,7 @@
-import sys
-
+import numpy as np
 import pytest
 
-sys.path.append(
-    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
-)
-import numpy as np
-
-from utils import (
+from simpletrack.utils import (
     ArrayShapeError,
     ArrayTypeError,
     FloatIDError,

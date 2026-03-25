@@ -1,14 +1,8 @@
-import sys
-
+import numpy as np
 import pytest
 
-sys.path.append(
-    "/Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/src"
-)
-import numpy as np
-
-from flow_solver import FlowSolver, pairwise_with_stride
-from utils import (
+from simpletrack.flow_solver import FlowSolver, pairwise_with_stride
+from simpletrack.utils import (
     ArrayError,
     ArrayShapeError,
     ArrayTypeError,

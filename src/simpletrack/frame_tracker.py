@@ -3,9 +3,9 @@ from typing import Union
 import numpy as np
 from numpy.typing import NDArray
 
-from feature import Feature
-from frame import Frame
-from utils import check_arrays, check_valid_ids, native
+from simpletrack.feature import Feature
+from simpletrack.frame import Frame
+from simpletrack.utils import check_arrays, check_valid_ids, native
 
 
 class FrameTracker:
