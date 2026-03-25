@@ -190,6 +190,7 @@ FLOW_SOLVER:
   apply_tukey_filtering: True # Apply a 2D Tukey window to each subdomain before phase cross-correlation
 
 TRACKING:
+  skip_tracking: false # Whether to skip tracking and just output feature properties
   overlap_nbhood: 5 # Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
   overlap_threshold: 0.6 # Minimum fraction of overlap 
   retain_lifetime_on_split: True # If a child Feature splits from its parent feature, this determines whether the child Feature should carry over the lifetime from the parent or whether its lifetime should be set to 1

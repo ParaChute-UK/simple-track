@@ -49,8 +49,12 @@ class Tracker:
         else:
             self.flow_solver = FlowSolver()
 
+        # Whether to skip tracking and just output Feature properties
+        self.skip_tracking = False
         if "TRACKING" in self.config.keys():
             self.frame_tracker = FrameTracker(**self.config["TRACKING"])
+            if "skip_tracking" in self.config["TRACKING"].keys():
+                self.skip_tracking = self.config["TRACKING"]["skip_tracking"]
         else:
             self.frame_tracker = FrameTracker()
 
@@ -131,7 +135,7 @@ class Tracker:
             self.timeline.add_to_timelime(frame)
 
             # If this is the first frame, skip tracking
-            if len(self.timeline.timeline) == 1:
+            if len(self.timeline.timeline) == 1 or self.skip_tracking:
                 # Output frame data to text file or npy file if flagged
                 if self.frame_output is not None:
                     self.frame_output.features_to_txt(frame)

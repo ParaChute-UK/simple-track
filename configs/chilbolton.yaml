@@ -23,6 +23,7 @@ FLOW_SOLVER:
   apply_tukey_filtering: True
 
 TRACKING:
+  skip_tracking: false # Whether to skip tracking and just output feature properties
   overlap_nbhood: 2 ## Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
   overlap_threshold: 0.4 ## Minimum fraction of overlap (0.6 in TITAN)
   retain_lifetime_on_split: True
