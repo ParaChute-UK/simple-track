@@ -154,11 +154,14 @@ class LoadingBar:
         self.total = total
         self.bar_length = bar_length
         init_padding = int(self.bar_length) * " "
-        print(f"Progress: [{init_padding}] 0%", end="\r")
+        print(f"Simple-Track Progress: [{init_padding}] 0/{self.total} (0%)", end="\r")
 
     def update_progress(self, current):
         fraction = current / self.total
         arrow = int(fraction * self.bar_length - 1) * "-" + ">"
         padding = int(self.bar_length - len(arrow)) * " "
         ending = "\n" if current == self.total else "\r"
-        print(f"Progress: [{arrow}{padding}] {int(fraction * 100)}%", end=ending)
+        print(
+            f"Simple-Track Progress: [{arrow}{padding}] {current}/{self.total} ({int(fraction * 100)}%) ",
+            end=ending,
+        )

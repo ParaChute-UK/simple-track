@@ -78,7 +78,7 @@ Simple-Track can be run in one of two ways:
 	```
 * Other parameters, such as `experiment_name`, `output_path` and `save_data`, along with more technical options, can also be set in this config. See [All Simple-Track Parameters](#all-simple-track-parameters) for a full list.
 
-* If `loader` is included as a config input, a valid `Loader` object is used for pre-processing input data before tracking. Alternatively, valid pre-processed data may be passed to the `Tracker.run()` method, bypassing the use of the `Loader` class. See [Loading Data](#loading-data) for more information.
+* If `loader` is included as a config input, a valid `Loader` object is used for pre-processing input data before tracking. Alternatively, valid pre-processed data may be passed to the `Tracker.run()` method, bypassing the use of the `Loader` class, and eliminating the need for the `INPUT` config section. See [Loading Data](#loading-data) for more information.
 
 * `Tracker.run()` returns a `Timeline` object which is used to store all tracking and feature data. This can be inspected and analysed beyond the [outputs](#outputs) that are saved as part of standard operation.
 
@@ -180,7 +180,6 @@ FEATURE:
   threshold: 1 # Threshold used for defining a feature
   under_threshold: false # Whether features are defined above or below the threshold
   min_size: 4 # Minimum size of feature to be tracked (in pixels)
-  connectivity: all # Determines connectivity between feature pixels. Valid choices are "all", "diagonal", "cardinal"
 
 FLOW_SOLVER:
   overlap_threshold: 0.6 # Minimum fraction of overlap between features for use in flow_solver

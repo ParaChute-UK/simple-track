@@ -297,7 +297,7 @@ class Frame:
             feature for feature in self.features.values() if feature.is_dissipating()
         ]
 
-    def get_init_field(self, centroid_only: bool = True) -> NDArray:
+    def get_init_field(self, centroid_only: bool = False) -> NDArray:
         """
         Get a binary field of locations where features are newly initialising, where
         new features are ones that are not matched with a feature in the previous frame,
@@ -305,7 +305,7 @@ class Frame:
         """
         return self.get_field("init", centroid_only)
 
-    def get_dissipation_field(self, centroid_only: bool = True) -> NDArray:
+    def get_dissipation_field(self, centroid_only: bool = False) -> NDArray:
         """
         Get a binary field of locations where features are dissipating, where
         these are ones that are not matched with a feature in the next frame, and

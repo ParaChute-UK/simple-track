@@ -136,6 +136,7 @@ class Tracker:
 
             # If this is the first frame, skip tracking
             if len(self.timeline.timeline) == 1 or self.skip_tracking:
+                self.loading_bar.update_progress(fnm_idx + 1)
                 # Output frame data to text file or npy file if flagged
                 if self.frame_output is not None:
                     self.frame_output.features_to_txt(frame)
