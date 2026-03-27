@@ -18,7 +18,6 @@ class ConfigError(Exception):
 def get_loader(loader_key: str):
     available_loaders = {
         "MWELoader": MWELoader,
-        "CSETIndiaLoader": CSETIndiaLoader,
         "ChilboltonLoader": ChilboltonLoader,
     }
     try:
@@ -129,24 +128,6 @@ class ChilboltonLoader(BaseLoader):
             minute=int(time_id[2:4]),
         )
         return time, data
-
-
-class CSETIndiaLoader(BaseLoader):
-    def __init__(self, filenames):
-        super().__init__(filenames)
-
-    def user_definable_load(self, filename):
-        import iris
-
-        cube = iris.load_cube(filename, "precipitation_flux")
-        # data is (401, 401) - cut the first elements out
-        data = cube.data[1:, 1:]
-        assert data.ndim == 2
-        tcoord = cube.coord("time")
-        time_points = tcoord.units.num2pydate(tcoord.points)
-        assert len(time_points) == 1
-        time_points = time_points[0]
-        return time_points, data
 
 
 class LoadingBar:
