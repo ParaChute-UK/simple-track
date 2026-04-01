@@ -45,7 +45,7 @@ class FrameOutputManager:
             if self.start_time is not None:
                 output_file.write(f"Start time: {self.start_time}\n")
             output_file.write(f"Frame time: {frame_time_str}\n")
-            output_file.write(f"Total tracked features: {frame.get_max_id()}\n")
+            output_file.write(f"Total tracked features: {frame.max_id}\n")
 
             frame_features_dict = frame.features
 
@@ -68,7 +68,7 @@ class FrameOutputManager:
             if self.start_time is not None:
                 writer.writerow([f"Start time: {self.start_time}"])
             writer.writerow([f"Frame time: {frame_time_str}"])
-            writer.writerow([f"Total tracked features: {frame.get_max_id()}"])
+            writer.writerow([f"Total tracked features: {frame.max_id}"])
 
             # Write data
             frame_features_dict = frame.features

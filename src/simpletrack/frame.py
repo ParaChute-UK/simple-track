@@ -24,7 +24,7 @@ class Frame:
         self.raw_field = None
         self._feature_field = None
         self._lifetime_field = None
-        self.max_id = None
+        self._max_id = None
         self._features = {}
         self.y_flow = None
         self.x_flow = None
@@ -96,6 +96,22 @@ class Frame:
         """
         return self._lifetime_field
 
+    @property
+    def max_id(self) -> int:
+        """
+        Returns max_id of features in the frame.
+        """
+        return self._max_id
+
+    @max_id.setter
+    def max_id(self, max_id: int) -> None:
+        """
+        Sets the max_id used for assigning to features that do not match to another
+        feature from a previous timestep
+        """
+        max_id = check_valid_ids(max_id)
+        self._max_id = max_id
+
     def get_feature(self, feature_id: int) -> Feature:
         """
         Get a feature matching the given id if present in the current field,
@@ -115,20 +131,6 @@ class Frame:
         returns [None, None]
         """
         return self.y_flow, self.x_flow
-
-    def get_max_id(self) -> int:
-        """
-        Returns max_id of features in the frame.
-        """
-        return self.max_id
-
-    def set_max_id(self, max_id: int) -> None:
-        """
-        Sets the max_id used for assigning to features that do not match to another
-        feature from a previous timestep
-        """
-        max_id = check_valid_ids(max_id)
-        self.max_id = max_id
 
     def import_time_and_data(self, time: dt.datetime, data: NDArray) -> None:
         """
@@ -244,13 +246,13 @@ class Frame:
         Returns:
             int: new id
         """
-        if self.max_id is None:
+        if self._max_id is None:
             if self._feature_field is not None:
-                self.max_id = np.max(self._feature_field).item()
+                self._max_id = np.max(self._feature_field).item()
             else:
-                self.max_id = 0
-        self.max_id += 1
-        return self.max_id
+                self._max_id = 0
+        self._max_id += 1
+        return self._max_id
 
     def promote_provisional_ids(self) -> None:
         """

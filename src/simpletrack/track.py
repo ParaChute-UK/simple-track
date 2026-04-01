@@ -149,7 +149,7 @@ class Tracker:
                 frame.assign_displacements(y_flow, x_flow)
 
             # Set max id for assigning to new features
-            frame.set_max_id(prev_frame.get_max_id())
+            frame.max_id = prev_frame.max_id
             # Track Features between difference Frames
             self.frame_tracker.run(prev_frame, frame)
 
