@@ -12,7 +12,7 @@ from simpletrack.utils import check_arrays, check_valid_ids
 
 class Frame:
     """
-    Class for storing data and methods related to a single timestep of data. This
+    Object for storing data and methods related to a single timestep of data. This
     includes the raw data, the feature field, the feature lifetime field, and a dict
     of Feature objects for each feature identified in the frame. The Frame class also
     includes methods for identifying features in the frame, and for assigning
@@ -154,15 +154,16 @@ class Frame:
         min_size: int = 5,
     ) -> None:
         """
-        Call the "label_features" function to identify distinct regions in the input field
-        that meet a specified threshold condition.
+        Call the "label_features" function to identify distinct regions in the input
+        field that meet a specified threshold condition.
         Then, analyses each of the identified features to find properties
 
         Args:
-            - min_size (float): Minimum area (in number of grid points) for a region to be considered valid
+            - min_size (float): Minimum area (in number of grid points) for a region
+            to be considered valid
             - threshold (float): Threshold value for identifying regions
-            - under_threshold (bool): If True, regions under the threshold are considered;
-                if False, regions over the threshold are considered.
+            - under_threshold (bool): If True, regions under the threshold
+            are considered; if False, regions over the threshold are considered.
         """
         if self.raw_field is None:
             raise Exception("Data has not been loaded into Frame")
@@ -192,7 +193,8 @@ class Frame:
             return
 
         feature_ids = np.unique(self._feature_field)
-        # Remove 0 from the list of ids (usually this is at idx 0 but can't guarantee this)
+        # Remove 0 from the list of ids
+        # (usually this is at idx 0 but can't be guaranteed)
         feature_ids = np.delete(feature_ids, np.where(feature_ids == 0)[0][0])
         feature_ids = check_valid_ids(feature_ids)
 
@@ -203,7 +205,8 @@ class Frame:
             feature_mask = np.where(self._feature_field == feature_id)
             feature_coords = np.array(feature_mask)
 
-            # Construct Feature object, set relevant properties, add to the list of features
+            # Construct Feature object, set relevant properties,
+            # add to the list of features
             feature = Feature(
                 id=feature_id, feature_coords=feature_coords, time=self._time
             )
@@ -223,7 +226,8 @@ class Frame:
         """
         if self._feature_field is None or not self._features:
             raise FeaturesNotFoundError(
-                "Features have not been loaded into this Frame. Cannot assign displacements"
+                "Features have not been loaded into this Frame. "
+                "Cannot assign displacements"
             )
 
         self.y_flow, self.x_flow = check_arrays(
@@ -280,7 +284,8 @@ class Frame:
 
         if not self._features:
             raise FeaturesNotFoundError(
-                "Features have not been loaded into this Frame. Cannot update using provisional ids."
+                "Features have not been loaded into this Frame. "
+                "Cannot update using provisional ids."
             )
 
         updated_feature_field = np.zeros_like(self._feature_field)
@@ -299,8 +304,8 @@ class Frame:
 
     def get_new_features(self) -> list:
         """
-        Get a list of all features in the frame that do not match with a feature from the
-        previous frame and has not split from a feature in the previous frame
+        Get a list of all features in the frame that do not match with a feature from
+        the previous frame and has not split from a feature in the previous frame
         """
         if not self._features:
             return []
@@ -309,7 +314,8 @@ class Frame:
     def get_dissipating_features(self) -> list:
         """
         Get a list of all features in the frame that do not match with a feature
-        in the subsequent frame and have not merged with a feature in the subsequent frame
+        in the subsequent frame and have not merged with a feature
+        in the subsequent frame
         """
         if not self._features:
             return []
@@ -340,15 +346,15 @@ class Frame:
 
         Args:
             field_type (str):
-                "init": Get the field of all new features in the frame, where new features
-                are ones that are not matched with a feature in the previous frame, and have
-                not split from a feature in the previous frame
-                "dissipation" Get the fields of all dissipating feature in the frame, where
-                these are ones that are not matched with a feature in the next frame, and
-                do not merge with a feature in the next frame
+                "init": Get the field of all new features in the frame, where new
+                features are ones that are not matched with a feature in the previous
+                frame, and have not split from a feature in the previous frame
+                "dissipation" Get the fields of all dissipating feature in the frame,
+                where these are ones that are not matched with a feature in the next
+                frame, and do not merge with a feature in the next frame
             centroid_only (bool, optional):
-                Whether the binary output should contain just the feature centroids or should
-                span the full feature shape.
+                Whether the binary output should contain just the feature centroids
+                or should span the full feature shape.
                 Defaults to True.
 
         """
@@ -356,7 +362,7 @@ class Frame:
             "init": self.get_new_features,
             "dissipation": self.get_dissipating_features,
         }
-        if field_type not in feature_methods.keys():
+        if field_type not in feature_methods:
             raise KeyError(f"field_type must be one of {feature_methods.keys()}")
 
         field = np.zeros_like(self._feature_field)
@@ -374,6 +380,11 @@ class Frame:
 
 
 class Timeline:
+    """
+    Object for storing and accessing Frames, stored as a dict of dt.datetime keys
+    and Frame values.
+    """
+
     def __init__(self):
         self.timeline = {}
 
@@ -410,15 +421,15 @@ class Timeline:
 
     def get_timeline(self) -> dict:
         """
-        Return the timeline as a dictionary of values, with keys being the validity time and
-        values being the frame at that validity time.
+        Return the timeline as a dictionary of values, with keys being the validity
+        time and values being the frame at that validity time.
         """
         return self.timeline
 
     def get_frame(self, time: dt.datetime) -> Frame:
         """
-        Get the frame that is valid at the input time. Raises ValueError if frame matching
-        the input time is not found.
+        Get the frame that is valid at the input time. Raises ValueError if frame
+        matching the input time is not found.
         """
         if time not in self.timeline:
             raise ValueError(f"No frame found for time {time}")
@@ -430,7 +441,7 @@ def label_features(
     min_area: float,
     threshold: float,
     under_threshold: bool = False,
-    connectivity_structure: NDArray[np.bool] = np.ones((3, 3)),
+    connectivity_structure: str = "default",
 ) -> NDArray[np.integer]:
     """
     Label distinct regions in the input field that meet a specified threshold condition.
@@ -446,11 +457,12 @@ def label_features(
             If True, regions under the threshold are considered;
             if False, regions over the threshold are considered.
             Defaults to False.
-        connectivity_structure (NDArray, optional):
-            Boolean array defining connectivity for region labelling.
-            Default is 8-way connectivity, meaning all cardinal AND diagonal neighbours that
-            meet the threshold condition are considered part of the same region.
-            An alternative arrangement would be 4-way connectivity (diagonals omitted), defined as:
+        connectivity_structure (str, optional):
+            Str defining boolean connectivity for region labelling
+            Default is 8-way connectivity, meaning all cardinal AND diagonal neighbours
+            that meet the threshold condition are considered part of the same region.
+            An alternative arrangement would be "cardinal" 4-way connectivity
+            (diagonals omitted), defined as:
             np.array([[0, 1, 0],
                       [1, 1, 1],
                       [0, 1, 0]])
@@ -465,7 +477,8 @@ def label_features(
         ValueError: field must be a 2D array
 
     Returns:
-        NDArray[np.int_]: 2D Integer field of labelled regions, same shape as input field
+        NDArray[np.int_]: 2D Integer field of labelled regions,
+        same shape as input field
     """
 
     # Check input types
@@ -482,8 +495,14 @@ def label_features(
     if not isinstance(under_threshold, bool):
         raise TypeError("under_threshold must be a boolean")
 
+    if connectivity_structure == "default":
+        # All cardinal and diagonal points
+        connectivity_structure = np.ones((3, 3))
+    else:
+        raise NotImplementedError("Only default connectivity supported")
+
     # Construct feature field using threshold and threshold condition
-    # Grid points meeting the condition are set to 1, others to 0
+    # Grid points meeting the condition are set to 1, others to 0s
     if under_threshold:
         feature_field = np.where(field < threshold, 1, 0)
     else:
