@@ -18,6 +18,15 @@ classifiers = [
 ]
 license = "MPL-2.0"
 license-files = ["LICEN[CS]E*"]
+dependencies = [
+  "numpy >= 2.3.4",
+  "pytest >= 9.0",
+  "pytest-cov",
+  "pytest-xdist",
+  "pyyaml",
+  "scipy >= 1.16.3",
+  "scikit-image >= 0.25.2"
+]
 
 [project.urls]
 Homepage = "https://github.com/ParaChute-UK/simple-track/"
@@ -28,3 +37,7 @@ addopts = ["--import-mode=importlib"]
 minversion = "7"
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "UP", "SIM", "D101"]
+ignore = ["SIM102"]

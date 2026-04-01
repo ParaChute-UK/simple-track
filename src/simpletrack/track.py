@@ -15,6 +15,10 @@ from simpletrack.load import ConfigError, DictIterator, LoadingBar, get_loader
 
 
 class Tracker:
+    """
+    Simple-Track manager controlling inputs, processing, outputs
+    """
+
     def __init__(self, config_input: Union[str | dict]) -> None:
         """
         Initialize SimpleTrack with configuration file
@@ -39,40 +43,30 @@ class Tracker:
         self.start_time = None  # Will be set during run()
         self.timeline = Timeline()
 
-        self.file_type = None
-        if "INPUT" in self.config.keys():
-            if "file_type" in self.config["INPUT"].keys():
-                self.file_type = self.config["INPUT"]["file_type"]
+        if "INPUT" in self.config:
+            self.file_type = self.config["INPUT"].get("file_type", None)
 
-        if "FLOW_SOLVER" in self.config.keys():
+        if "FLOW_SOLVER" in self.config:
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
         else:
             self.flow_solver = FlowSolver()
 
-        # Whether to skip tracking and just output Feature properties
-        self.skip_tracking = False
-        if "TRACKING" in self.config.keys():
+        if "TRACKING" in self.config:
             self.frame_tracker = FrameTracker(**self.config["TRACKING"])
-            if "skip_tracking" in self.config["TRACKING"].keys():
-                self.skip_tracking = self.config["TRACKING"]["skip_tracking"]
+            self.skip_tracking = self.config["TRACKING"].get("skip_tracking", False)
         else:
             self.frame_tracker = FrameTracker()
+            self.skip_tracking = False
 
-        if "OUTPUT" in self.config.keys():
-            if "path" not in self.config["OUTPUT"].keys():
-                output_path = "./output"
-            else:
-                output_path = self.config["OUTPUT"]["path"]
-
-        if "OUTPUT" in self.config.keys():
-            if "experiment_name" in self.config["OUTPUT"].keys():
-                expt_name = self.config["OUTPUT"]["experiment_name"]
-        else:
-            expt_name = "Simple-Track Experiment"
+        if "OUTPUT" in self.config:
+            output_path = self.config["OUTPUT"].get("path", "./output")
+            expt_name = self.config["OUTPUT"].get(
+                "experiment_name", "Simple-Track Experiment"
+            )
 
         # Output only if flagged in config
         self.frame_output = None
-        if "OUTPUT" in self.config.keys():
+        if "OUTPUT" in self.config:
             if self.config["OUTPUT"]["save_data"]:
                 self.frame_output = FrameOutputManager(
                     output_path,
@@ -100,7 +94,8 @@ class Tracker:
         If data is being provided as input using dict, it should be passed
         with the respective datetime object as the key, and the numpy array to run
         tracking on as the value. This will not use a predetermined Loader class to
-        load the data, although the same checks on consistent array shapes will be applied.
+        load the data, although the same checks on consistent array shapes
+        will be applied.
         """
         if input_data is None:
             input_data = self.get_filenames_from_input_path(file_type=self.file_type)
@@ -110,7 +105,7 @@ class Tracker:
             if not all([isinstance(fnm, valid_types) for fnm in input_data]):
                 types = [type(fnm) for fnm in input_data]
                 raise TypeError(
-                    f"If input_data is passed a list, it must only contain str, got {types}"
+                    f"If input_data is list it must only contain str, got {types}"
                 )
             self.loading_bar = LoadingBar(total=len(input_data))
             self.loader = get_loader(self.config["INPUT"]["loader"])(input_data)
@@ -123,7 +118,7 @@ class Tracker:
             raise TypeError(
                 f"Expected input_data type list(str) or dict, got {type(input_data)}"
             )
-        # print(f"Hello from process {mp.current_process().name} with arg {filenames}\n")
+        # print(f"Hello from proc {mp.current_process().name} with arg {filenames}\n")
 
         for fnm_idx, time_and_data in enumerate(self.loader):
             if self.start_time is None:
@@ -134,7 +129,7 @@ class Tracker:
             frame.identify_features(**self.config["FEATURE"])
             self.timeline.add_to_timelime(frame)
 
-            # If this is the first frame, skip tracking
+            # If this is the first frame or tracking is disabled, skip tracking
             if len(self.timeline.timeline) == 1 or self.skip_tracking:
                 self.loading_bar.update_progress(fnm_idx + 1)
                 # Output frame data to text file or npy file if flagged
@@ -151,7 +146,6 @@ class Tracker:
             # Update the previous Frame with these displacements which is
             # needed for tracking Features.
             if y_flow is not None or x_flow is not None:
-                prev_frame.assign_displacements(y_flow, x_flow)
                 frame.assign_displacements(y_flow, x_flow)
 
             # Set max id for assigning to new features
@@ -229,9 +223,8 @@ class Tracker:
                 supported_filetypes.append(file_type)
             elif isinstance(file_type, list):
                 if not all([isinstance(val, str) for val in file_type]):
-                    raise TypeError(
-                        f"Expected list to contain only str, gt {[type(val) for val in file_type]}"
-                    )
+                    types = [type(val) for val in file_type]
+                    raise TypeError(f"Expected list to contain only str, got {types}")
                 for ftype in file_type:
                     supported_filetypes.append(ftype)
             else:
@@ -261,7 +254,7 @@ class Tracker:
             dict:
                 Simple-Track parameters
         """
-        with open(config_path, "r") as input:
+        with open(config_path) as input:
             config = safe_load(input)
         self._check_config(config)
         return config
@@ -284,5 +277,5 @@ class Tracker:
         #     raise ConfigError(
         #         f"config missing one or more required inputs: {required_params}"
         #     )
-        if "threshold" not in config["FEATURE"].keys():
+        if "threshold" not in config["FEATURE"]:
             raise ConfigError("config missing required threshold input")

@@ -4,10 +4,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from simpletrack.exceptions import ArrayShapeError, ArrayTypeError
 from simpletrack.frame import Frame
 from simpletrack.load import BaseLoader, ConfigError, DictIterator
 from simpletrack.track import Tracker
-from simpletrack.utils import ArrayShapeError, ArrayTypeError
 
 test_time = dt.datetime(2026, 1, 1, 0, 0, 0)
 

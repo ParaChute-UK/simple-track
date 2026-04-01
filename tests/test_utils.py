@@ -1,16 +1,15 @@
 import numpy as np
 import pytest
 
-from simpletrack.utils import (
+from simpletrack.exceptions import (
     ArrayShapeError,
     ArrayTypeError,
     FloatIDError,
     IDError,
     NegativeIDError,
     ZeroIDError,
-    check_arrays,
-    check_valid_ids,
 )
+from simpletrack.utils import check_arrays, check_valid_ids
 
 
 def test_check_arrays_with_ndarray_inputs():

@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
 
-from simpletrack.flow_solver import FlowSolver, pairwise_with_stride
-from simpletrack.utils import (
+from simpletrack.exceptions import (
     ArrayError,
     ArrayShapeError,
     ArrayTypeError,
 )
+from simpletrack.flow_solver import FlowSolver, pairwise_with_stride
 
 of_solver = FlowSolver()
 mwe_domain = np.zeros((100, 100), dtype=int)

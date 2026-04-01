@@ -9,31 +9,40 @@ from simpletrack.utils import check_arrays, check_valid_ids, native
 
 
 class FrameTracker:
+    """
+    Handles tracking of Features between Frames. This is the main class that will
+    match features between Frames, ensure connsistent feature ids are assigned to
+    matched features, give new features new ids, identify merging and splitting
+    features, and update feature and lifetime fields in the current Frame
+    accordingly.
+    """
+
     def __init__(
         self,
         overlap_nbhood: int = 5,
         overlap_threshold: float = 0.6,
         retain_lifetime_on_split: bool = True,
-        _nbhood_coeff_test=False,  # If True, uses overlap_nbhood to multiply feature size to get radial mask size
+        _nbhood_coeff_test=False,
+        # If True, uses overlap_nbhood to multiply feature size to get radial mask size
     ):
         """
         Initialise FrameTracker class to track Features between Frames
 
         Args:
             overlap_nbhood (int, optional):
-                When calculating overlap between Features in advected and current Frames,
-                code may apply a neighbourhood (nbhood) surrounding the Feature centroid
-                if there is not a sufficient overlap found initilly. This value sets the
-                radius of this nbhood in pixels.
+                When calculating overlap between Features in advected and current
+                Frames, code may apply a neighbourhood (nbhood) surrounding the Feature
+                centroid if there is not a sufficient overlap found initilly. This value
+                sets the radius of this nbhood in pixels.
                 Defaults to 5.
             overlap_threshold (float, optional):
-                Sets the minimum normalised overlap required between Features in advected
-                and current Frames to be considered a match.
+                Sets the minimum normalised overlap required between Features in
+                advected and current Frames to be considered a match.
                 Defaults to 0.6.
             retain_lifetime_on_split (bool, optional):
-                If a child Feature splits from its parent feature, this determines whether
-                the child Feature should carry over the lifetime from the parent or whether
-                its lifetime should be set to 1
+                If a child Feature splits from its parent feature, this determines
+                whether the child Feature should carry over the lifetime from the parent
+                or whether its lifetime should be set to 1
                 Defaults to True
         """
         self.overlap_nbhood = int(overlap_nbhood)
@@ -44,35 +53,40 @@ class FrameTracker:
     def run(self, prev_frame: Frame, current_frame: Frame) -> None:
         """
         Runs through the full Frame tracking procedure between two inputs.
-        Step 1: Artifically advect features in the previous frame using its flow field. This will
-        provide a best guess of where the features in the previous Frame should be located at the
-        current timestep.
+        Step 1: Artifically advect features in the previous frame using its flow field.
+        This will provide a best guess of where the features in the previous Frame
+        should be located at the current timestep.
 
-        Step 2: Match features between the advected frame and the current frame by assigning a
-        new, proviosonal id to each Feature in the current Frame based on overlap with the advected
-        Frame. Matched features will provisionally inherit the id and lifetime from the advected Frame.
-        Also determine any accreted features during this matching. Any unmatched features
-        are designated as new features and assigned a new id.
+        Step 2: Match features between the advected frame and the current frame by
+        assigning a new, proviosonal id to each Feature in the current Frame based on
+        overlap with the advected Frame. Matched features will provisionally inherit
+        the id and lifetime from the advected Frame. Also determine any accreted
+        features during this matching. Any unmatched features are designated as new
+        features and assigned a new id.
 
-        Step 3: Check accreted ids from frame matching are not also present as provisional ids.
-        Accreted ids should be removed from the field. If any are present, remove them from the accreted list.
+        Step 3: Check accreted ids from frame matching are not also present as
+        provisional ids. Accreted ids should already be removed from the field.
+        If any are present, remove them from the accreted list.
 
-        Step 4: After Feature matching, there may be multiple Features in current Frame that were matched
-        to the same previous feature. These features will now have the same provisional ids.
-        Find these ids and distinguish the most appropriate match (to retain the id) from the other matches
-        (which will be designated as children and given a new id.)
+        Step 4: After Feature matching, there may be multiple Features in current Frame
+        that were matched to the same previous feature. These features will now have
+        the same provisional ids. Find these ids and distinguish the most appropriate
+        match (to retain the id) from the other matches (which will be designated as
+        children and given a new id.)
 
-        Step 5: Now that there is self consistent matched data in the current frame, use this to produce
-        updated feature and lifetime fields in the current Frame using the provisional ids.
+        Step 5: Now that there is self consistent matched data in the current frame,
+        use this to produce updated feature and lifetime fields in the current Frame
+        using the provisional ids.
 
         Step 6: Promote provisional ids to final ids in current frame
 
-        Step 7: Identify Features in the previous Frame that aren't matched with a Feature in the
-        current Frame. This is useful for output statistics
+        Step 7: Identify Features in the previous Frame that aren't matched with a
+        Feature in the current Frame. This is useful for output statistics
 
         Args:
             prev_frame (Frame):
-                Frame containing Features at the previous timestep and flow field between timesteps
+                Frame containing Features at the previous timestep and flow field
+                between timesteps
             current_frame (Frame):
                 Frame containing Features at the current timestep
 
@@ -84,23 +98,25 @@ class FrameTracker:
                 f"Expected type Frame, got {type(prev_frame)} and {type(current_frame)}"
             )
 
-        # Step 1: Advect features in the previous frame using its flow field
-        advected_frame = self.advect_frame(prev_frame)
+        # Step 1: Advect features in the previous frame using flow field
+        y_flow, x_flow = current_frame.get_flow()
+        advected_frame = self.advect_frame(prev_frame, y_flow, x_flow)
 
-        # Step 2: Features in the current Frame will have an id that is not related to the
-        # previous/advected Frame in anyway.
+        # Step 2: Features in the current Frame will have an id that is not related to
+        # the previous/advected Frame in anyway.
         # Match features between the advected frame and the current frame by assigning a
         # new, proviosonal id to each Feature in the current Frame based on overlap
         self.match_advected_and_current_frame_features(
             advected_frame, current_frame, prev_frame
         )
 
-        # Step 3: Check accreted ids from frame matching are not also present as provisional ids.
-        # Remove any accreted ids found as a provisional id in current frame
+        # Step 3: Check accreted ids from frame matching are not also present as
+        # provisional ids. Remove any accreted ids found as a provisional id in
+        # current frame
         self.check_accreted_feature_ids_are_not_provisional_ids(current_frame)
 
-        # Step 4: After Feature matching, there may be multiple Features in current Frame that were
-        # matched to the same previous feature. Resolve these conflicts
+        # Step 4: After Feature matching, there may be multiple Features in current
+        # Frame that were matched to the same previous feature. Resolve these conflicts
         self.resolve_provisional_id_conflicts(advected_frame, current_frame)
 
         # Step 5: Now that there is self consistent data in current frame, use this to
@@ -114,12 +130,19 @@ class FrameTracker:
         # Feature in the current Frame. This is useful for output statistics
         self.identify_unmatched_features_in_prev_frame(prev_frame, current_frame)
 
-    def advect_frame(self, frame: Frame) -> Frame:
+    def advect_frame(self, frame: Frame, y_flow: NDArray, x_flow: NDArray) -> Frame:
         """
-        Construct a new Frame with all Features in the input Frame advected by the given flow field
+        Construct a new Frame with all Features in the input Frame advected by the
+        given flow field
 
         Args:
             frame (Frame): Frame containing Features and a flow field
+            y_flow (NDArray):
+                2D array of same shape as frame feature field, containing
+                y motion vectors
+            x_flow (NDArray):
+                2D array of same shape as frame feature field, containing
+                x motion vectors
 
         Returns:
             Frame: advected Frame
@@ -129,7 +152,6 @@ class FrameTracker:
             raise TypeError(f"Expected 'Frame', got {type(frame)}")
 
         # If there is no flow field, return the un-advected frame
-        y_flow, x_flow = frame.get_flow()
         if y_flow is None or x_flow is None:
             print(f"y_flow: {y_flow}")
             print(f"x_flow: {x_flow}")
@@ -146,7 +168,7 @@ class FrameTracker:
         advected_frame.populate_features()
 
         # Transfer lifetimes to advected frame
-        for advected_feature in advected_frame.get_features().values():
+        for advected_feature in advected_frame.features.values():
             advected_id = advected_feature.id
             advected_feature.lifetime = frame.get_feature(advected_id).lifetime
 
@@ -163,7 +185,8 @@ class FrameTracker:
         Feature and inherit the lifetime from the advected Feature.
 
         Other Features in the advected field that contain a sufficient overlap but
-        that are not the best match are added to the accreted property of the current Feature.
+        that are not the best match are added to the accreted property of the current
+        Feature.
 
         Unmatched Features in the current Frame are assigned a new provisional id.
 
@@ -178,7 +201,7 @@ class FrameTracker:
         current_feature_field = current_frame.get_feature_field()
 
         # Attempt to match features in the advected frame with current frame
-        for current_feature in current_frame.get_features().values():
+        for current_feature in current_frame.features.values():
             if not isinstance(current_feature, Feature):
                 raise TypeError(f"Expected Feature, got {type(current_feature)}")
 
@@ -223,7 +246,8 @@ class FrameTracker:
                 # Add other ids to Feature accretion list
                 current_feature.accrete_ids(other_sufficient_ids)
 
-                # Update the accreted_in_next_frame_by property of Features in prev_frame
+                # Update the accreted_in_next_frame_by property of Features
+                # in prev_frame
                 for accreted_id in other_sufficient_ids:
                     accreted_feature = prev_frame.get_feature(accreted_id)
                     accreted_feature.accreted_in_next_frame_by = feature_id
@@ -231,10 +255,11 @@ class FrameTracker:
 
     def check_accreted_feature_ids_are_not_provisional_ids(self, frame: Frame) -> None:
         """
-        Any features that have been accreted by another feature should not therefore appear
-        as a provisional id in the feature field (since it should no longer exist). This method
-        checks that this is the case for all accreted ids. If any accreted ids are found to
-        still exist as a provisional id, the accreted id is removed from its respective Feature
+        Any features that have been accreted by another feature should not therefore
+        appear as a provisional id in the feature field (since it should no longer
+        exist). This method checks that this is the case for all accreted ids.
+        If any accreted ids are found to still exist as a provisional id, the accreted
+        id is removed from its respective Feature
 
         Args:
             frame (Frame): Frame to inspect accreted ids
@@ -242,7 +267,7 @@ class FrameTracker:
         if not isinstance(frame, Frame):
             raise TypeError(f"Expected type Frame, got {type(frame)}")
 
-        all_features = frame.get_features().values()
+        all_features = frame.features.values()
         all_provisional_ids = [feature.provisional_id for feature in all_features]
 
         # Check each feature for accreted values
@@ -266,15 +291,17 @@ class FrameTracker:
         self, advected_frame: Frame, current_frame: Frame
     ) -> None:
         """
-        After Feature matching, there may be multiple Features in current Frame that were
-        matched to the same previous feature. These features will now have the same provisional ids.
-        Find these ids and distinguish the most appropriate match (to retain the id) from the other matches
-        (which will be designated as children and given a new id.)
+        After Feature matching, there may be multiple Features in current Frame that
+        were matched to the same previous feature. These features will now have the
+        same provisional ids. Find these ids and distinguish the most appropriate match
+        (to retain the id) from the other matches which will be designated as children
+        and given a new id.
 
-        Matched "Parent" Features determined by largest overlap, and will retain the provisional id.
-        Any other child Features will be assigned a new provisional id and have their parent attribute set
-        to the retained provisional id. The parent Feature will have its children attribute updated to include
-        the new child Feature ids.
+        Matched "Parent" Features determined by largest overlap, and will retain the
+        provisional id. Any other child Features will be assigned a new provisional id
+        and have their parent attribute set to the retained provisional id. The parent
+        Feature will have its children attribute updated to include the new child
+        Feature ids.
 
         Args:
             advected_frame (Frame):
@@ -284,14 +311,15 @@ class FrameTracker:
 
         """
         # First, list all provisional ids
-        all_features = current_frame.get_features().values()
+        all_features = current_frame.features.values()
         all_provisional_ids = [feature.provisional_id for feature in all_features]
 
         # Find all provisional ids that are repeated
         unique_ids, counts = np.unique(all_provisional_ids, return_counts=True)
         conflicting_ids = unique_ids[counts > 1]
 
-        # Loop over all Features with repeated provisional ids and designate parent/child
+        # Loop over all Features with repeated provisional ids and
+        # designate parent/child
         for conflicting_id in conflicting_ids:
             # Find all Features with this provisional id
             matching_features = [
@@ -313,7 +341,8 @@ class FrameTracker:
 
             # TODO: should some of this functionality be moved to Feature?
             # Preserve provisional id for the parent feature
-            # All child features need new ids and are assigned the conflicting id as parent
+            # All child features need new ids and are assigned the conflicting id as
+            # parent
             for feature in child_features:
                 feature.parent = conflicting_id
                 feature.provisional_id = current_frame.get_next_available_feature_id()
@@ -332,10 +361,11 @@ class FrameTracker:
         self, prev_frame: Frame, current_frame: Frame
     ) -> None:
         """
-        Identify Features in the previous Frame that are not matched with a Feature in the current Frame.
-        This is useful for output statistics, e.g., for tracing dissipation events.
-        Any feature that is not matched is designated as a final timestep by setting the final_timestep
-        property to True.
+        Identify Features in the previous Frame that are not matched with a Feature in
+        the current Frame. This is useful for output statistics, e.g., for tracing
+        dissipation events.
+        Any feature that is not matched is designated as a final timestep by setting the
+        final_timestep property to True.
 
         Args:
             prev_frame (Frame): Frame containing Features at previous timestep
@@ -344,10 +374,8 @@ class FrameTracker:
         if not isinstance(prev_frame, Frame) or not isinstance(current_frame, Frame):
             raise TypeError("Expected type Frame for both prev_frame and current_frame")
 
-        current_frame_ids = [
-            feature.id for feature in current_frame.get_features().values()
-        ]
-        for feature_id, feature in prev_frame.get_features().items():
+        current_frame_ids = [feature.id for feature in current_frame.features.values()]
+        for feature_id, feature in prev_frame.features.items():
             if feature_id not in current_frame_ids:
                 feature.set_as_final_timestep()
 
@@ -360,14 +388,14 @@ class FrameTracker:
     ) -> list[Feature, list[Feature]]:
         """
         For a given target parent_id and list of matching Features (that all share this
-        provisional parent_id), identify which Feature is the best match to be the parent.
-        All others are identified as children.
+        provisional parent_id), identify which Feature is the best match to be the
+        parent. All others are identified as children.
 
-        Best match is determined by finding the Feature that has the largest overlap with
-        the advected feature with id parent_id.
+        Best match is determined by finding the Feature that has the largest overlap
+        with the advected feature with id parent_id.
 
-        If multiple Features share the same overlap size, then the feature with the closest
-        centroid is chosen.
+        If multiple Features share the same overlap size, then the feature with the
+        closest centroid is chosen.
 
         If multiple features are equidistant, the feature with the lower id is chosen.
 
@@ -432,13 +460,13 @@ class FrameTracker:
             )
 
         # Check that at least one feature has at least some overlap.
-        # Don't expect a situation to occur where overlap_sizes should all be 0 at this stage
+        # Don't expect overlap_sizes should all be 0 at this stage
         if all(size == 0 for size in overlap_sizes):
             raise ValueError(
                 f"No overlapping features found for provisional id {parent_id}"
             )
 
-        # If multiple feautures share the same overlap, check centroid to find best match
+        # If multiple feautures share the same overlap, check centroid
         max_overlap = max(overlap_sizes)
         max_overlap_indices = np.where(np.array(overlap_sizes) == max_overlap)[0]
         if len(max_overlap_indices) == 1:
@@ -450,7 +478,8 @@ class FrameTracker:
                 parent_id,
                 matching_feature_ids,
             )
-            # If multiple features share the same closest size, this will choose the first
+            # If multiple features share the same closest size,
+            # this will choose the first
             closest_size_id = closest_size_id[0]
             max_overlap_idx = matching_feature_ids.index(closest_size_id)
 
@@ -467,20 +496,21 @@ class FrameTracker:
         current_feature_id: int,
     ) -> list[Union[int, None], Union[NDArray, None]]:
         """
-        Use overlap histogram to find the closest matching feature id in the advected field
-        for the current_feature_id in the current_field. Any other ids that are also a sufficient
-        overlap with the current feature are also separately returned.
+        Use overlap histogram to find the closest matching feature id in the advected
+        field for the current_feature_id in the current_field. Any other ids that are
+        also a sufficient overlap with the current feature are also separately returned.
 
         - If there are no sufficient overlaps, return None, None
 
         - If there is one sufficient overlap, return the label of the matching Feature
         from the advected field. Other sufficient ids is None
 
-        - If there is more than one sufficient overlap, find the Feature label with the closest size
-        If there is more than one Feature shares a closest size, find the Feature from these that is
-        closest to the centroid of the current Feature. If there is still more than one suitable
-        Feature, choose the one with the smallest label. All sufficient ids that are not chosen as
-        the matching id are also returned in an NDArray
+        - If there is more than one sufficient overlap, find the Feature label with the
+        closest size. If there is more than one Feature shares a closest size, find the
+        Feature from these that is closest to the centroid of the current Feature. If
+        there is still more than one suitable Feature, choose the one with the smallest
+        label. All sufficient ids that are not chosen as the matching id are also
+        returned in an NDArray
 
         Args:
             overlap_hist (NDArray):
@@ -509,11 +539,12 @@ class FrameTracker:
             dtype=int,
         )
         current_feature_id = check_valid_ids(current_feature_id)
-        # Check number of sufficient overlaps. Get bool array of values meeting threshold
+        # Check number of sufficient overlaps.
+        # Get bool array of values meeting threshold
         sufficient_overlaps = overlap_hist >= self.overlap_threshold
         len_sufficient_overlaps = np.count_nonzero(sufficient_overlaps)
 
-        # Setup returning variable that will only be not None if there are multiple overlaps
+        # Setup returning variable, will only be not None if there are multiple overlaps
         other_sufficient_ids = None
 
         if len_sufficient_overlaps == 0:
@@ -522,8 +553,9 @@ class FrameTracker:
         if len_sufficient_overlaps == 1:
             matching_id = np.argmax(overlap_hist)
 
-        # If there is more than one sufficient overlap, keep the properties of the feature
-        # with the closest size. If multiple have overlaps, keep nearest in centroid
+        # If there is more than one sufficient overlap, keep the properties of the
+        # feature with the closest size. If multiple have overlaps,
+        # keep nearest in centroid
         if len_sufficient_overlaps > 1:
             # Check for size of each feature in advected_frame with sufficient overlap
             ids_of_sufficient_overlaps = np.argwhere(sufficient_overlaps).squeeze()
@@ -534,7 +566,7 @@ class FrameTracker:
                 candidate_ids=ids_of_sufficient_overlaps.tolist(),
             )
 
-            # If only one id has a closest size to target feature, this is the matching id
+            # If one id has a closest size to target feature, this is the matching id
             if len(min_size_comparison) == 1:
                 matching_id = min_size_comparison[0]
 
@@ -555,7 +587,8 @@ class FrameTracker:
             # set sufficient overlaps to False at this id
             sufficient_overlaps[matching_id] = False
             other_sufficient_ids = np.argwhere(sufficient_overlaps)
-            # Squeeze output, but only one axis so that single element arrays remain arrays
+            # Squeeze output, but only one axis so that
+            # single element arrays remain arrays
             axis_to_squeeze = other_sufficient_ids.shape.index(1)
             other_sufficient_ids = other_sufficient_ids.squeeze(axis_to_squeeze)
 
@@ -623,8 +656,8 @@ class FrameTracker:
         candidate_ids: list[int],
     ) -> int:
         """
-        Given a list of candidate ids, finds the id whose centroid is closest to the centroid
-        of the feature with feature_id in field_with_id.
+        Given a list of candidate ids, finds the id whose centroid is closest to
+        the centroid of the feature with feature_id in field_with_id.
 
         Args:
             field_with_id (NDArray):
@@ -674,13 +707,14 @@ class FrameTracker:
         nbhood: int = 0,
     ) -> NDArray:
         """
-        Calculate the amount of overlap between two feature fields at the requested feature id.
-        Method creates a mask containing areas of the current feature field containing the
-        requested feature id. This mask can optionally be expanded using a nbhood surrouding the
-        centroid of this feature. This mask is then used to select the same locations of the
-        advected feature field. A histogram is produced giving the number of feature_ids contained
-        in this reigon in the adveced feature field. This is normalised by the pixel size of each
-        Feature in the advected field to get the degree of overlap.
+        Calculate the amount of overlap between two feature fields at the requested
+        feature id. Method creates a mask containing areas of the current feature field
+        containing the requested feature id. This mask can optionally be expanded using
+        a nbhood surrouding the centroid of this feature. This mask is then used to
+        select the same locations of the advected feature field. A histogram is produced
+        giving the number of feature_ids contained in this reigon in the adveced feature
+        field. This is normalised by the pixel size of each Feature in the advected
+        field to get the degree of overlap.
 
         Args:
             advected_feature_field (NDArray):
@@ -793,15 +827,16 @@ def advect_field_using_motion_vectors(
     field: NDArray, y_flow: NDArray, x_flow: NDArray
 ) -> NDArray:
     """
-    A (perhaps temporary) function that takes features (non-zero elements) in the 2D input field
-    and advects them using the given motion vectors. This function performs this advection feature
-    by feature, i.e., moves all contiguous elements of data by the same amount, retaining their shape.
-    Code handles conflicts from multiple non-zero elements being advected to the same position by
-    choosing the closest label centroid.
+    A function that takes features (non-zero elements) in the 2D input fieldand advects
+    them using the given motion vectors. This function performs this advection feature
+    by feature, i.e., moves all contiguous elements of data by the same amount,
+    retaining their shape. Code handles conflicts from multiple non-zero elements
+    being advected to the same position by choosing the closest label centroid.
 
     Args:
         field (NDArray):
-            Field containing feature labels to be advected. Assumes 0 is the background value
+            Field containing feature labels to be advected.
+            Assumes 0 is the background value
         y_flow (NDArray):
             2D array of same shape as field containing y motion vectors
         x_flow (NDArray):
@@ -817,8 +852,8 @@ def advect_field_using_motion_vectors(
 
     advected_field = np.zeros_like(field)
 
-    # Loop over all features (non-zero elements) in field and advect by mean flow across the feature
-    # Background field is assumed to be 0
+    # Loop over all features (non-zero elements) in field and advect by
+    # mean flow across the feature. Background field is assumed to be 0
     for feature_id in range(1, np.max(field) + 1):
         feature_mask = np.where(field == feature_id)
         # If mask is empty, this Feature is not in the current field
@@ -841,17 +876,16 @@ def advect_field_using_motion_vectors(
             if oob_y_check or oob_x_check:
                 continue
 
-            # If there is no label already at this position, can go ahead and place this feature
-            # label here.
+            # If there is no label already at this position, can go ahead and place
+            # this feature label here.
             id_at_coord = advected_field[advected_y_coord, advected_x_coord]
             if id_at_coord == 0:
                 advected_field[advected_y_coord, advected_x_coord] = feature_id
                 continue
 
-            # Otherwise, need to handle conflicting features. Do this by finding distances between
-            # the advected coordinate and the centroids of existing and iterating ids.
-            # Choose the feature that is closest to its centroid
-            # TODO: should this not merge features instead??
+            # Otherwise, need to handle conflicting features. Do this by finding
+            # distances between the advected coordinate and the centroids of existing
+            # and iterating ids. Choose the feature that is closest to its centroid
             existing_id_centroid = get_centroid(field, id_at_coord)
             iterating_id_centroid = get_centroid(field, feature_id)
             advected_coords = np.array([advected_y_coord, advected_x_coord])
@@ -870,8 +904,8 @@ def advect_field_using_motion_vectors(
 
 def generate_radial_mask(field: NDArray, coord: NDArray, mask_radius: int) -> NDArray:
     """
-    Creates a radial mask of the same shape as the input field, centered on the (y,x) coord
-    with radius equal to the mask radius.
+    Creates a radial mask of the same shape as the input field, centered on the (y,x)
+    coord with radius equal to the mask radius.
 
     Args:
         field (NDArray):

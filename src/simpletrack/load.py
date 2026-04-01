@@ -11,9 +11,6 @@ class ConfigError(Exception):
     Error thrown when one or more config input parameters are not valid
     """
 
-    def __init__(self, message):
-        super().__init__(message)
-
 
 def get_loader(loader_key: str):
     available_loaders = {
@@ -22,14 +19,26 @@ def get_loader(loader_key: str):
     }
     try:
         loader = available_loaders[loader_key]
-    except KeyError:
-        raise KeyError(f"Unknown loader: {loader_key}")
+    except KeyError as err:
+        raise KeyError(f"Unknown loader: {loader_key}") from err
     if not issubclass(loader, BaseLoader):
         raise TypeError(f"Requested loader ({loader}) is not type BaseLoader")
     return loader
 
 
 class BaseLoader:
+    """
+    Base class for building custom loaders for use with Simple-Track. To use, inherit
+    from this class and implement the `user_definable_load` method, which will take a
+    single input (filename) and should return a list of [datetime, array].
+    The loader should be initialised with a list of filenames, which will be
+    iterated through when the loader is used in Simple-Track.
+    Loaded data is checked for consistency and type before being passed to Simple-Track,
+    so the user only needs to worry about loading the data in the correct format.
+
+    Loaders should be
+    """
+
     def __init__(self, input_data: Union[list[str] | dict]) -> None:
         self.domain_shape = None
         self.input_data = input_data
@@ -41,7 +50,7 @@ class BaseLoader:
         self.iter_idx = 0
         return self
 
-    def __next__(self) -> list[NDArray, dt.datetime]:
+    def __next__(self) -> list[dt.datetime, NDArray]:
         if self.iter_idx >= len(self.input_data):
             raise StopIteration
         next_fnm = self.input_data[self.iter_idx]
@@ -50,8 +59,8 @@ class BaseLoader:
         self._check_loaded_data(time, data)
         return time, data
 
-    # TODO: rename this to something better
-    def user_definable_load(self, filename: str) -> list[NDArray, dt.datetime]:
+    # TODO: rename this to something better?
+    def user_definable_load(self, filename: str) -> list[dt.datetime, NDArray]:
         raise NotImplementedError
 
     def _check_loaded_data(
@@ -72,6 +81,13 @@ class BaseLoader:
 
 
 class DictIterator(BaseLoader):
+    """
+    An alternative loading solution for users wish to load and/or pre-process their data
+    elsewhere and pass it directly to Simple-Track. The input should be a dictionary
+    with datetime keys and 2D array values. This will then iteratre through
+    the dictionary in datetime order.
+    """
+
     def __init__(self, input_dict: dict) -> None:
         self.domain_shape = None
         self.input_data = input_dict
@@ -131,6 +147,12 @@ class ChilboltonLoader(BaseLoader):
 
 
 class LoadingBar:
+    """
+    Class for displaying a loading bar in the terminal. Initialised with the total
+    number of items to load and the length of the loading bar, The
+    "update_progress" method is then called to update the current progress
+    """
+
     def __init__(self, total, bar_length=20):
         self.total = total
         self.bar_length = bar_length
@@ -143,6 +165,9 @@ class LoadingBar:
         padding = int(self.bar_length - len(arrow)) * " "
         ending = "\n" if current == self.total else "\r"
         print(
-            f"Simple-Track Progress: [{arrow}{padding}] {current}/{self.total} ({int(fraction * 100)}%) ",
+            f"""
+            Simple-Track Progress: [{arrow}{padding}] {current}/{self.total} 
+            ({int(fraction * 100)}%) 
+            """,
             end=ending,
         )

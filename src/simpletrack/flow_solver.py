@@ -10,8 +10,9 @@ from scipy.interpolate import LinearNDInterpolator, RectBivariateSpline
 from scipy.signal.windows import tukey
 from skimage.registration import phase_cross_correlation
 
+from simpletrack.exceptions import ArrayError
 from simpletrack.frame import Frame
-from simpletrack.utils import ArrayError, check_arrays
+from simpletrack.utils import check_arrays
 
 
 class FlowSolver:
@@ -28,7 +29,7 @@ class FlowSolver:
 
         Args:
             subdomain_size (int, optional):
-                Size in pixels of individual squares to run fft for (dy, dx) displacement.
+                Size in pixels of individual squares to run fft for (dy, dx) displacement
                 Must divide (y,x) lengths of the array. Defaults to domain size / 5
             min_fractional_coverage (float, optional):
                 Minimum fractional cover of objects required for fft to obtain (dy, dx) displacement

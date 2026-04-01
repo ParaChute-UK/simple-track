@@ -3,14 +3,14 @@ import datetime as dt
 import numpy as np
 import pytest
 
-from simpletrack.feature import Feature
-from simpletrack.frame import FeaturesNotFoundError, Frame, Timeline, label_features
-from simpletrack.utils import (
+from simpletrack.exceptions import (
     ArrayShapeError,
     ArrayTypeError,
     FloatIDError,
     NegativeIDError,
 )
+from simpletrack.feature import Feature
+from simpletrack.frame import FeaturesNotFoundError, Frame, Timeline, label_features
 
 
 def test_label_features_valid_inputs():
@@ -168,7 +168,7 @@ def test_populate_features_with_no_feature_field():
 
     test_frame.populate_features()
 
-    if len(test_frame.get_features()) != 0:
+    if len(test_frame.features) != 0:
         raise TypeError(
             f"No features expected for this test, got {len(test_frame.get_features())}"
         )
@@ -277,7 +277,7 @@ def test_promote_provisional_ids():
         10: Feature(10, np.where(test_feature_field == 1), test_frame.time),
         20: Feature(20, np.where(test_feature_field == 2), test_frame.time),
     }
-    assert test_frame.get_features() == expected_features_dict
+    assert test_frame.features == expected_features_dict
 
 
 def test_update_fields_using_provisional_ids_with_valid_settings():

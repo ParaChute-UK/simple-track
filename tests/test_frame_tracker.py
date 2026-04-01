@@ -3,15 +3,7 @@ import datetime as dt
 import numpy as np
 import pytest
 
-from simpletrack.feature import Feature
-from simpletrack.frame import Frame
-from simpletrack.frame_tracker import (
-    FrameTracker,
-    advect_field_using_motion_vectors,
-    generate_radial_mask,
-    get_centroid,
-)
-from simpletrack.utils import (
+from simpletrack.exceptions import (
     ArrayError,
     ArrayShapeError,
     ArrayTypeError,
@@ -19,6 +11,14 @@ from simpletrack.utils import (
     IDError,
     NegativeIDError,
     ZeroIDError,
+)
+from simpletrack.feature import Feature
+from simpletrack.frame import Frame
+from simpletrack.frame_tracker import (
+    FrameTracker,
+    advect_field_using_motion_vectors,
+    generate_radial_mask,
+    get_centroid,
 )
 
 zero_arr = np.zeros((10, 10), dtype=int)
@@ -1034,7 +1034,7 @@ def test_identify_unmatched_features_in_prev_frame_valid_inputs():
     expected_unmatched_ids = [1, 2]
     actual_unmatched_ids = [
         feature.id
-        for feature in prev_frame.get_features().values()
+        for feature in prev_frame.features.values()
         if feature.is_final_timstep()
     ]
 

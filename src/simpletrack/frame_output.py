@@ -47,7 +47,7 @@ class FrameOutputManager:
             output_file.write(f"Frame time: {frame_time_str}\n")
             output_file.write(f"Total tracked features: {frame.get_max_id()}\n")
 
-            frame_features_dict = frame.get_features()
+            frame_features_dict = frame.features
 
             for feature_id in sorted(frame_features_dict):
                 feature = frame_features_dict[feature_id]
@@ -71,7 +71,7 @@ class FrameOutputManager:
             writer.writerow([f"Total tracked features: {frame.get_max_id()}"])
 
             # Write data
-            frame_features_dict = frame.get_features()
+            frame_features_dict = frame.features
             # Get data headers by looking at any feature in the frame features dict
             random_feature = frame_features_dict[list(frame_features_dict.keys())[0]]
             data_headers = random_feature.summarise("dict").keys()

@@ -5,35 +5,57 @@ import numpy as np
 import scipy.ndimage as ndimage
 from numpy.typing import NDArray
 
+from simpletrack.exceptions import FeaturesNotFoundError
 from simpletrack.feature import Feature
 from simpletrack.utils import check_arrays, check_valid_ids
 
 
-class FeaturesNotFoundError(Exception):
-    def __init__(self, msg):
-        super().__init__(msg)
-
-
 class Frame:
+    """
+    Class for storing data and methods related to a single timestep of data. This
+    includes the raw data, the feature field, the feature lifetime field, and a dict
+    of Feature objects for each feature identified in the frame. The Frame class also
+    includes methods for identifying features in the frame, and for assigning
+    pre-calculated motion vectors to each Feature.
+    """
+
     def __init__(self):
         self.time = None
         self.raw_field = None
         self.feature_field = None
         self.lifetime_field = None
         self.max_id = None
-        self.features = {}
+        self._features = {}
         self.y_flow = None
         self.x_flow = None
 
     def __repr__(self) -> str:
         repr_str = f"Frame time: {self.time}, "
-        repr_str += f"Number of Features: {len(self.features)}"
+        repr_str += f"Number of Features: {len(self._features)}"
         return repr_str
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Frame):
             return False
         return self.time == other.time
+
+    @property
+    def features(self) -> dict:
+        """
+        Get all features identified in the frame as a dict, with the feature ids as the
+        dict keys and the corresponding Feature objects as the dicts vals
+        """
+        return self._features
+
+    @features.setter
+    def features(self, features_dict: dict) -> None:
+        """
+        Set the features dict for the frame, with the feature ids as the
+        dict keys and the corresponding Feature objects as the dicts vals
+        """
+        if not isinstance(features_dict, dict):
+            raise TypeError(f"Expected type dict, got {type(features_dict)}")
+        self._features = features_dict
 
     def import_time_and_data(self, time: dt.datetime, data: NDArray) -> None:
         """
@@ -80,23 +102,17 @@ class Frame:
         otherwise returns None.
         """
         feature_id = check_valid_ids(feature_id)
-        if feature_id in self.features.keys():
-            return self.features[feature_id]
+        if feature_id in self._features:
+            return self._features[feature_id]
         else:
             return None
 
-    def get_features(self) -> dict:
-        """
-        Get all features identified in the frame as a dict, with the feature ids as the dict keys
-        and the corresponding Feature objects as the dicts vals
-        """
-        return self.features
-
     def get_flow(self) -> Union[NDArray, None]:
         """
-        Get a list of the y-flow and x-flow fields derived by comparing features between this frame
-        and a frame from a previous timestep. Flow fields are both numpy arrays, with order [y_flow, x_flow].
-        If flow was not previously derived, returns [None, None]
+        Get a list of the y-flow and x-flow fields derived by comparing features between
+        this frame and a frame from a previous timestep. Flow fields are both numpy
+        arrays, with order [y_flow, x_flow]. If flow was not previously derived,
+        returns [None, None]
         """
         return self.y_flow, self.x_flow
 
@@ -108,10 +124,10 @@ class Frame:
 
     def replace_features(self, new_features: dict) -> None:
         """
-        Replaces the self.features dict with the input argument. Used when updating Feature properties
-        after matching with a frame from a previous timestep.
+        Replaces the self.features dict with the input argument. Used when updating
+        Feature properties after matching with a frame from a previous timestep.
         """
-        self.features = new_features
+        self._features = new_features
 
     def get_max_id(self) -> int:
         """
@@ -165,8 +181,8 @@ class Frame:
         Feature instances.
         """
         # Check for existing features dict
-        if self.features:
-            self.features = {}
+        if self._features:
+            self._features = {}
 
         if self.feature_field is None:
             return
@@ -190,7 +206,7 @@ class Frame:
             # If raw field is not None, use this to find max value within Feature
             if self.raw_field is not None:
                 feature.extreme = max(self.raw_field[feature_mask])
-            self.features[feature_id] = feature
+            self._features[feature_id] = feature
 
     def assign_displacements(self, y_flow: NDArray, x_flow: NDArray) -> None:
         """
@@ -201,7 +217,7 @@ class Frame:
             y_flow (NDArray): _description_
             x_flow (NDArray): _description_
         """
-        if self.feature_field is None or not self.features:
+        if self.feature_field is None or not self._features:
             raise FeaturesNotFoundError(
                 "Features have not been loaded into this Frame. Cannot assign displacements"
             )
@@ -212,7 +228,7 @@ class Frame:
 
         # Assign these displacements to each Feature in the Frame using
         # mean of flow field for each grid point spanning the Feature
-        for feature_id, feature in self.features.items():
+        for feature_id, feature in self._features.items():
             feature_mask = self.feature_field == feature_id
             feature_dy = np.mean(y_flow[feature_mask])
             feature_dx = np.mean(x_flow[feature_mask])
@@ -241,13 +257,13 @@ class Frame:
         # Construct updated features dictionary with new ids as keys
         new_features_dict = {}
 
-        for feature in self.features.values():
+        for feature in self._features.values():
             if feature.provisional_id is not None:
                 feature.id = feature.provisional_id
                 feature.provisional_id = None
             new_features_dict[feature.id] = feature
 
-        self.features = new_features_dict
+        self._features = new_features_dict
 
     def update_fields_using_provisional_ids(self) -> None:
         """
@@ -258,7 +274,7 @@ class Frame:
                 "Feature field is not set. Cannot update using provisional ids."
             )
 
-        if not self.features:
+        if not self._features:
             raise FeaturesNotFoundError(
                 "Features have not been loaded into this Frame. Cannot update using provisional ids."
             )
@@ -266,7 +282,7 @@ class Frame:
         updated_feature_field = np.zeros_like(self.feature_field)
         updated_lifetime_field = np.zeros_like(self.feature_field)
 
-        for feature in self.features.values():
+        for feature in self._features.values():
             feature_mask = self.feature_field == feature.id
             updated_lifetime_field[feature_mask] = feature.lifetime
             if feature.provisional_id is not None:
@@ -282,19 +298,19 @@ class Frame:
         Get a list of all features in the frame that do not match with a feature from the
         previous frame and has not split from a feature in the previous frame
         """
-        if not self.features:
+        if not self._features:
             return []
-        return [feature for feature in self.features.values() if feature.is_new()]
+        return [feature for feature in self._features.values() if feature.is_new()]
 
     def get_dissipating_features(self) -> list:
         """
         Get a list of all features in the frame that do not match with a feature
         in the subsequent frame and have not merged with a feature in the subsequent frame
         """
-        if not self.features:
+        if not self._features:
             return []
         return [
-            feature for feature in self.features.values() if feature.is_dissipating()
+            feature for feature in self._features.values() if feature.is_dissipating()
         ]
 
     def get_init_field(self, centroid_only: bool = False) -> NDArray:

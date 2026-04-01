@@ -1,60 +1,13 @@
 import numpy as np
 
-
-class IDError(Exception):
-    """Exception raised when input is not a valid ID"""
-
-    def __init__(self, message):
-        super().__init__(message)
-
-
-class ZeroIDError(IDError):
-    """Exception raised when input is not a valid ID because value is 0"""
-
-    def __init__(self, message):
-        super().__init__(message)
-
-
-class NegativeIDError(IDError):
-    """Exception raised when input is not a valid ID because of negative value"""
-
-    def __init__(self, message):
-        super().__init__(message)
-
-
-class FloatIDError(IDError):
-    """Exception raised when input is not a valid ID because of float value"""
-
-    def __init__(self, message):
-        super().__init__(message)
-
-
-class ArrayError(Exception):
-    """
-    Exception raised when input is not a valid array or cannot be converted to a valid array
-    with the required constraints
-    """
-
-    def __init__(self, message):
-        super().__init__(message)
-
-
-class ArrayShapeError(ArrayError):
-    """
-    Exception raised when input shape is not expected
-    """
-
-    def __init__(self, message):
-        super().__init__(message)
-
-
-class ArrayTypeError(ArrayError):
-    """
-    Exception raised when contents of array are not expected
-    """
-
-    def __init__(self, message):
-        super().__init__(message)
+from simpletrack.exceptions import (
+    ArrayShapeError,
+    ArrayTypeError,
+    FloatIDError,
+    IDError,
+    NegativeIDError,
+    ZeroIDError,
+)
 
 
 def check_arrays(
@@ -75,7 +28,9 @@ def check_arrays(
     if shape is not None:
         for arr in modified_args:
             if arr.shape != shape:
-                msg = f"Argument with shape {arr.shape} does not have required shape {shape}"
+                msg = f"""
+                Argument with shape {arr.shape} does not have required shape {shape}
+                """
                 raise ArrayShapeError(msg)
 
     # Check each array has required number of dimensions
@@ -97,7 +52,9 @@ def check_arrays(
 
         for arr in modified_args:
             if not np.issubdtype(arr.dtype, dtype):
-                msg = f"Argument with dtype {arr.dtype} does not have required dtype {dtype}"
+                msg = f"""
+                Argument with dtype {arr.dtype} does not have required dtype {dtype}
+                """
                 raise ArrayTypeError(msg)
 
     # Check each input array is equal size
@@ -144,10 +101,7 @@ def check_valid_ids(*args):
             modified_args.append(arg_native)
 
         else:  # Looking at vector inputs
-            if isinstance(arg, (list, tuple)):
-                arg_array = np.array(arg)
-            else:
-                arg_array = arg
+            arg_array = np.array(arg) if isinstance(arg, (list, tuple)) else arg
             if len(arg_array) == 0:
                 return []
 
