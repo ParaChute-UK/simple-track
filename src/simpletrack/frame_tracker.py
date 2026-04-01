@@ -284,8 +284,7 @@ class FrameTracker:
                 if acc_id not in all_provisional_ids
             ]
             # Reset the accreted feature id list
-            # If list is empty, gets replaced with None in accreted setter
-            feature.accreted = new_accreted_list
+            feature.accrete_ids(new_accreted_list, replace=True)
 
     def resolve_provisional_id_conflicts(
         self, advected_frame: Frame, current_frame: Frame

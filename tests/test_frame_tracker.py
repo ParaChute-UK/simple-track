@@ -930,10 +930,10 @@ def test_check_accreted_feature_ids_are_not_provisional_ids():
     test_features = {id: Feature(id, test_coords, test_time) for id in range(1, 4)}
 
     # Add an accreted feature id to Feature 2 that is already present in the Frame
-    test_features[2].accreted = 3
+    test_features[2].accrete_ids(3)
 
     # Add an accreted feature id to Feature 3 that is not present in the Frame
-    test_features[3].accreted = 10
+    test_features[3].accrete_ids(10)
 
     # Add provisional ids to each feature
     for feature in test_features.values():
@@ -961,9 +961,9 @@ def test_check_accreted_feature_ids_are_not_provisional_ids_valid():
     test_features = {id: Feature(id, test_coords, test_time) for id in range(1, 4)}
 
     # Add accreted feature ids to each feature that are not present in the Frame
-    test_features[1].accreted = 10
-    test_features[2].accreted = 11
-    test_features[3].accreted = 1
+    test_features[1].accrete_ids(10)
+    test_features[2].accrete_ids(11)
+    test_features[3].accrete_ids(1)
 
     # Add provisional ids to each feature
     for feature in test_features.values():
@@ -991,9 +991,9 @@ def test_check_accreted_feature_ids_are_not_provisional_ids_with_no_provisional_
     test_features = {id: Feature(id, test_coords, test_time) for id in range(1, 4)}
 
     # Add accreted feature ids to each feature that are not present in the Frame
-    test_features[1].accreted = 10
-    test_features[2].accreted = 11
-    test_features[3].accreted = 1
+    test_features[1].accrete_ids(10)
+    test_features[2].accrete_ids(11)
+    test_features[3].accrete_ids(1)
 
     # Add features to the Frame
     test_frame.features = test_features

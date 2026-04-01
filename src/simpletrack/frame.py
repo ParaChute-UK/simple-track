@@ -47,16 +47,6 @@ class Frame:
         """
         return self._features
 
-    @features.setter
-    def features(self, features_dict: dict) -> None:
-        """
-        Set the features dict for the frame, with the feature ids as the
-        dict keys and the corresponding Feature objects as the dicts vals
-        """
-        if not isinstance(features_dict, dict):
-            raise TypeError(f"Expected type dict, got {type(features_dict)}")
-        self._features = features_dict
-
     @property
     def time(self) -> dt.datetime:
         """
@@ -64,30 +54,12 @@ class Frame:
         """
         return self._time
 
-    @time.setter
-    def time(self, time: dt.datetime) -> None:
-        """
-        Set time for the current frame, as a datetime.datetime object
-        """
-        if not isinstance(time, dt.datetime):
-            raise TypeError(
-                f"Expected 'output_time' to be datetime objcet, got {type(time)}"
-            )
-        self._time = time
-
     @property
     def feature_field(self) -> NDArray[np.integer]:
         """
         Get the feature id field for the current frame
         """
         return self._feature_field
-
-    @feature_field.setter
-    def feature_field(self, feature_field: NDArray) -> None:
-        """
-        Sets the self._feature_field attribute of the frame
-        """
-        self._feature_field = check_arrays(feature_field, ndim=2, dtype=int)
 
     @property
     def lifetime_field(self) -> NDArray[np.integer]:
@@ -102,6 +74,34 @@ class Frame:
         Returns max_id of features in the frame.
         """
         return self._max_id
+
+    @features.setter
+    def features(self, features_dict: dict) -> None:
+        """
+        Set the features dict for the frame, with the feature ids as the
+        dict keys and the corresponding Feature objects as the dicts vals
+        """
+        if not isinstance(features_dict, dict):
+            raise TypeError(f"Expected type dict, got {type(features_dict)}")
+        self._features = features_dict
+
+    @time.setter
+    def time(self, time: dt.datetime) -> None:
+        """
+        Set time for the current frame, as a datetime.datetime object
+        """
+        if not isinstance(time, dt.datetime):
+            raise TypeError(
+                f"Expected 'output_time' to be datetime objcet, got {type(time)}"
+            )
+        self._time = time
+
+    @feature_field.setter
+    def feature_field(self, feature_field: NDArray) -> None:
+        """
+        Sets the self._feature_field attribute of the frame
+        """
+        self._feature_field = check_arrays(feature_field, ndim=2, dtype=int)
 
     @max_id.setter
     def max_id(self, max_id: int) -> None:
