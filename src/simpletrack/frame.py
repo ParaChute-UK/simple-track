@@ -20,7 +20,7 @@ class Frame:
     """
 
     def __init__(self):
-        self.time = None
+        self._time = None
         self.raw_field = None
         self.feature_field = None
         self.lifetime_field = None
@@ -30,7 +30,7 @@ class Frame:
         self.x_flow = None
 
     def __repr__(self) -> str:
-        repr_str = f"Frame time: {self.time}, "
+        repr_str = f"Frame time: {self._time}, "
         repr_str += f"Number of Features: {len(self._features)}"
         return repr_str
 
@@ -57,6 +57,24 @@ class Frame:
             raise TypeError(f"Expected type dict, got {type(features_dict)}")
         self._features = features_dict
 
+    @property
+    def time(self) -> dt.datetime:
+        """
+        Get the datetime object that the current frame is valid for
+        """
+        return self._time
+
+    @time.setter
+    def time(self, time: dt.datetime) -> None:
+        """
+        Set time for the current frame, as a datetime.datetime object
+        """
+        if not isinstance(time, dt.datetime):
+            raise TypeError(
+                f"Expected 'output_time' to be datetime objcet, got {type(time)}"
+            )
+        self._time = time
+
     def import_time_and_data(self, time: dt.datetime, data: NDArray) -> None:
         """
         Load time and raw data into the frame.
@@ -66,29 +84,23 @@ class Frame:
             data (NDArray): Raw data to perform tracking on
         """
         self.raw_field = check_arrays(data, ndim=2)
-        self.set_time(time)
-
-    def set_time(self, time: dt.datetime) -> None:
-        """
-        Set time for the current frame, as a datetime.datetime object
-        """
         if not isinstance(time, dt.datetime):
             raise TypeError(
                 f"Expected 'output_time' to be datetime objcet, got {type(time)}"
             )
-        self.time = time
-
-    def get_time(self) -> dt.datetime:
-        """
-        Get the datetime object that the current frame is valid for
-        """
-        return self.time
+        self._time = time
 
     def get_feature_field(self) -> NDArray[np.integer]:
         """
         Get the feature id field for the current frame
         """
         return self.feature_field
+
+    def set_feature_field(self, feature_field: NDArray) -> None:
+        """
+        Sets the self.feature_field attribute of the frame
+        """
+        self.feature_field = check_arrays(feature_field, ndim=2, dtype=int)
 
     def get_lifetime_field(self) -> NDArray:
         """
@@ -115,12 +127,6 @@ class Frame:
         returns [None, None]
         """
         return self.y_flow, self.x_flow
-
-    def set_feature_field(self, feature_field: NDArray) -> None:
-        """
-        Sets the self.feature_field attribute of the frame
-        """
-        self.feature_field = check_arrays(feature_field, ndim=2, dtype=int)
 
     def replace_features(self, new_features: dict) -> None:
         """
@@ -201,7 +207,7 @@ class Frame:
 
             # Construct Feature object, set relevant properties, add to the list of features
             feature = Feature(
-                id=feature_id, feature_coords=feature_coords, time=self.time
+                id=feature_id, feature_coords=feature_coords, time=self._time
             )
             # If raw field is not None, use this to find max value within Feature
             if self.raw_field is not None:
@@ -380,9 +386,9 @@ class Timeline:
         """
         if not isinstance(frame, Frame):
             raise TypeError(f"Expected type Frame, got {type(frame)}")
-        if frame.get_time() is None:
+        if frame.time is None:
             raise ValueError("Frame time is not set. Cannot add to timeline.")
-        self.timeline[frame.get_time()] = frame
+        self.timeline[frame.time] = frame
 
     def get_previous_frame(self, current_time: dt.time) -> Frame:
         """
@@ -394,7 +400,7 @@ class Timeline:
         if len(self.timeline) == 1:
             return None
 
-        prev_times = [time for time in self.timeline.keys() if time < current_time]
+        prev_times = [time for time in self.timeline if time < current_time]
         closest_time = max(prev_times) if prev_times else None
         if closest_time is None:
             raise ValueError("No previous frame found in timeline")
@@ -416,7 +422,7 @@ class Timeline:
         Get the frame that is valid at the input time. Raises ValueError if frame matching
         the input time is not found.
         """
-        if time not in self.timeline.keys():
+        if time not in self.timeline:
             raise ValueError(f"No frame found for time {time}")
         return self.timeline[time]
 

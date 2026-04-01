@@ -34,7 +34,7 @@ class FrameOutputManager:
         Args:
             frame (Frame): _description_
         """
-        frame_time = frame.get_time()
+        frame_time = frame.time
         frame_time_str = frame_time.strftime(self.strftime)
         output_fnm = f"{self.output_path}/frame_{frame_time_str}.txt"
 
@@ -55,7 +55,7 @@ class FrameOutputManager:
                 output_file.write(output_line + "\n")
 
     def features_to_csv(self, frame: Frame) -> None:
-        frame_time = frame.get_time()
+        frame_time = frame.time
         frame_time_str = frame_time.strftime(self.strftime)
         output_fnm = f"{self.output_path}/frame_{frame_time_str}.csv"
 
@@ -95,7 +95,7 @@ class FrameOutputManager:
             "y-flow": [frame.get_flow()[0], "%.2e"],
             "x-flow": [frame.get_flow()[1], "%.2e"],
         }
-        frame_time = frame.get_time()
+        frame_time = frame.time
         frame_time_str = frame_time.strftime("%Y%m%d_%H%M")
         for output_fnm, [output, output_fmt] in outputs.items():
             if output is None:

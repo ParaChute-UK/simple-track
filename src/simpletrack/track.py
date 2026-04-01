@@ -140,7 +140,7 @@ class Tracker:
                 continue
 
             # Now run flow solver between previous and current frame
-            prev_frame = self.timeline.get_previous_frame(frame.get_time())
+            prev_frame = self.timeline.get_previous_frame(frame.time)
             y_flow, x_flow = self.flow_solver.analyse_flow(prev_frame, frame)
 
             # Update the previous Frame with these displacements which is
