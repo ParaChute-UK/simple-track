@@ -1035,7 +1035,7 @@ def test_identify_unmatched_features_in_prev_frame_valid_inputs():
     actual_unmatched_ids = [
         feature.id
         for feature in prev_frame.features.values()
-        if feature.is_final_timstep()
+        if feature.is_final_timestep()
     ]
 
     assert set(expected_unmatched_ids) == set(actual_unmatched_ids)

@@ -102,3 +102,96 @@ def test_spawned_ids_return_none_if_replaced_with_empty(setup_test_feature):
 
     # Check that the accreted list is now None
     assert test_feature.children is None
+
+
+def test_is_new_with_no_further_initialisation(setup_test_feature):
+    test_feature = setup_test_feature
+
+    # Check that the feature is new
+    assert test_feature.is_new() is True
+
+
+def test_is_new_with_lifetime_and_parent_setter_and_reset(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.lifetime = 5
+    # Reset to 1
+    test_feature.lifetime = 1
+
+    test_feature.parent = 10
+    # Reset to None
+    test_feature.parent = None
+
+    # Check that the feature is new
+    assert test_feature.is_new() is True
+
+
+def test_is_new_with_lifetime_setter_only(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.lifetime = 5
+
+    # Check that the feature is new
+    assert test_feature.is_new() is False
+
+
+def test_is_new_with_parent_id_setter_only(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.parent = 10
+
+    # Check that the feature is new
+    assert test_feature.is_new() is False
+
+
+def test_is_new_with_lifetime_and_parent_setter(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.lifetime = 5
+    test_feature.parent = 10
+
+    # Check that the feature is new
+    assert test_feature.is_new() is False
+
+
+def test_is_dissipating_with_no_further_initialisation(setup_test_feature):
+    test_feature = setup_test_feature
+
+    # Check that the feature is not dissipating
+    assert test_feature.is_dissipating() is False
+
+
+def test_is_dissipating_with_final_timestep_and_accreted_setter(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.set_as_final_timestep()
+    test_feature.accreted_in_next_frame_by = 10
+
+    # Check that the feature is dissipating
+    assert test_feature.is_dissipating() is False
+
+
+def test_is_dissipating_with_accreted_setter(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.accreted_in_next_frame_by = 10
+
+    # Check that the feature is dissipating
+    assert test_feature.is_dissipating() is False
+
+
+def test_is_dissipating_with_final_timestep_setter(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.set_as_final_timestep()
+
+    # Check that the feature is dissipating
+    assert test_feature.is_dissipating() is True
+
+
+def test_is_final_timestep_with_no_further_initialisation(setup_test_feature):
+    test_feature = setup_test_feature
+
+    # Check that the feature is not in its final timestep
+    assert test_feature.is_final_timestep() is False
+
+
+def test_is_final_timestep_with_final_timestep_setter(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.set_as_final_timestep()
+
+    # Check that the feature is in its final timestep
+    assert test_feature.is_final_timestep() is True
