@@ -82,8 +82,8 @@ class FlowSolver:
             list[NDArray, NDArray]: y_flow, x_flow
         """
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
-            prev_features = prev_field.get_feature_field()
-            current_features = current_field.get_feature_field()
+            prev_features = prev_field.feature_field
+            current_features = current_field.feature_field
         elif isinstance(prev_field, np.ndarray) and isinstance(
             current_field, np.ndarray
         ):

@@ -22,7 +22,7 @@ class Frame:
     def __init__(self):
         self._time = None
         self.raw_field = None
-        self.feature_field = None
+        self._feature_field = None
         self.lifetime_field = None
         self.max_id = None
         self._features = {}
@@ -75,32 +75,19 @@ class Frame:
             )
         self._time = time
 
-    def import_time_and_data(self, time: dt.datetime, data: NDArray) -> None:
-        """
-        Load time and raw data into the frame.
-
-        Args:
-            time (dt.datetime): Time the frame is valid for.
-            data (NDArray): Raw data to perform tracking on
-        """
-        self.raw_field = check_arrays(data, ndim=2)
-        if not isinstance(time, dt.datetime):
-            raise TypeError(
-                f"Expected 'output_time' to be datetime objcet, got {type(time)}"
-            )
-        self._time = time
-
-    def get_feature_field(self) -> NDArray[np.integer]:
+    @property
+    def feature_field(self) -> NDArray[np.integer]:
         """
         Get the feature id field for the current frame
         """
-        return self.feature_field
+        return self._feature_field
 
-    def set_feature_field(self, feature_field: NDArray) -> None:
+    @feature_field.setter
+    def feature_field(self, feature_field: NDArray) -> None:
         """
-        Sets the self.feature_field attribute of the frame
+        Sets the self._feature_field attribute of the frame
         """
-        self.feature_field = check_arrays(feature_field, ndim=2, dtype=int)
+        self._feature_field = check_arrays(feature_field, ndim=2, dtype=int)
 
     def get_lifetime_field(self) -> NDArray:
         """
@@ -149,6 +136,21 @@ class Frame:
         max_id = check_valid_ids(max_id)
         self.max_id = max_id
 
+    def import_time_and_data(self, time: dt.datetime, data: NDArray) -> None:
+        """
+        Load time and raw data into the frame.
+
+        Args:
+            time (dt.datetime): Time the frame is valid for.
+            data (NDArray): Raw data to perform tracking on
+        """
+        self.raw_field = check_arrays(data, ndim=2)
+        if not isinstance(time, dt.datetime):
+            raise TypeError(
+                f"Expected 'output_time' to be datetime objcet, got {type(time)}"
+            )
+        self._time = time
+
     def identify_features(
         self,
         threshold: float,
@@ -169,31 +171,31 @@ class Frame:
         if self.raw_field is None:
             raise Exception("Data has not been loaded into Frame")
 
-        self.feature_field = label_features(
+        self._feature_field = label_features(
             field=self.raw_field,
             min_area=min_size,
             threshold=threshold,
             under_threshold=under_threshold,
         )
         # Provisionally set the lifetime field to 1 anywhere there is a feature
-        self.lifetime_field = np.zeros_like(self.feature_field)
-        self.lifetime_field[self.feature_field > 0] = 1
-        self.max_id = int(np.max(self.feature_field))
+        self.lifetime_field = np.zeros_like(self._feature_field)
+        self.lifetime_field[self._feature_field > 0] = 1
+        self.max_id = int(np.max(self._feature_field))
         self.populate_features()
 
     def populate_features(self) -> None:
         """
-        Uses the self.feature_field array to populate the self.features dict with new
+        Uses the self._feature_field array to populate the self.features dict with new
         Feature instances.
         """
         # Check for existing features dict
         if self._features:
             self._features = {}
 
-        if self.feature_field is None:
+        if self._feature_field is None:
             return
 
-        feature_ids = np.unique(self.feature_field)
+        feature_ids = np.unique(self._feature_field)
         # Remove 0 from the list of ids (usually this is at idx 0 but can't guarantee this)
         feature_ids = np.delete(feature_ids, np.where(feature_ids == 0)[0][0])
         feature_ids = check_valid_ids(feature_ids)
@@ -202,7 +204,7 @@ class Frame:
         for feature_id in feature_ids:
             # Get the pixel locations of the feature in the field
             # For 2D data, np.where returns two arrays containing y, x locations
-            feature_mask = np.where(self.feature_field == feature_id)
+            feature_mask = np.where(self._feature_field == feature_id)
             feature_coords = np.array(feature_mask)
 
             # Construct Feature object, set relevant properties, add to the list of features
@@ -223,7 +225,7 @@ class Frame:
             y_flow (NDArray): _description_
             x_flow (NDArray): _description_
         """
-        if self.feature_field is None or not self._features:
+        if self._feature_field is None or not self._features:
             raise FeaturesNotFoundError(
                 "Features have not been loaded into this Frame. Cannot assign displacements"
             )
@@ -235,7 +237,7 @@ class Frame:
         # Assign these displacements to each Feature in the Frame using
         # mean of flow field for each grid point spanning the Feature
         for feature_id, feature in self._features.items():
-            feature_mask = self.feature_field == feature_id
+            feature_mask = self._feature_field == feature_id
             feature_dy = np.mean(y_flow[feature_mask])
             feature_dx = np.mean(x_flow[feature_mask])
             feature.dydx = (feature_dy, feature_dx)
@@ -249,8 +251,8 @@ class Frame:
             int: new id
         """
         if self.max_id is None:
-            if self.feature_field is not None:
-                self.max_id = np.max(self.feature_field).item()
+            if self._feature_field is not None:
+                self.max_id = np.max(self._feature_field).item()
             else:
                 self.max_id = 0
         self.max_id += 1
@@ -275,7 +277,7 @@ class Frame:
         """
         Update the feature_field to reflect provisional ids.
         """
-        if self.feature_field is None:
+        if self._feature_field is None:
             raise FeaturesNotFoundError(
                 "Feature field is not set. Cannot update using provisional ids."
             )
@@ -285,18 +287,18 @@ class Frame:
                 "Features have not been loaded into this Frame. Cannot update using provisional ids."
             )
 
-        updated_feature_field = np.zeros_like(self.feature_field)
-        updated_lifetime_field = np.zeros_like(self.feature_field)
+        updated_feature_field = np.zeros_like(self._feature_field)
+        updated_lifetime_field = np.zeros_like(self._feature_field)
 
         for feature in self._features.values():
-            feature_mask = self.feature_field == feature.id
+            feature_mask = self._feature_field == feature.id
             updated_lifetime_field[feature_mask] = feature.lifetime
             if feature.provisional_id is not None:
                 updated_feature_field[feature_mask] = feature.provisional_id
             else:
                 updated_feature_field[feature_mask] = feature.id
 
-        self.feature_field = updated_feature_field
+        self._feature_field = updated_feature_field
         self.lifetime_field = updated_lifetime_field
 
     def get_new_features(self) -> list:
@@ -361,7 +363,7 @@ class Frame:
         if field_type not in feature_methods.keys():
             raise KeyError(f"field_type must be one of {feature_methods.keys()}")
 
-        field = np.zeros_like(self.feature_field)
+        field = np.zeros_like(self._feature_field)
         for feature in feature_methods[field_type]():
             if centroid_only:
                 # tuple to ensure correct indexing
@@ -370,7 +372,7 @@ class Frame:
                 field[centroid_coord] = 1
             else:
                 # Populate field with full size of feature
-                init_mask = self.feature_field == feature.id
+                init_mask = self._feature_field == feature.id
                 field[init_mask] = 1
         return field
 

@@ -46,16 +46,22 @@ def check_arrays(
     if dtype is not None:
         # Change python base types to numpy types for looser comparison
         if dtype is int:
-            dtype = np.integer
-        if dtype is float:
-            dtype = np.floating
+            np_dtype = np.integer
+        elif dtype is float:
+            np_dtype = np.floating
+        else:
+            raise ArrayTypeError(f"Unsupported dtype {dtype} for check_arrays")
 
         for arr in modified_args:
-            if not np.issubdtype(arr.dtype, dtype):
-                msg = f"""
-                Argument with dtype {arr.dtype} does not have required dtype {dtype}
-                """
-                raise ArrayTypeError(msg)
+            if not np.issubdtype(arr.dtype, np_dtype):
+                try:
+                    arr = arr.astype(dtype, casting="same_value")
+                except (ValueError, TypeError):
+                    msg = f"""
+                    Argument with dtype {arr.dtype} does not have and cannot be cast to
+                    required dtype {dtype}
+                    """
+                    raise ArrayTypeError(msg) from None
 
     # Check each input array is equal size
     if equal_shape:

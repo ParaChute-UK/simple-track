@@ -1244,14 +1244,6 @@ matching_features = [
             np.array((1, 1), dtype=int),
             ArrayShapeError,
         ],
-        # Array of ints
-        [
-            1,
-            matching_features,
-            advected_field,
-            np.zeros((10, 10), dtype=float),
-            ArrayTypeError,
-        ],
         [1, ["not a feature list"], advected_field, current_field, TypeError],
         ["not an int", matching_features, advected_field, current_field, IDError],
     ],

@@ -165,9 +165,6 @@ class LoadingBar:
         padding = int(self.bar_length - len(arrow)) * " "
         ending = "\n" if current == self.total else "\r"
         print(
-            f"""
-            Simple-Track Progress: [{arrow}{padding}] {current}/{self.total} 
-            ({int(fraction * 100)}%) 
-            """,
+            f"Simple-Track Progress: [{arrow}{padding}] {current}/{self.total} ({int(fraction * 100)}%) ",
             end=ending,
         )

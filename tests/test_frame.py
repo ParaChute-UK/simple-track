@@ -153,7 +153,8 @@ def test_populate_features_invalid_float_features():
     test_feature_field[3:5, 3:5] = 0.1
     test_feature_field[6:9, 6:9] = 2
 
-    test_frame.feature_field = test_feature_field
+    # Bypass property setter to set invalid feature field for testing
+    test_frame._feature_field = test_feature_field
 
     try:
         test_frame.populate_features()
@@ -285,7 +286,8 @@ def test_update_fields_using_provisional_ids_with_valid_settings():
     test_feature_field = np.zeros((10, 10))
     test_feature_field[2:4, 2:4] = 1
     test_feature_field[6:9, 6:9] = 2
-    test_frame.feature_field = test_feature_field
+    # Bypass property setter to set invalid feature field for testing
+    test_frame._feature_field = test_feature_field
     test_frame.populate_features()
 
     # Set provisional ids for features
@@ -309,9 +311,7 @@ def test_update_fields_using_provisional_ids_with_valid_settings():
     expected_lifetime_field[2:4, 2:4] = 5
     expected_lifetime_field[6:9, 6:9] = 3
 
-    np.testing.assert_array_equal(
-        test_frame.get_feature_field(), expected_feature_field
-    )
+    np.testing.assert_array_equal(test_frame.feature_field, expected_feature_field)
     np.testing.assert_array_equal(
         test_frame.get_lifetime_field(), expected_lifetime_field
     )
@@ -322,14 +322,15 @@ def test_update_fields_using_provisional_ids_with_no_provisional_ids_set():
     test_feature_field = np.zeros((10, 10))
     test_feature_field[2:4, 2:4] = 1
     test_feature_field[6:9, 6:9] = 2
-    test_frame.feature_field = test_feature_field
+    # Bypass property setter to set invalid feature field for testing
+    test_frame._feature_field = test_feature_field
     test_frame.populate_features()
 
     # Update the feature field without setting any provisional ids
     test_frame.update_fields_using_provisional_ids()
 
     # The feature field should remain unchanged
-    np.testing.assert_array_equal(test_frame.get_feature_field(), test_feature_field)
+    np.testing.assert_array_equal(test_frame.feature_field, test_feature_field)
 
 
 def test_update_fields_using_provisional_ids_with_no_feature_field():

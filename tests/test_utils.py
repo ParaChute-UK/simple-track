@@ -111,6 +111,18 @@ def test_check_arrays_against_incorrect_float_dtype():
         pass
 
 
+def test_check_arrays_can_correctly_cast_to_int_type():
+    test_arr1 = np.arange(10, dtype=float)
+    test_arr2 = np.arange(10, 20, dtype=float)
+    check_arrays(test_arr1, test_arr2, dtype=int)
+
+
+def test_check_arrays_can_correctly_cast_to_float_type():
+    test_arr1 = np.arange(10, dtype=int)
+    test_arr2 = np.arange(10, 20, dtype=int)
+    check_arrays(test_arr1, test_arr2, dtype=float)
+
+
 def test_check_arrays_against_incorrect_str_dtype():
     test_arr1 = np.arange(10)
     test_arr2 = np.arange(10, 20)

@@ -90,7 +90,7 @@ class FrameOutputManager:
             frame (Frame): _description_
         """
         outputs = {
-            "features": [frame.get_feature_field(), "%.6e"],
+            "features": [frame.feature_field, "%.6e"],
             "lifetime": [frame.get_lifetime_field(), "%.4e"],
             "y-flow": [frame.get_flow()[0], "%.2e"],
             "x-flow": [frame.get_flow()[1], "%.2e"],
@@ -124,14 +124,14 @@ class FrameOutputManager:
             return TypeError(f"Expected all Frames, got {all_frames}")
 
         check_arrays(
-            *[frame.get_feature_field() for frame in all_frames],
+            *[frame.feature_field for frame in all_frames],
             ndim=2,
             equal_shape=True,
             non_negative=True,
         )
 
         # If above check passes, can make storage array from first frame field
-        field_shape = (len(all_frames), *all_frames[0].get_feature_field().shape)
+        field_shape = (len(all_frames), *all_frames[0].feature_field.shape)
         field_density = np.zeros(field_shape)
 
         for frame_idx, frame in enumerate(all_frames):

@@ -158,13 +158,13 @@ class FrameTracker:
             print("Continuing with unadvected Frame")
             return frame
 
-        feature_field = frame.get_feature_field()
+        feature_field = frame.feature_field
         advected_feature_field = advect_field_using_motion_vectors(
             feature_field, y_flow, x_flow
         )
 
         advected_frame = Frame()
-        advected_frame.set_feature_field(advected_feature_field)
+        advected_frame.feature_field = advected_feature_field
         advected_frame.populate_features()
 
         # Transfer lifetimes to advected frame
@@ -197,8 +197,8 @@ class FrameTracker:
                 Frame containing Features at current timestep
         """
         # Get the feature fields to analyse
-        advected_feature_field = advected_frame.get_feature_field()
-        current_feature_field = current_frame.get_feature_field()
+        advected_feature_field = advected_frame.feature_field
+        current_feature_field = current_frame.feature_field
 
         # Attempt to match features in the advected frame with current frame
         for current_feature in current_frame.features.values():
@@ -335,8 +335,8 @@ class FrameTracker:
             parent_feature, child_features = self.identify_parent_and_child_features(
                 conflicting_id,
                 matching_features,
-                advected_frame.get_feature_field(),
-                current_frame.get_feature_field(),
+                advected_frame.feature_field,
+                current_frame.feature_field,
             )
 
             # TODO: should some of this functionality be moved to Feature?
