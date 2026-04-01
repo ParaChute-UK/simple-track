@@ -28,8 +28,8 @@ class Feature:
         self._extreme = None
 
     def __repr__(self) -> str:
-        repr_str = f"Feature id: {self.id} (provisionally {self.provisional_id}), "
-        repr_str += f"lifetime: {self.lifetime} timestep(s) at time: {self.time}"
+        repr_str = f"Feature id: {self._id} (provisionally {self._provisional_id}), "
+        repr_str += f"lifetime: {self._lifetime} timestep(s) at time: {self._time}"
         return repr_str
 
     def __eq__(self, other):

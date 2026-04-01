@@ -91,7 +91,7 @@ class FrameOutputManager:
         """
         outputs = {
             "features": [frame.feature_field, "%.6e"],
-            "lifetime": [frame.get_lifetime_field(), "%.4e"],
+            "lifetime": [frame.lifetime_field, "%.4e"],
             "y-flow": [frame.get_flow()[0], "%.2e"],
             "x-flow": [frame.get_flow()[1], "%.2e"],
         }

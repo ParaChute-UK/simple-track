@@ -312,9 +312,7 @@ def test_update_fields_using_provisional_ids_with_valid_settings():
     expected_lifetime_field[6:9, 6:9] = 3
 
     np.testing.assert_array_equal(test_frame.feature_field, expected_feature_field)
-    np.testing.assert_array_equal(
-        test_frame.get_lifetime_field(), expected_lifetime_field
-    )
+    np.testing.assert_array_equal(test_frame.lifetime_field, expected_lifetime_field)
 
 
 def test_update_fields_using_provisional_ids_with_no_provisional_ids_set():

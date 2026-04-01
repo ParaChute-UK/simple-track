@@ -23,7 +23,7 @@ class Frame:
         self._time = None
         self.raw_field = None
         self._feature_field = None
-        self.lifetime_field = None
+        self._lifetime_field = None
         self.max_id = None
         self._features = {}
         self.y_flow = None
@@ -89,11 +89,12 @@ class Frame:
         """
         self._feature_field = check_arrays(feature_field, ndim=2, dtype=int)
 
-    def get_lifetime_field(self) -> NDArray:
+    @property
+    def lifetime_field(self) -> NDArray[np.integer]:
         """
         Get the feature lifetime field for the current frame
         """
-        return self.lifetime_field
+        return self._lifetime_field
 
     def get_feature(self, feature_id: int) -> Feature:
         """
@@ -115,13 +116,6 @@ class Frame:
         """
         return self.y_flow, self.x_flow
 
-    def replace_features(self, new_features: dict) -> None:
-        """
-        Replaces the self.features dict with the input argument. Used when updating
-        Feature properties after matching with a frame from a previous timestep.
-        """
-        self._features = new_features
-
     def get_max_id(self) -> int:
         """
         Returns max_id of features in the frame.
@@ -130,8 +124,8 @@ class Frame:
 
     def set_max_id(self, max_id: int) -> None:
         """
-        Sets the max_id used for assigning to features that do not match to another feature from a
-        previous timestep
+        Sets the max_id used for assigning to features that do not match to another
+        feature from a previous timestep
         """
         max_id = check_valid_ids(max_id)
         self.max_id = max_id
@@ -178,8 +172,8 @@ class Frame:
             under_threshold=under_threshold,
         )
         # Provisionally set the lifetime field to 1 anywhere there is a feature
-        self.lifetime_field = np.zeros_like(self._feature_field)
-        self.lifetime_field[self._feature_field > 0] = 1
+        self._lifetime_field = np.zeros_like(self._feature_field)
+        self._lifetime_field[self._feature_field > 0] = 1
         self.max_id = int(np.max(self._feature_field))
         self.populate_features()
 
@@ -299,7 +293,7 @@ class Frame:
                 updated_feature_field[feature_mask] = feature.id
 
         self._feature_field = updated_feature_field
-        self.lifetime_field = updated_lifetime_field
+        self._lifetime_field = updated_lifetime_field
 
     def get_new_features(self) -> list:
         """
