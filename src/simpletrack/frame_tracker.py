@@ -352,9 +352,9 @@ class FrameTracker:
                     feature.lifetime = 1
 
             # Update parent feature to include child ids
-            parent_feature.children = [
-                feature.provisional_id for feature in child_features
-            ]
+            parent_feature.spawns(
+                [feature.provisional_id for feature in child_features], replace=True
+            )
 
     def identify_unmatched_features_in_prev_frame(
         self, prev_frame: Frame, current_frame: Frame

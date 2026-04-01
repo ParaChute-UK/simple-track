@@ -1,5 +1,4 @@
 import datetime as dt
-from typing import Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -29,7 +28,7 @@ class Feature:
         self._accreted = []
         self._accreted_in_next_frame_by = None
         self._parent = None
-        self._children = None
+        self._children = []
         self._dydx = ()
         self._extreme = None
 
@@ -126,6 +125,8 @@ class Feature:
         If other Features split from this Feature in the current timestep,
         this is the list of IDs of those child Features. Otherwise this is None
         """
+        if len(self._children) < 1:
+            return None
         return self._children
 
     @property
@@ -158,22 +159,6 @@ class Feature:
 
         parent_id = check_valid_ids(parent_id)
         self._parent = native(parent_id)
-
-    @children.setter
-    def children(self, child_ids: list[int]) -> None:
-        if child_ids is None:
-            self._children = None
-            return
-
-        child_ids = check_valid_ids(child_ids)
-        if isinstance(child_ids, int):
-            self._children = native([child_ids])
-        elif isinstance(child_ids, (list, tuple, np.ndarray)):
-            self._children = native(child_ids)
-        else:
-            raise TypeError(
-                "children must be set to an int or list/tuple/NDArray of ints"
-            )
 
     @dydx.setter
     def dydx(self, dy_dx: tuple) -> None:
@@ -238,30 +223,54 @@ class Feature:
         else:
             existing_ids.extend(feature_ids)
 
-        if len(self._accreted) < 1:
-            self._accreted = None
-        else:
-            self._accreted = existing_ids
+        self._accreted = existing_ids
 
-    def spawns(self, feature_ids: int | list[int]) -> None:
+    def spawns(self, feature_ids: int | list[int], replace: bool = False) -> None:
         """
         Add input ids to the list of child ids for this Feature.
+        If replace is True, reaplces existing child ids with the input ids,
+        rather than adding to existing list.
         """
         feature_ids = check_valid_ids(feature_ids)
-        if self._child is None:
-            self._child = []
+        existing_ids = [] if replace else self._children
+
         if isinstance(feature_ids, int):
-            self._child.append(feature_ids)
+            existing_ids.append(feature_ids)
+        elif isinstance(feature_ids, np.ndarray):
+            existing_ids.extend(feature_ids.tolist())
         else:
-            self._child.extend(feature_ids)
+            existing_ids.extend(feature_ids)
+
+        self._children = existing_ids
 
     def get_size(self) -> int:
+        """
+        Get number of pixels spanned by the Feature, calculated as the number of
+        coordinate pairs in feature_coords array
+        """
         return len(self._feature_coords[0])
 
     def set_as_final_timestep(self) -> None:
+        """
+        Set the feature as being in its final timestep, which means it is either
+        accreting into another feature in the next frame, or it is dissipating
+        in the next frame.
+        """
         self._final_timestep = True
 
     def summarise(self, output_type="str", headers_only=False):
+        """
+        Return a summary of the Feature properties
+
+        Args:
+            output_type (str, optional):
+                Format to return the summary in. Either "str" or "dict"
+                Defaults to "str".
+            headers_only (bool, optional):
+                Whether to return just the headers of the summary
+                (i.e., the keys of the summary dict)
+                Defaults to False.
+        """
         summary = {
             "id": self._id,
             "centroid": self.centroid,
@@ -271,9 +280,9 @@ class Feature:
             "extreme": self._extreme,
             "lifetime": self._lifetime,
             "accreted": self._accreted,
-            # This will not be output properly in the current workflow, since each output occurs
-            # after the current frame analysis has finished, but this can only be set after comparison
-            # with the next frame of data.
+            # This will not be output properly in the current workflow, since each
+            # output occurs after the current frame analysis has finished, but this
+            # can only be set after comparison with the next frame of data.
             # "accredted_in_next_frame_by": self._accreted_in_next_frame_by,
             "parent": self._parent,
             "children": self._children,
@@ -293,22 +302,18 @@ class Feature:
         has lifetime of 1 AND it has not split from another Feature
         (i.e., it has no parent)
         """
-        if self._lifetime == 1 and self._parent is None:
-            return True
-        return False
+        return self._lifetime == 1 and self._parent is None
 
     def is_dissipating(self) -> bool:
         """
         Returns bool whether the Feature is 'dissipating' in the sense that
         this is its final timestep AND it has not been accreted by another Feature
         """
-        if self._final_timestep and self._accreted_in_next_frame_by is None:
-            return True
-        return False
+        return self._final_timestep and self._accreted_in_next_frame_by is None
 
     def is_final_timstep(self) -> bool:
         """
-        Returns bool whether this is the final timestep for the Feature, i.e., it is either
-        dissipating or accreting into another Feature
+        Returns bool whether this is the final timestep for the Feature, i.e., it is
+        either dissipating or accreting into another Feature
         """
         return self._final_timestep
