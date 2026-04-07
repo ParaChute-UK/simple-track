@@ -943,7 +943,7 @@ def test_check_accreted_feature_ids_are_not_provisional_ids():
     test_frame.features = test_features
 
     # Now, run the method which should remove this id from the accreted list
-    frame_tracker.check_accreted_feature_ids_are_not_provisional_ids(test_frame)
+    frame_tracker.check_for_accreted_ids_still_in_domain(test_frame)
 
     # Check that this correctly removed the accreted id for Feature 2
     assert test_frame.get_feature(2).accreted is None
@@ -973,7 +973,7 @@ def test_check_accreted_feature_ids_are_not_provisional_ids_valid():
     test_frame.features = test_features
 
     # Now, run the method which should not remove any accreted ids since they are all valid
-    frame_tracker.check_accreted_feature_ids_are_not_provisional_ids(test_frame)
+    frame_tracker.check_for_accreted_ids_still_in_domain(test_frame)
 
     # Check that all accreted ids are still present where appropriate
     assert test_frame.get_feature(1).accreted == [10]
@@ -999,7 +999,7 @@ def test_check_accreted_feature_ids_are_not_provisional_ids_with_no_provisional_
     test_frame.features = test_features
 
     # Now, run the method which should not remove any accreted ids since they are all valid
-    frame_tracker.check_accreted_feature_ids_are_not_provisional_ids(test_frame)
+    frame_tracker.check_for_accreted_ids_still_in_domain(test_frame)
 
     # Check that all accreted ids are still present where appropriate
     assert test_frame.get_feature(1).accreted == [10]

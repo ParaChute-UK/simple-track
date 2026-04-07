@@ -113,7 +113,7 @@ class FrameTracker:
         # Step 3: Check accreted ids from frame matching are not also present as
         # provisional ids. Remove any accreted ids found as a provisional id in
         # current frame
-        self.check_accreted_feature_ids_are_not_provisional_ids(current_frame)
+        self.check_for_accreted_ids_still_in_domain(current_frame)
 
         # Step 4: After Feature matching, there may be multiple Features in current
         # Frame that were matched to the same previous feature. Resolve these conflicts
@@ -253,7 +253,7 @@ class FrameTracker:
                     accreted_feature.accreted_in_next_frame_by = feature_id
                     accreted_feature.set_as_final_timestep()
 
-    def check_accreted_feature_ids_are_not_provisional_ids(self, frame: Frame) -> None:
+    def check_for_accreted_ids_still_in_domain(self, frame: Frame) -> None:
         """
         Any features that have been accreted by another feature should not therefore
         appear as a provisional id in the feature field (since it should no longer
