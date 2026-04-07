@@ -34,7 +34,7 @@ Simple-Track can be run in two ways:
 * Simple-Track can be run from the command line with a config file as an additional argument:
 
 	```
-	python3 run_simple_track.py my_config.yaml 
+	run_simple_track my_config.yaml 
 	```
 
 * The `my_config.yaml` file contains the parameters for running Simple-Track. The necessary parameters for running Simple-Track from the command line are shown below:
