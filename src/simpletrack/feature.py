@@ -228,7 +228,7 @@ class Feature:
     def spawns(self, feature_ids: int | list[int], replace: bool = False) -> None:
         """
         Add input ids to the list of child ids for this Feature.
-        If replace is True, reaplces existing child ids with the input ids,
+        If replace is True, replaces existing child ids with the input ids,
         rather than adding to existing list.
         """
         feature_ids = check_valid_ids(feature_ids)

@@ -12,6 +12,10 @@ from simpletrack.utils import check_arrays
 
 
 class FrameOutputManager:
+    """
+    Class for outputting contents of Frames to .txt, .csv and .field files.
+    """
+
     def __init__(
         self,
         output_path: str = "./output",
@@ -120,7 +124,7 @@ class FrameOutputManager:
             )
 
         all_frames = list(timeline.get_timeline().values())
-        if not all((isinstance(frame, Frame) for frame in all_frames)):
+        if not all(isinstance(frame, Frame) for frame in all_frames):
             return TypeError(f"Expected all Frames, got {all_frames}")
 
         check_arrays(
@@ -144,8 +148,8 @@ class FrameOutputManager:
 
 class LoadOutput:
     """
-    Contains functionality for reading previous outputs back into a Timeline object (contanining
-    Frames of field and Feature data) for further inspection and analysis.
+    Contains functionality for reading previous outputs back into a Timeline object
+    (contanining Frames of field and Feature data) for further inspection and analysis.
     """
 
     def __init__(self, st_data_path: Union[str | Path]):
@@ -204,7 +208,7 @@ class LoadOutput:
 
             for fname in frame_time_fnames:
                 # Read data from output
-                with open(fname, "r") as csv_file:
+                with open(fname) as csv_file:
                     reader = csv.DictReader(csv_file, fieldnames=headers)
                     all_feature_data = [
                         row
@@ -253,7 +257,7 @@ class LoadOutput:
         times_from_each_field_type = {}
 
         # Iterate over each field type to find time the data is available for
-        for ftype in self.field_attributes.keys():
+        for ftype in self.field_attributes:
             # Setup containing array for times
             field_filenames = self.path.rglob(f"{ftype}*.field")
             field_times = []

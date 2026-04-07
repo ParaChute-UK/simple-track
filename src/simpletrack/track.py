@@ -97,9 +97,11 @@ class Tracker:
         load the data, although the same checks on consistent array shapes
         will be applied.
         """
+        # Get input files to load if inputs not provided
         if input_data is None:
             input_data = self.get_filenames_from_input_path(file_type=self.file_type)
 
+        # Check type of input data and set up loader accordingly
         if isinstance(input_data, list):
             valid_types = (str, Path)
             if not all([isinstance(fnm, valid_types) for fnm in input_data]):
@@ -120,10 +122,12 @@ class Tracker:
             )
         # print(f"Hello from proc {mp.current_process().name} with arg {filenames}\n")
 
+        # Iterate through sorted input data, perform tracking, output results if flagged
         for fnm_idx, time_and_data in enumerate(self.loader):
             if self.start_time is None:
                 self.start_time = time_and_data[0]
 
+            # Import data to Frame and add to Timeline
             frame = Frame()
             frame.import_time_and_data(*time_and_data)
             frame.identify_features(**self.config["FEATURE"])
@@ -141,16 +145,16 @@ class Tracker:
 
             # Now run flow solver between previous and current frame
             prev_frame = self.timeline.get_previous_frame(frame.time)
+            # Set max id for assigning to new features
+            frame.max_id = prev_frame.max_id
+            # Get the flow field that translates features between the two frames
             y_flow, x_flow = self.flow_solver.analyse_flow(prev_frame, frame)
 
-            # Update the previous Frame with these displacements which is
-            # needed for tracking Features.
+            # Update the current Frame with these displacements
             if y_flow is not None or x_flow is not None:
                 frame.assign_displacements(y_flow, x_flow)
 
-            # Set max id for assigning to new features
-            frame.max_id = prev_frame.max_id
-            # Track Features between difference Frames
+            # Match Features between Frames
             self.frame_tracker.run(prev_frame, frame)
 
             # Output frame data to text file and field to npy if flagged
@@ -207,12 +211,6 @@ class Tracker:
             file_type (str, optional):
                 File type to search input_path for
                 Defaults to .nc
-
-        Raises:
-            Exception: _description_
-
-        Returns:
-            list: _description_
         """
         if input_path is None:
             input_path = self.config["INPUT"]["path"]

@@ -16,6 +16,14 @@ from simpletrack.utils import check_arrays
 
 
 class FlowSolver:
+    """
+    Class containing functionality for deriving flow field that maps features from an
+    older Frame to a more recent Frame. This is done by subdividing the input fields
+    into overlapping subdomains, deriving the flow in each subdomain using phase
+    cross-correlation, and then stitching together the subdomain flows using
+    interpolation.
+    """
+
     def __init__(
         self,
         subdomain_size: int = None,
@@ -29,14 +37,16 @@ class FlowSolver:
 
         Args:
             subdomain_size (int, optional):
-                Size in pixels of individual squares to run fft for (dy, dx) displacement
-                Must divide (y,x) lengths of the array. Defaults to domain size / 5
+                Size in pixels of individual squares to run fft for (dy, dx)
+                displacement. Must divide (y,x) lengths of the array.
+                Defaults to domain size / 5
             min_fractional_coverage (float, optional):
-                Minimum fractional cover of objects required for fft to obtain (dy, dx) displacement
+                Minimum fractional cover of objects required for fft to obtain (dy, dx)
+                displacement
                 Defaults to 0.01.
             subdomain_tolerance (int, optional):
-                Maximum difference in displacement values between adjacent squares (to remove
-                spurious values)
+                Maximum difference in displacement values between adjacent squares
+                (to remove spurious values)
                 Defaults to 3.
             overlap_threshold (float, optional):
                 Minimum fraction of overlap between features for use in flow_solver
@@ -219,7 +229,7 @@ class FlowSolver:
         x_subdomain_bounds_tuple = pairwise_with_stride(x_subdomain_bounds, 2)
 
         # Finally, get permutations of all xy subdomain bounds
-        # E.g., for example above, produces ( ((0, 20), (0, 30)), ((0, 20), (15, 45))...)
+        # E.g., for example above, produces ( ((0, 20), (0, 30)), ((0, 20), (15, 45))..)
         subdomain_bounds = itertools.product(
             y_subdomain_bounds_tuple, x_subdomain_bounds_tuple
         )
@@ -255,8 +265,10 @@ class FlowSolver:
                 input=subdomain_vals,
                 function=np.nanmean,  # Apply nanmean to each nbhood
                 footprint=footprint,  # Deterrmines how to sample points in the nbhood
-                mode="constant",  # Determines how to handle boundaries. "constant" = fill with cval
-                cval=np.nan,  # Fill boundary values with nan so they don't contribute to nanmean
+                mode="constant",
+                # Determines how to handle boundaries. "constant" = fill with cval
+                cval=np.nan,
+                # Fill boundary values with nan so they don't contribute to nanmean
             )
 
         # Check for any values where the nanmean exceeds threshold set in init
@@ -279,7 +291,7 @@ class FlowSolver:
             # TODO: do something more intelligent here rather than just raise an error
             # Try to find another subdomain shape that could fit
             raise Exception(
-                f"Derived subdomain shape ({sd_shape}) cannot fit ({feature_field_shape})"
+                f"Subdomain shape ({sd_shape}) cannot fit ({feature_field_shape})"
             )
         return sd_shape
 
@@ -298,7 +310,8 @@ class FlowSolver:
                 1d array describing shape of requested subdomain
 
         Returns:
-            bool: True if subdomain shape fits exactly in feature field shape, False otherwise
+            bool: True if subdomain shape fits exactly in feature field shape,
+            False otherwise
         """
         # Check inputs, only except errors related to contents of inputs
         try:
@@ -320,9 +333,7 @@ class FlowSolver:
             dim % sd_shape / 2
             for dim, sd_shape in zip(feature_field_shape, subdomain_shape)
         ]
-        if any([remainder != 0 for remainder in subdomain_check]):
-            return False
-        return True
+        return any([remainder != 0 for remainder in subdomain_check])
 
     def get_overlapping_subdomain_idxs(
         self, feature_field_shape: NDArray, subdomain_shape: NDArray
@@ -379,10 +390,11 @@ class FlowSolver:
     ) -> list[int]:
         """
         Uses FFT to identify most likely dy, dx motion vectors that translate field1
-        to field 2. This is largely handled by skimage.registration.phase_cross_correlation
-        but with additional pre-processing to avoid spurious correlations. E.g., if
-        tukey_smoothing flag is enabled, applies a filter to the edges of each field
-        that tapers to zero, which avoids spectral leakage.
+        to field 2. This is largely handled by
+        skimage.registration.phase_cross_correlation but with additional
+        pre-processing to avoid spurious correlations. E.g., if tukey_smoothing flag is
+        enabled, applies a filter to the edges of each field that tapers to zero,
+        which avoids spectral leakage.
 
         Args:
             field1 (NDArray):
@@ -417,8 +429,8 @@ class FlowSolver:
         m1 = field1 - np.mean(field1)
         m2 = field2 - np.mean(field2)
 
-        # Since image registration finds the vector that translates the second arg to the
-        # first, need to reverse input order
+        # Since image registration finds the vector that translates the second arg to
+        # the first, need to reverse input order
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=UserWarning)
             cross_corr = phase_cross_correlation(
@@ -458,8 +470,8 @@ class FlowSolver:
 
         # Create a 1D Tukey filter for each dimension. Alpha sets the degree to which
         # the filter resembles either a rectangular window (alpha=0) or a Hanning window
-        # (alpha=1). We want to retain a lot of points if the subdomain is small, but for
-        # larger subdomains we can apply more smoothing.
+        # (alpha=1). We want to retain a lot of points if the subdomain is small, but
+        # for larger subdomains we can apply more smoothing.
         filters = [
             tukey(dim_size, alpha=max(0.1, 10.0 / dim_size)) for dim_size in arr_shape
         ]
