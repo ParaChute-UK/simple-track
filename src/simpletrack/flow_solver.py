@@ -176,7 +176,7 @@ class FlowSolver:
 
     def get_subdomain_containment_arrays(
         self, full_domain_shape: NDArray, subdomain_shape: NDArray
-    ) -> NDArray:
+    ) -> list[NDArray, NDArray]:
         """
         Return array with correct shape for containing subdomain flow values
         Shape is number of subdomains in each direction * 2 for overlaps
@@ -189,7 +189,7 @@ class FlowSolver:
             subdomain_shape (NDArray): Shape of requested subdomain
 
         Returns:
-            NDArray: Array of NaNs of the required shape for containing subdomain data
+            list[NDArray, NDArray]: containing arrays for subdomain dy and dx
         """
         full_domain_shape, subdomain_shape = check_arrays(
             full_domain_shape, subdomain_shape, shape=(2,), dtype=int, non_negative=True
@@ -235,13 +235,12 @@ class FlowSolver:
         )
         return subdomain_bounds
 
-    def check_subdomain_variability(self, subdomain_vals: NDArray):
+    def check_subdomain_variability(self, subdomain_vals: NDArray) -> NDArray:
         """
         Check variability in neighbouring subdomains to ensure no large
         discrepancies. If there is a neighbourhood mean that departs from
         the local value by more than self.subdomain_tolerance, set the
         local value to np.nan
-
 
         Args:
             subdomain_vals (NDArray):
@@ -387,7 +386,7 @@ class FlowSolver:
 
     def derive_subdomain_flow(
         self, field1: NDArray, field2: NDArray, tukey_filtering: bool = True
-    ) -> list[int]:
+    ) -> list[int, int]:
         """
         Uses FFT to identify most likely dy, dx motion vectors that translate field1
         to field 2. This is largely handled by
@@ -407,7 +406,7 @@ class FlowSolver:
                 Defaults to True.
 
         Returns:
-            list[int]: [dy, dx] motion vectors for subdomain flow
+            list[int, int]: [dy, dx] motion vectors for subdomain flow
         """
         # Check inputs are equally shaped 2D arrays containing ints
         field1, field2 = check_arrays(
@@ -568,7 +567,7 @@ class FlowSolver:
         return filled
 
 
-def pairwise_with_stride(input_iter: Iterable, stride: int):
+def pairwise_with_stride(input_iter: Iterable, stride: int) -> Iterable:
     """
     Similar to itertools.pairwise but with step between elements
 

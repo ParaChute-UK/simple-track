@@ -75,7 +75,7 @@ class Tracker:
                     config_path,
                 )
 
-    def run(self, input_data: Union[list[str] | dict] = None):
+    def run(self, input_data: Union[list[str] | dict] = None) -> Timeline:
         """
         Runs SimpleTrack using the designated config options.
 
@@ -96,6 +96,8 @@ class Tracker:
         tracking on as the value. This will not use a predetermined Loader class to
         load the data, although the same checks on consistent array shapes
         will be applied.
+
+        Returns Timeline object containing Frames of data and tracked Features.
         """
         # Get input files to load if inputs not provided
         if input_data is None:

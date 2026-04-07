@@ -1,4 +1,5 @@
 import datetime as dt
+from typing import Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -258,7 +259,9 @@ class Feature:
         """
         self._final_timestep = True
 
-    def summarise(self, output_type="str", headers_only=False):
+    def summarise(
+        self, output_type: str = "str", headers_only: bool = False
+    ) -> Union[str, dict, list]:
         """
         Return a summary of the Feature properties
 

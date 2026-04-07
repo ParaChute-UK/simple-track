@@ -28,7 +28,7 @@ While Simple-Track is designed to accept a wide range of input data, certain req
 
 ## Running Simple-Track
 
-Simple-Track can be run in one of two ways:
+Simple-Track can be run in two ways:
 
 ### 1. Running Simple-Track from the Command Line
 * Simple-Track can be run from the command line with a config file as an additional argument:
@@ -55,7 +55,7 @@ Simple-Track can be run in one of two ways:
 * Any number of config files can be provided as additional arguments, Simple-Track will iterate over each one in turn.
 
 ### 2. Importing Simple-Track to a python file
-* Simple-Track can be run by importing the `SimpleTrack` class from `simple_track.py`. The config can be input either using a path to a yaml file, or by passing a dict when instantiating the object:
+* Simple-Track can be run by importing the `Tracker` class from `track.py` or directly from the `simpletrack` module. The config can be input either using a path to a yaml file, or by passing a dict when instantiating the object:
 
 	```python
 	from simpletrack import Tracker
