@@ -28,6 +28,9 @@ dependencies = [
   "scikit-image >= 0.25.2"
 ]
 
+[project.scripts]
+run_simple_track = "run_simple_track"
+
 [project.urls]
 Homepage = "https://github.com/ParaChute-UK/simple-track/"
 Issues = "https://github.com/ParaChute-UK/simple-track/issues"
