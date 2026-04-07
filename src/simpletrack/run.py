@@ -1,6 +1,6 @@
 import sys
 
-from simpletrack import Tracker
+from track import Tracker
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
