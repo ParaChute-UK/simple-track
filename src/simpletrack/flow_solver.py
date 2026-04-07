@@ -332,7 +332,7 @@ class FlowSolver:
             dim % sd_shape / 2
             for dim, sd_shape in zip(feature_field_shape, subdomain_shape)
         ]
-        return any([remainder != 0 for remainder in subdomain_check])
+        return not any([remainder != 0 for remainder in subdomain_check])
 
     def get_overlapping_subdomain_idxs(
         self, feature_field_shape: NDArray, subdomain_shape: NDArray
