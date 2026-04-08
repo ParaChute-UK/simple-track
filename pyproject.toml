@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Simple-Track"
-version = "2.0.0"
+version = "2.0.1"
 authors = [
   { name="Adam Gainford", email="adam.gainford@reading.ac.uk" },
   { name="Thorwald Stein", email="t.h.m.stein@reading.ac.uk"} 
@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.scripts]
-run_simple_track = "run_simple_track"
+simpletrack = "run_simple_track:run_tracking"
 
 [project.urls]
 Homepage = "https://github.com/ParaChute-UK/simple-track/"

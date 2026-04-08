@@ -11,7 +11,13 @@ Features are tracked between consecutive frames of data by projecting feature fi
 
 # Installation
 
-Coming soon to PyPi and conda-forge
+Simple-Track can be installed using PyPi:
+
+```
+python3 -m pip install simple-track
+```
+
+Coming soon to conda-forge and uv
 
 # User Guide
 
@@ -34,7 +40,7 @@ Simple-Track can be run in two ways:
 * Simple-Track can be run from the command line with a config file as an additional argument:
 
 	```
-	run_simple_track my_config.yaml 
+	simpletrack my_config.yaml 
 	```
 
 * The `my_config.yaml` file contains the parameters for running Simple-Track. The necessary parameters for running Simple-Track from the command line are shown below:

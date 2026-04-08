@@ -1,8 +1,9 @@
 import sys
 
-from track import Tracker
+from simpletrack import Tracker
 
-if __name__ == "__main__":
+
+def run_tracking():
     if len(sys.argv) < 2:
         raise Exception("Running SimpleTrack requires path to at least one config")
 
@@ -10,3 +11,7 @@ if __name__ == "__main__":
     for config_path in config_paths:
         # With None passed into run method, uses input path in config
         Tracker(config_path).run()
+
+
+if __name__ == "__main__":
+    run_tracking()
