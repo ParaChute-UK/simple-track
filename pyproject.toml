@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Simple-Track"
-version = "2.0.1.test"
+version = "2.0.2"
 authors = [
   { name="Adam Gainford", email="adam.gainford@reading.ac.uk" },
   { name="Thorwald Stein", email="t.h.m.stein@reading.ac.uk"} 
