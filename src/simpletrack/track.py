@@ -45,6 +45,8 @@ class Tracker:
 
         if "INPUT" in self.config:
             self.file_type = self.config["INPUT"].get("file_type", None)
+        else:
+            self.file_type = None
 
         if "FLOW_SOLVER" in self.config:
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
@@ -53,16 +55,19 @@ class Tracker:
 
         if "TRACKING" in self.config:
             self.frame_tracker = FrameTracker(**self.config["TRACKING"])
-            self.skip_tracking = self.config["TRACKING"].get("skip_tracking", False)
         else:
             self.frame_tracker = FrameTracker()
-            self.skip_tracking = False
 
         if "OUTPUT" in self.config:
+            self.skip_tracking = self.config["TRACKING"].get("skip_tracking", False)
             output_path = self.config["OUTPUT"].get("path", "./output")
             expt_name = self.config["OUTPUT"].get(
                 "experiment_name", "Simple-Track Experiment"
             )
+        else:
+            self.skip_tracking = False
+            output_path = "./output"
+            expt_name = "Simple-Track Experiment"
 
         # Output only if flagged in config
         self.frame_output = None
