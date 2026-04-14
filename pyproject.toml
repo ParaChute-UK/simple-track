@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Simple-Track"
-version = "2.0.2"
+version = "2.0.3"
 authors = [
   { name="Adam Gainford", email="adam.gainford@reading.ac.uk" },
   { name="Thorwald Stein", email="t.h.m.stein@reading.ac.uk"} 
 ]
 description = "Threshold-based object tracking algorithm for 2D data "
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -19,12 +19,12 @@ classifiers = [
 license = "MPL-2.0"
 license-files = ["LICEN[CS]E*"]
 dependencies = [
-  "numpy >= 2.3.4",
+  "numpy >= 2.2.0",
   "pytest >= 9.0",
   "pytest-cov",
   "pytest-xdist",
   "pyyaml",
-  "scipy >= 1.16.3",
+  "scipy >= 1.15.0",
   "scikit-image >= 0.25.2"
 ]
 
