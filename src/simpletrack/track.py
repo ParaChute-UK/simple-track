@@ -3,7 +3,6 @@ Run the SimpleTrack algorithm to track objects through a sequence of images
 """
 
 from pathlib import Path
-from typing import Union
 
 from yaml import safe_load
 
@@ -19,7 +18,7 @@ class Tracker:
     Simple-Track manager controlling inputs, processing, outputs
     """
 
-    def __init__(self, config_input: Union[str | dict]) -> None:
+    def __init__(self, config_input: str | dict) -> None:
         """
         Initialize SimpleTrack with configuration file
 
@@ -80,7 +79,7 @@ class Tracker:
                     config_path,
                 )
 
-    def run(self, input_data: Union[list[str] | dict] = None) -> Timeline:
+    def run(self, input_data: list[str] | dict = None) -> Timeline:
         """
         Runs SimpleTrack using the designated config options.
 

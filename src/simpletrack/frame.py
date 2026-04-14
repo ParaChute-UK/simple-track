@@ -1,5 +1,4 @@
 import datetime as dt
-from typing import Union
 
 import numpy as np
 import scipy.ndimage as ndimage
@@ -123,7 +122,7 @@ class Frame:
         else:
             return None
 
-    def get_flow(self) -> Union[NDArray, None]:
+    def get_flow(self) -> NDArray | None:
         """
         Get a list of the y-flow and x-flow fields derived by comparing features between
         this frame and a frame from a previous timestep. Flow fields are both numpy

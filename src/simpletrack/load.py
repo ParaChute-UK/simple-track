@@ -1,5 +1,4 @@
 import datetime as dt
-from typing import Union
 
 from numpy.typing import NDArray
 
@@ -39,7 +38,7 @@ class BaseLoader:
     Loaders should be
     """
 
-    def __init__(self, input_data: Union[list[str] | dict]) -> None:
+    def __init__(self, input_data: list[str] | dict) -> None:
         self.domain_shape = None
         self.input_data = input_data
         # Set the iterating list

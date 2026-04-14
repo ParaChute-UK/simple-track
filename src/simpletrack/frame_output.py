@@ -2,7 +2,6 @@ import csv
 import datetime
 from ast import literal_eval
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 
@@ -152,7 +151,7 @@ class LoadOutput:
     (contanining Frames of field and Feature data) for further inspection and analysis.
     """
 
-    def __init__(self, st_data_path: Union[str | Path]):
+    def __init__(self, st_data_path: str | Path):
         self.path = Path(st_data_path)
         self.strftime = "%Y%m%d_%H%M"
         # Links field type names in outputs to attribute names in Frame

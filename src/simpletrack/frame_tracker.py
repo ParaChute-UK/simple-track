@@ -1,5 +1,3 @@
-from typing import Union
-
 import numpy as np
 from numpy.typing import NDArray
 
@@ -493,7 +491,7 @@ class FrameTracker:
         advected_feature_field: NDArray,
         current_feature_field: NDArray,
         current_feature_id: int,
-    ) -> list[Union[int, None], Union[NDArray, None]]:
+    ) -> list[int | None, NDArray | None]:
         """
         Use overlap histogram to find the closest matching feature id in the advected
         field for the current_feature_id in the current_field. Any other ids that are
@@ -865,7 +863,7 @@ def advect_field_using_motion_vectors(
         dx = np.mean(x_flow[feature_mask], dtype=int)
 
         # Now, advect the feature to the new position
-        for y_coord, x_coord in zip(*feature_mask):
+        for y_coord, x_coord in zip(*feature_mask, strict=True):
             advected_y_coord = y_coord + dy
             advected_x_coord = x_coord + dx
 

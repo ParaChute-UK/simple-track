@@ -1,7 +1,6 @@
 import itertools
 import warnings
 from collections.abc import Iterable
-from typing import Union
 
 import numpy as np
 import scipy.ndimage as ndimage
@@ -69,7 +68,7 @@ class FlowSolver:
         self.apply_tukey_filtering = apply_tukey_filtering
 
     def analyse_flow(
-        self, prev_field: Union[Frame, NDArray], current_field: Union[Frame, NDArray]
+        self, prev_field: Frame | NDArray, current_field: Frame | NDArray
     ) -> list[NDArray, NDArray]:
         """
         Analyses previous field and current field to identify flow field. Uses phase
@@ -330,7 +329,7 @@ class FlowSolver:
 
         subdomain_check = [
             dim % sd_shape / 2
-            for dim, sd_shape in zip(feature_field_shape, subdomain_shape)
+            for dim, sd_shape in zip(feature_field_shape, subdomain_shape, strict=True)
         ]
         return not any([remainder != 0 for remainder in subdomain_check])
 

@@ -1,5 +1,4 @@
 import datetime as dt
-from typing import Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -261,7 +260,7 @@ class Feature:
 
     def summarise(
         self, output_type: str = "str", headers_only: bool = False
-    ) -> Union[str, dict, list]:
+    ) -> str | dict | list:
         """
         Return a summary of the Feature properties
 
