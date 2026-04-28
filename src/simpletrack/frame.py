@@ -387,6 +387,9 @@ class Timeline:
     def __init__(self):
         self.timeline = {}
 
+    def __len__(self) -> int:
+        return len(self.timeline)
+
     def add_to_timelime(self, frame: Frame) -> None:
         """
         Add the input frame to the timeline, using the frame.get_time() to
