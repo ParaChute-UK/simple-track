@@ -127,6 +127,31 @@ def test_populate_features_sets_max_property():
     assert test_frame.get_feature(2).max == 20
 
 
+def test_populate_features_sets_mean_property():
+    test_time = dt.datetime.now()
+    test_frame = Frame()
+    test_frame.time = test_time
+
+    test_feature_field = test_field.copy()
+    test_feature_field[2:6, 2:6] = 1
+    test_feature_field[6:9, 6:9] = 2
+
+    test_raw_field = test_field.copy()
+    test_raw_field[2:6, 2:6] = 10
+    test_raw_field[2:6, 4:6] = 50
+    test_raw_field[6:9, 6:9] = 20
+    # Set another higher maximum within the field to check mean
+    # only picks up the values within the feature mask
+    test_raw_field[0:2, 0:2] = 100
+
+    test_frame.feature_field = test_feature_field
+    test_frame.raw_field = test_raw_field
+    test_frame.populate_features()
+
+    assert test_frame.get_feature(1).mean == 30
+    assert test_frame.get_feature(2).mean == 20
+
+
 def test_populate_features_invalid_negative_features():
     test_time = dt.datetime.now()
     test_frame = Frame()

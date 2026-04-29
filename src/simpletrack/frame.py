@@ -211,7 +211,8 @@ class Frame:
             )
             # If raw field is not None, use this to find max value within Feature
             if self.raw_field is not None:
-                feature.max = max(self.raw_field[feature_mask])
+                feature.max = np.max(self.raw_field[feature_mask])
+                feature.mean = np.mean(self.raw_field[feature_mask])
             self._features[feature_id] = feature
 
     def assign_displacements(self, y_flow: NDArray, x_flow: NDArray) -> None:

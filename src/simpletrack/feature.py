@@ -31,6 +31,7 @@ class Feature:
         self._children = []
         self._dydx = ()
         self._max = None
+        self._mean = None
 
     def __repr__(self) -> str:
         repr_str = f"Feature id: {self._id} (provisionally {self._provisional_id}), "
@@ -146,6 +147,13 @@ class Feature:
         """
         return self._max
 
+    @property
+    def mean(self) -> float:
+        """
+        Mean value of the Feature in the raw input data
+        """
+        return self._mean
+
     @coords.setter
     def coords(self, new_coords: NDArray[np.integer]) -> None:
         self._feature_coords = new_coords
@@ -187,6 +195,10 @@ class Feature:
     @max.setter
     def max(self, max_val: float) -> None:
         self._max = max_val
+
+    @mean.setter
+    def mean(self, mean_val: float) -> None:
+        self._mean = mean_val
 
     def calculate_centroid(self) -> tuple:
         """
@@ -280,6 +292,7 @@ class Feature:
             # native() does not convert dydx to python type for some reason
             "dydx": tuple([val.item() for val in self._dydx]),
             "max": self._max,
+            "mean": self._mean,
             "lifetime": self._lifetime,
             "accreted": self._accreted,
             # This will not be output properly in the current workflow, since each
