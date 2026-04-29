@@ -58,7 +58,7 @@ class Tracker:
             self.frame_tracker = FrameTracker()
 
         if "OUTPUT" in self.config:
-            self.skip_tracking = self.config["TRACKING"].get("skip_tracking", False)
+            self.skip_tracking = self.config["OUTPUT"].get("skip_tracking", False)
             output_path = self.config["OUTPUT"].get("path", "./output")
             expt_name = self.config["OUTPUT"].get(
                 "experiment_name", "Simple-Track Experiment"
