@@ -9,7 +9,7 @@ from simpletrack.utils import check_arrays, check_valid_ids, native
 class Feature:
     """
     Object containing details about a specific feature, including its id, time,
-    centroid, extreme value, lifetime, and whether it has undergone any
+    centroid, maximum value, lifetime, and whether it has undergone any
     mergers of splits in the current timestep.
     """
 
@@ -30,7 +30,7 @@ class Feature:
         self._parent = None
         self._children = []
         self._dydx = ()
-        self._extreme = None
+        self._max = None
 
     def __repr__(self) -> str:
         repr_str = f"Feature id: {self._id} (provisionally {self._provisional_id}), "
@@ -140,11 +140,11 @@ class Feature:
         return native(self._dydx)
 
     @property
-    def extreme(self) -> float:
+    def max(self) -> float:
         """
         Maximum value of the Feature in the raw input data
         """
-        return self._extreme
+        return self._max
 
     @coords.setter
     def coords(self, new_coords: NDArray[np.integer]) -> None:
@@ -184,9 +184,9 @@ class Feature:
         id_of_accreting_feature = check_valid_ids(id_of_accreting_feature)
         self._accreted_in_next_frame_by = id_of_accreting_feature
 
-    @extreme.setter
-    def extreme(self, extreme_val: float) -> None:
-        self._extreme = extreme_val
+    @max.setter
+    def max(self, max_val: float) -> None:
+        self._max = max_val
 
     def calculate_centroid(self) -> tuple:
         """
@@ -279,7 +279,7 @@ class Feature:
             "size": self.get_size(),
             # native() does not convert dydx to python type for some reason
             "dydx": tuple([val.item() for val in self._dydx]),
-            "extreme": self._extreme,
+            "max": self._max,
             "lifetime": self._lifetime,
             "accreted": self._accreted,
             # This will not be output properly in the current workflow, since each

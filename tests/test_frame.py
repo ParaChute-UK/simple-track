@@ -103,7 +103,7 @@ def test_populate_features_valid_feature_field():
     assert test_frame.features == expected_dict
 
 
-def test_populate_features_sets_extreme_property():
+def test_populate_features_sets_max_property():
     test_time = dt.datetime.now()
     test_frame = Frame()
     test_frame.time = test_time
@@ -123,8 +123,8 @@ def test_populate_features_sets_extreme_property():
     test_frame.raw_field = test_raw_field
     test_frame.populate_features()
 
-    assert test_frame.get_feature(1).extreme == 10
-    assert test_frame.get_feature(2).extreme == 20
+    assert test_frame.get_feature(1).max == 10
+    assert test_frame.get_feature(2).max == 20
 
 
 def test_populate_features_invalid_negative_features():

@@ -155,10 +155,10 @@ Fields (`.field` files):
 
 Features (`.csv` or `.txt` files):
 * ID: Unique feature identifier that persists between frames (i.e., a feature retains the same id across all frames that it is tracked).
-* Centroid: (y, x) tuple containing central location of feature.
-* Size: Number of pixels spanned by the feature.
+* centroid: (y, x) tuple containing central location of feature.
+* size: Number of pixels spanned by the feature.
 * dydx: (dy, dx) tuple containing motion vector that translated feature to its location in the current frame from the previous frame.
-* extreme: Maximum value contained within the feature in the input data.
+* max: Maximum value contained within the feature in the input data.
 * lifetime: Number of timesteps the feature has existed for.
 * accreted: List of IDs of features that were accreted by this feature, if applicable.
 * parent: ID of parent feature that this feature split from, if applicable

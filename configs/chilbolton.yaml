@@ -1,7 +1,7 @@
 # Test config file for reading Chilbolton data
 
 INPUT:
-  path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/data
+  path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Simple-Track Experiments/data
   loader: ChilboltonLoader
   file_type: .nc
 
