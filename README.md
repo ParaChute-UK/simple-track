@@ -11,13 +11,15 @@ Features are tracked between consecutive frames of data by projecting feature fi
 
 # Installation
 
-Simple-Track can be installed using PyPi:
+Simple-Track can be installed using PyPi or conda-forge:
 
 ```
 python3 -m pip install simple-track
 ```
-
-Coming soon to conda-forge and uv
+```
+conda install conda-forge::simple-track
+```
+Coming soon to uv
 
 # User Guide
 
