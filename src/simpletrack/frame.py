@@ -176,6 +176,8 @@ class Frame:
         # Provisionally set the lifetime field to 1 anywhere there is a feature
         self._lifetime_field = np.zeros_like(self._feature_field)
         self._lifetime_field[self._feature_field > 0] = 1
+        if np.max(self._feature_field) == 0:
+            return
         self.max_id = int(np.max(self._feature_field))
         self.populate_features()
 
