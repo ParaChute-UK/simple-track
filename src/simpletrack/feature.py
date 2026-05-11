@@ -32,12 +32,14 @@ class Feature:
         self._dydx = ()
         self._max = None
         self._mean = None
-        (
-            self._major_vector,
-            self._minor_vector,
-            self._major_radius,
-            self._minor_radius,
-        ) = self.calculate_major_minor_axes(self._feature_coords)
+        # Only attempt pca decomposition if feature is larger than 1 pixel
+        if feature_coords.shape[1] > 1:
+            (
+                self._major_vector,
+                self._minor_vector,
+                self._major_radius,
+                self._minor_radius,
+            ) = self.calculate_major_minor_axes(self._feature_coords)
 
     def __repr__(self) -> str:
         repr_str = f"Feature id: {self._id} (provisionally {self._provisional_id}), "
@@ -193,12 +195,19 @@ class Feature:
         self._feature_coords = new_coords
         self._centroid = self.calculate_centroid()  # Update centroid when coords change
         # Update feature elongation information
-        (
-            self._major_vector,
-            self._minor_vector,
-            self._major_radius,
-            self._minor_radius,
-        ) = self.calculate_major_minor_axes(self._feature_coords)
+        # Only attempt pca decomposition if feature is larger than 1 pixel
+        if new_coords.shape[1] > 1:
+            (
+                self._major_vector,
+                self._minor_vector,
+                self._major_radius,
+                self._minor_radius,
+            ) = self.calculate_major_minor_axes(self._feature_coords)
+        else:
+            self._major_vector = None
+            self._minor_vector = None
+            self._major_radius = None
+            self._minor_radius = None
 
     @parent.setter
     def parent(self, parent_id: int) -> None:
