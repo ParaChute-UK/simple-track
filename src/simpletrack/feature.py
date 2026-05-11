@@ -32,6 +32,12 @@ class Feature:
         self._dydx = ()
         self._max = None
         self._mean = None
+        (
+            self._major_vector,
+            self._minor_vector,
+            self._major_radius,
+            self._minor_radius,
+        ) = self.calculate_major_minor_axes(self._feature_coords)
 
     def __repr__(self) -> str:
         repr_str = f"Feature id: {self._id} (provisionally {self._provisional_id}), "
@@ -154,10 +160,45 @@ class Feature:
         """
         return self._mean
 
+    @property
+    def major_vector(self) -> NDArray:
+        """
+        Unit vector of semi-major axis in (y, x) format
+        """
+        return self._major_vector
+
+    @property
+    def minor_vector(self) -> NDArray:
+        """
+        Unit vector of semi-minor axis in (y, x) format
+        """
+        return self._minor_vector
+
+    @property
+    def major_radius(self) -> float:
+        """
+        Radius of the semi-major axis
+        """
+        return self._major_radius
+
+    @property
+    def minor_radius(self) -> float:
+        """
+        Radius of semi-minor axis
+        """
+        return self._minor_radius
+
     @coords.setter
     def coords(self, new_coords: NDArray[np.integer]) -> None:
         self._feature_coords = new_coords
         self._centroid = self.calculate_centroid()  # Update centroid when coords change
+        # Update feature elongation information
+        (
+            self._major_vector,
+            self._minor_vector,
+            self._major_radius,
+            self._minor_radius,
+        ) = self.calculate_major_minor_axes(self._feature_coords)
 
     @parent.setter
     def parent(self, parent_id: int) -> None:
@@ -199,6 +240,67 @@ class Feature:
     @mean.setter
     def mean(self, mean_val: float) -> None:
         self._mean = mean_val
+
+    def calculate_major_minor_axes(
+        self, coords: NDArray
+    ) -> list[NDArray, NDArray, float, float]:
+        """
+        Calculate major and minor axes of the feature using principal component
+        analysis. Returns
+
+        Args:
+            coords (np.NDArray): 2D array of coordinates of shape (2, N) spanned by
+            the feature, with format (y, x), i.e., first row contains y coordinates,
+            and second row contains x coordinates
+
+        Returns:
+            list[np.NDArray, np.NDArray, float, float]:
+                Semi-major axis vector:
+                    NDArray of shape (2) containing (y, x) unit vector
+                    (Eigenvector of largest eigenvalue)
+                Semi-minor axis vector:
+                    NDArray of shape (2) containing (y, x) unit vector
+                    (Eigenvector of smallest eigenvalue)
+                Semi-major axis radius:
+                    float: Radius of the semi-major axis
+                Semi-minor axis radius:
+                    float: Radius of semi-minor axis
+        """
+        coords = check_arrays(coords, ndim=2, dtype=int)
+
+        # First, subtract mean from coords
+        mean_coords = np.mean(coords, axis=1)
+        # Need to add new axis to make shape of mean_coords the same as coords
+        mean_adjusted_coords = coords - mean_coords[:, np.newaxis]
+
+        # Calculate covariance matrix, eigenvalues, eigenvectors
+        cov_mat = np.cov(mean_adjusted_coords)
+        evals, evecs = np.linalg.eig(cov_mat)
+
+        # Use evals to determine sort order of eiegenvectors
+        sort_idx = np.argsort(evals)[::-1]
+
+        # In this case, it is difficult to relate eigenvalues to major/minor
+        # radii, since this seems to depend on the feature shape.
+        # Instead, project coords onto eigenvectors and find difference
+        # between max and min to get diameter of feature.
+        # Method follows https://math.stackexchange.com/questions/4231542/
+
+        major_unit_vector = evecs[:, sort_idx[0]]
+        minor_unit_vector = evecs[:, sort_idx[1]]
+        major_diameter = np.max(major_unit_vector.T @ coords) - np.min(
+            major_unit_vector.T @ coords
+        )
+        minor_diameter = np.max(minor_unit_vector.T @ coords) - np.min(
+            minor_unit_vector.T @ coords
+        )
+
+        return (
+            major_unit_vector,
+            minor_unit_vector,
+            major_diameter / 2,
+            minor_diameter / 2,
+        )
 
     def calculate_centroid(self) -> tuple:
         """

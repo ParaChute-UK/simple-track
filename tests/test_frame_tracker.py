@@ -1216,7 +1216,7 @@ feature_dt = dt.datetime.now()  # this is unimportant for this test
 matching_features = [
     Feature(
         id=id,
-        feature_coords=np.array(np.where(current_field == id)),
+        feature_coords=np.array([[2, 3, 4], [2, 3, 4]]),
         time=feature_dt,
     )
     for id in range(10, 30, 10)
