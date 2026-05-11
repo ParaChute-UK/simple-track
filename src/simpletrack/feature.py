@@ -16,11 +16,10 @@ class Feature:
     def __init__(
         self, id: int, feature_coords: NDArray[np.integer], time: dt.datetime
     ) -> None:
-        check_arrays(feature_coords, ndim=2, dtype=int)
+        self._feature_coords = check_arrays(feature_coords, ndim=2, dtype=int)
         id = check_valid_ids(id)
         self._id = native(id)
         self._provisional_id = None
-        self._feature_coords = feature_coords
         self._time = time
         self._centroid = None
         self._lifetime = 1
@@ -33,7 +32,7 @@ class Feature:
         self._max = None
         self._mean = None
         # Only attempt pca decomposition if feature is larger than 1 pixel
-        if feature_coords.shape[1] > 1:
+        if self._feature_coords.shape[1] > 1:
             (
                 self._major_vector,
                 self._minor_vector,
@@ -297,12 +296,12 @@ class Feature:
 
         major_unit_vector = evecs[:, sort_idx[0]]
         minor_unit_vector = evecs[:, sort_idx[1]]
-        major_diameter = np.max(major_unit_vector.T @ coords) - np.min(
-            major_unit_vector.T @ coords
-        )
-        minor_diameter = np.max(minor_unit_vector.T @ coords) - np.min(
-            minor_unit_vector.T @ coords
-        )
+
+        major_eig_proj = major_unit_vector.T @ coords
+        minor_eig_proj = minor_unit_vector.T @ coords
+
+        major_diameter = np.max(major_eig_proj) - np.min(major_eig_proj)
+        minor_diameter = np.max(minor_eig_proj) - np.min(minor_eig_proj)
 
         return (
             major_unit_vector,
