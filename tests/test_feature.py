@@ -293,8 +293,8 @@ def test_feature_elongation_calculation():
         minor_radius,
     ) = Feature.calculate_major_minor_axes(None, feature_coords)
 
-    major_axis_orientation = np.arctan2(major_vector[1], major_vector[0])
-    minor_axis_orientation = np.arctan2(minor_vector[1], minor_vector[0])
+    major_axis_orientation = np.arctan2(major_vector[0], major_vector[1])
+    minor_axis_orientation = np.arctan2(minor_vector[0], minor_vector[1])
 
     # Allow for 2 s.f. tolerance, it isn't perfect!
     np.testing.assert_approx_equal(np.pi / 6, major_axis_orientation, significant=2)

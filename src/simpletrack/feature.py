@@ -303,9 +303,10 @@ class Feature:
         major_diameter = np.max(major_eig_proj) - np.min(major_eig_proj)
         minor_diameter = np.max(minor_eig_proj) - np.min(minor_eig_proj)
 
+        # Reverse eigenvectors to be in (y,x) format, consistent with rest of package
         return (
-            major_unit_vector,
-            minor_unit_vector,
+            major_unit_vector[::-1],
+            minor_unit_vector[::-1],
             major_diameter / 2,
             minor_diameter / 2,
         )
