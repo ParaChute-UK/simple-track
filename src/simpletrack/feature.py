@@ -304,11 +304,12 @@ class Feature:
         minor_diameter = np.max(minor_eig_proj) - np.min(minor_eig_proj)
 
         # Reverse eigenvectors to be in (y,x) format, consistent with rest of package
+        # Native converts from numpy type to python type
         return (
-            major_unit_vector[::-1],
-            minor_unit_vector[::-1],
-            major_diameter / 2,
-            minor_diameter / 2,
+            native(major_unit_vector[::-1]),
+            native(minor_unit_vector[::-1]),
+            native(major_diameter / 2),
+            native(minor_diameter / 2),
         )
 
     def calculate_centroid(self) -> tuple:

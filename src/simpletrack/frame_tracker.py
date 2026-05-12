@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.typing import NDArray
+from skimage.draw import ellipse
 
 from simpletrack.feature import Feature
 from simpletrack.frame import Frame
@@ -932,6 +933,45 @@ def generate_radial_mask(field: NDArray, coord: NDArray, mask_radius: int) -> ND
     x_centroid_dist = (temp_x[np.newaxis, :] - coord[1]) ** 2
     mask = (y_centroid_dist + x_centroid_dist) < mask_radius**2
     return mask
+
+
+def generate_elliptical_mask_around_feature(
+    field: NDArray, feature: Feature, radius_coefficient: float = 1
+) -> NDArray:
+    """
+    Generate an elliptical mask around a Feature using its semi-major
+    and semi-minor axes information
+
+    Args:
+        field (NDArray):
+            Field to generate the mask for (using it's shape)
+        feature (Feature):
+            The feature to generate the mask around
+        radius_coefficient (float):
+            Multiplies the major and minor radii to expand or contract mask
+            Defaults to 1, indicating no change to radii
+
+    Returns:
+        2D mask field of same shape as input field
+    """
+    field = check_arrays(field, ndim=2)
+    if not isinstance(feature, Feature):
+        raise TypeError(f"Expected type 'Feature', got {type(feature)}")
+    radius_coefficient = native(radius_coefficient)
+
+    # Get tuple of coords using skimage.draw module
+    ellipse_coords = ellipse(
+        feature.centroid[0],
+        feature.centroid[1],
+        feature.major_radius * radius_coefficient,
+        feature.minor_radius * radius_coefficient,
+        shape=field.shape,
+        rotation=np.arctan2(feature.major_vector[0], feature.major_vector[1]),
+    )
+    # Create mask field and use coords to set regions within mask to 1
+    ellipse_mask = np.zeros_like(field)
+    ellipse_mask[ellipse_coords] = 1
+    return ellipse_mask
 
 
 def get_centroid(field: NDArray, value: int) -> NDArray:

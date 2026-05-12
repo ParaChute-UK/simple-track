@@ -277,6 +277,7 @@ def test_feature_elongation_calculation():
     test_width = 50
     # Get mask containing ones within the rectangle of specified shape
     # Multiply length and width by 2 to turn radius -> diameter
+    # NOTE: in future, this can just be done with skimage.draw module
     feature_coords = get_linear_feature_coords(
         length=test_length * 2,
         centre=(150, 250),
