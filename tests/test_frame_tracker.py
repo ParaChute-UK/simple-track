@@ -509,31 +509,33 @@ def test_overlap_histogram(construct_test_fields):
         np.testing.assert_equal(result, expected_result, err_msg)
 
 
-# def test_overlap_histogram_with_nbhood(construct_test_fields):
-#     """
-#     Tests whether the calculate_overlap_histogram produces the correct degree of overlap
-#     when a nbhood is used to expand the mask around the first input.
-#     """
+def test_overlap_histogram_with_nbhood(construct_test_fields):
+    """
+    Tests whether the calculate_overlap_histogram produces the correct degree of overlap
+    when a nbhood is used to expand the mask around the first input.
+    """
 
-#     test_field, test_field2 = construct_test_fields[0:2]
+    test_field, test_field2 = construct_test_fields[0:2]
 
-#     # Using a mask of radius 3 pixels around each feature, we now expect
-#     # to encompass all of the features with the same label in each field
-#     # Therefore, for label 1 and 2, expect an overlap of 0.666 and 0.75
-#     # (The most overlap that these features of different sizes can have)
-#     ids = [1, 2]
-#     expected_results = [1, 1]
+    # Using a mask of radius 3 pixels around each feature, we now expect
+    # to encompass all of the features with the same label in each field
+    # Therefore, for label 1 and 2, expect an overlap of 0.666 and 0.75
+    # (The most overlap that these features of different sizes can have)
+    ids = [1, 2]
+    expected_results = [1, 1]
 
-#     for id, expected_result in zip(ids, expected_results):
-#         test_feature = Feature(
-#             id, feature_coords=((1, 1), (0, 1)), time=dt.datetime.now()
-#         )
-#         hist = FrameTracker().calculate_overlap_histogram(
-#             test_field, test_field2, feature=test_feature, nbhood=3
-#         )
-#         result = hist[id]
-#         err_msg = f"Test failed: overlap ({result}) not equal to expected overlap ({expected_result})."
-#         np.testing.assert_equal(result, expected_result, err_msg)
+    for id, expected_result in zip(ids, expected_results):
+        test_feature = Feature(
+            id,
+            feature_coords=np.array(np.where(test_field2 == id)),
+            time=dt.datetime.now(),
+        )
+        hist = FrameTracker().calculate_overlap_histogram(
+            test_field, test_field2, feature=test_feature, nbhood=3
+        )
+        result = hist[id]
+        err_msg = f"Test failed: overlap ({result}) not equal to expected overlap ({expected_result})."
+        np.testing.assert_equal(result, expected_result, err_msg)
 
 
 def test_overlap_histogram_with_multiple_overlaps_and_different_labels(
