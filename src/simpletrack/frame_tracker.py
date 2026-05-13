@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 from numpy.typing import NDArray
 from skimage.draw import ellipse
@@ -210,7 +212,7 @@ class FrameTracker:
             # position as the feature_id in the current_feature_field (normalised by
             # the feature sizes)
             overlap_hist = self.calculate_overlap_histogram(
-                advected_feature_field, current_feature_field, feature_id, nbhood=0
+                advected_feature_field, current_feature_field, current_feature, nbhood=0
             )
 
             # If the maximum overlap is not achieved, rerun with a nbhood surrouding the
@@ -219,7 +221,7 @@ class FrameTracker:
                 overlap_hist = self.calculate_overlap_histogram(
                     advected_feature_field,
                     current_feature_field,
-                    feature_id,
+                    current_feature,
                     nbhood=self.overlap_nbhood,
                 )
 
@@ -701,7 +703,7 @@ class FrameTracker:
         self,
         advected_feature_field: NDArray,
         current_feature_field: NDArray,
-        feature_id: int,
+        feature: Feature,
         nbhood: int = 0,
     ) -> NDArray:
         """
@@ -737,7 +739,8 @@ class FrameTracker:
             equal_shape=True,
             dtype=int,
         )
-        feature_id = check_valid_ids(feature_id)
+        if not isinstance(feature, Feature):
+            raise TypeError(f"Expected type Feature, got {type(feature)}")
         if not isinstance(nbhood, (int, np.integer)):
             raise TypeError(f"Expected int, got {type(nbhood)}")
         if nbhood < 0:
@@ -745,15 +748,12 @@ class FrameTracker:
 
         # Create feature mask using current feature field, or expand mask using a nbhood
         # if this is flagged in input
-        feature_mask = np.where(current_feature_field == feature_id, True, False)
+        feature_mask = np.where(current_feature_field == feature.id, True, False)
         if nbhood:
-            centroid = get_centroid(current_feature_field, feature_id)
-            if self._nbhood_coeff_test:
-                radial_mask_size = nbhood * np.count_nonzero(feature_mask)
-            else:
-                radial_mask_size = nbhood
-            feature_mask += generate_radial_mask(
-                current_feature_field, centroid, radial_mask_size
+            feature_mask += generate_elliptical_mask_around_feature(
+                field_shape=current_feature_field.shape,
+                feature=feature,
+                radius_coefficient=nbhood,
             )
 
         # Setup bins for comparing feature fields using histogram
@@ -936,7 +936,7 @@ def generate_radial_mask(field: NDArray, coord: NDArray, mask_radius: int) -> ND
 
 
 def generate_elliptical_mask_around_feature(
-    field: NDArray, feature: Feature, radius_coefficient: float = 1
+    field_shape: NDArray, feature: Feature, radius_coefficient: float = 1
 ) -> NDArray:
     """
     Generate an elliptical mask around a Feature using its semi-major
@@ -954,23 +954,25 @@ def generate_elliptical_mask_around_feature(
     Returns:
         2D mask field of same shape as input field
     """
-    field = check_arrays(field, ndim=2)
+    field_shape = check_arrays(field_shape, shape=(2,))
     if not isinstance(feature, Feature):
         raise TypeError(f"Expected type 'Feature', got {type(feature)}")
     radius_coefficient = native(radius_coefficient)
 
     # Get tuple of coords using skimage.draw module
-    ellipse_coords = ellipse(
-        feature.centroid[0],
-        feature.centroid[1],
-        feature.major_radius * radius_coefficient,
-        feature.minor_radius * radius_coefficient,
-        shape=field.shape,
-        rotation=np.arctan2(feature.major_vector[0], feature.major_vector[1]),
-    )
+    # Catch divide by 0 warnings during ellipse construction
+    with warnings.catch_warnings(action="ignore"):
+        ellipse_coords = ellipse(
+            feature.centroid[0],
+            feature.centroid[1],
+            feature.major_radius * radius_coefficient,
+            feature.minor_radius * radius_coefficient,
+            shape=field_shape,
+            rotation=np.arctan2(feature.major_vector[0], feature.major_vector[1]),
+        )
     # Create mask field and use coords to set regions within mask to 1
-    ellipse_mask = np.zeros_like(field)
-    ellipse_mask[ellipse_coords] = 1
+    ellipse_mask = np.zeros(field_shape, dtype=bool)
+    ellipse_mask[ellipse_coords] = True
     return ellipse_mask
 
 

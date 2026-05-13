@@ -32,7 +32,8 @@ class Feature:
         self._max = None
         self._mean = None
         # Only attempt pca decomposition if feature is larger than 1 pixel
-        if self._feature_coords.shape[1] > 1:
+        # Checking the last coord supports ndim=1 or ndim=2
+        if self._feature_coords.shape[-1] > 1:
             (
                 self._major_vector,
                 self._minor_vector,
