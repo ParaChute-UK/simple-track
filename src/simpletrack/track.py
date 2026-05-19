@@ -4,8 +4,6 @@ Run the SimpleTrack algorithm to track objects through a sequence of images
 
 from pathlib import Path
 
-from yaml import safe_load
-
 from simpletrack.flow_solver import FlowSolver
 from simpletrack.frame import Frame, Timeline
 from simpletrack.frame_output import FrameOutputManager
@@ -258,6 +256,9 @@ class Tracker:
             dict:
                 Simple-Track parameters
         """
+
+        from yaml import safe_load
+
         with open(config_path) as input:
             config = safe_load(input)
         self._check_config(config)
