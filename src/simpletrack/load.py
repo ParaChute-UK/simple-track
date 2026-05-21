@@ -1,5 +1,8 @@
 import datetime as dt
+import importlib
+import sys
 from collections.abc import Callable
+from pathlib import Path
 
 import numpy as np
 from numpy.typing import NDArray
@@ -49,6 +52,27 @@ class BaseLoader:
                 f"Expected 'output_time' to be datetime object, got {type(output_time)}"
             )
 
+    def _validate_input_func(self, input_func: str | Callable) -> Callable:
+        if callable(input_func):
+            return input_func
+        elif isinstance(input_func, str):
+            return self._get_callable_from_str(input_func)
+        else:
+            raise TypeError(f"Expected str or callable, got {type(input_func)}")
+
+    def _get_callable_from_str(self, func_str: str):
+        file_path, function_name = func_str.split("|")
+
+        # Load the module from the file path
+        module_name = Path(file_path).stem
+        spec = importlib.util.spec_from_file_location(module_name, file_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+
+        # Assign the function to your variable
+        return getattr(module, function_name)
+
 
 class FilenameIterator(BaseLoader):
     """
@@ -61,12 +85,13 @@ class FilenameIterator(BaseLoader):
     iterated through when the loader is used in Simple-Track.
     """
 
-    def __init__(self, input_data, input_loader_func: Callable) -> None:
+    def __init__(self, input_data, input_loader_func: str | Callable) -> None:
         super().__init__(input_data)
         # Check input is a list of filenames
         if not isinstance(input_data, (list, tuple)):
             raise TypeError(f"Expected input_data type list, got {type(input_data)}")
-        self.user_definable_load = input_loader_func
+
+        self.user_definable_load = self._validate_input_func(input_loader_func)
 
     def __next__(self) -> list[dt.datetime, NDArray]:
         if self.iter_idx >= len(self.input_data):
@@ -91,10 +116,11 @@ class ArrayIterator(BaseLoader):
     """
 
     def __init__(
-        self, input_data, input_loader_func: Callable, iterator_dim: int
+        self, input_data, input_loader_func: str | Callable, iterator_dim: int
     ) -> None:
         super().__init__(input_data)
-        self.all_times, all_data = input_loader_func(input_data)
+        user_definable_load = self._validate_input_func(input_loader_func)
+        self.all_times, all_data = user_definable_load(input_data)
         # Reshape array to make the iterating dimension the first dim
         # This will allow for more convenient array iteration
         self.iter_arr = np.moveaxis(all_data, iterator_dim, 0)

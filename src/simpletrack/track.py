@@ -8,7 +8,13 @@ from simpletrack.flow_solver import FlowSolver
 from simpletrack.frame import Frame, Timeline
 from simpletrack.frame_output import FrameOutputManager
 from simpletrack.frame_tracker import FrameTracker
-from simpletrack.load import ConfigError, DictIterator, LoadingBar, get_loader
+from simpletrack.load import (
+    ArrayIterator,
+    ConfigError,
+    DictIterator,
+    FilenameIterator,
+    LoadingBar,
+)
 
 
 class Tracker:
@@ -42,8 +48,13 @@ class Tracker:
 
         if "INPUT" in self.config:
             self.file_type = self.config["INPUT"].get("file_type", None)
+            self.iterate_over_array = self.config["INPUT"].get(
+                "iterate_over_array", False
+            )
+
         else:
             self.file_type = None
+            self.iterate_over_array = False
 
         if "FLOW_SOLVER" in self.config:
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
@@ -105,25 +116,8 @@ class Tracker:
         if input_data is None:
             input_data = self.get_filenames_from_input_path(file_type=self.file_type)
 
-        # Check type of input data and set up loader accordingly
-        if isinstance(input_data, list):
-            valid_types = (str, Path)
-            if not all([isinstance(fnm, valid_types) for fnm in input_data]):
-                types = [type(fnm) for fnm in input_data]
-                raise TypeError(
-                    f"If input_data is list it must only contain str, got {types}"
-                )
-            self.loading_bar = LoadingBar(total=len(input_data))
-            self.loader = get_loader(self.config["INPUT"]["loader"])(input_data)
+        self._setup_loaders(input_data)
 
-        elif isinstance(input_data, dict):
-            self.loading_bar = LoadingBar(total=len(input_data.values()))
-            self.loader = DictIterator(input_data)
-
-        else:
-            raise TypeError(
-                f"Expected input_data type list(str) or dict, got {type(input_data)}"
-            )
         # print(f"Hello from proc {mp.current_process().name} with arg {filenames}\n")
 
         # Iterate through sorted input data, perform tracking, output results if flagged
@@ -284,3 +278,39 @@ class Tracker:
         #     )
         if "threshold" not in config["FEATURE"]:
             raise ConfigError("config missing required threshold input")
+
+    def _setup_loaders(self, input_data) -> None:
+        # Check type of input data and set up loader accordingly
+        if isinstance(input_data, list):
+            valid_types = (str, Path)
+            if not all([isinstance(fnm, valid_types) for fnm in input_data]):
+                types = [type(fnm) for fnm in input_data]
+                raise TypeError(
+                    f"If input_data is list it must only contain str, got {types}"
+                )
+            self.loading_bar = LoadingBar(total=len(input_data))
+            # Check type of loader to use
+            loader_func = self.config["INPUT"]["loader"]
+
+            # Setup ArrayIterator
+            if self.iterate_over_array:
+                iterator_dim = self.config["INPUT"].get("iterator_dim", None)
+                if iterator_dim is None:
+                    raise ValueError("Iterating over arrays requires iterator_dim")
+                if not isinstance(iterator_dim, int):
+                    raise TypeError(
+                        f"iterator_dim must be type int, got {type(iterator_dim)}"
+                    )
+                self.loader = ArrayIterator(input_data, loader_func, iterator_dim)
+            # Setup FilenameIterator
+            else:
+                self.loader = FilenameIterator(input_data, loader_func)
+
+        elif isinstance(input_data, dict):
+            self.loading_bar = LoadingBar(total=len(input_data.values()))
+            self.loader = DictIterator(input_data)
+
+        else:
+            raise TypeError(
+                f"Expected input_data type list(str) or dict, got {type(input_data)}"
+            )

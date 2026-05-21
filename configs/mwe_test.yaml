@@ -2,7 +2,8 @@
 
 INPUT:
   path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/tests/mwe_test_files
-  loader: MWELoader
+  loader: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Simple-Track Experiments/new_loader_tests/mwe_loader.py|load_mwe
+  iterate_over_array: False
   file_type: .field
 
 OUTPUT:
