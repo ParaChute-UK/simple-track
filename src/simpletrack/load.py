@@ -1,5 +1,7 @@
 import datetime as dt
+from collections.abc import Callable
 
+import numpy as np
 from numpy.typing import NDArray
 
 from simpletrack.utils import check_arrays
@@ -11,52 +13,21 @@ class ConfigError(Exception):
     """
 
 
-def get_loader(loader_key: str):
-    available_loaders = {
-        "MWELoader": MWELoader,
-        "ChilboltonLoader": ChilboltonLoader,
-    }
-    try:
-        loader = available_loaders[loader_key]
-    except KeyError as err:
-        raise KeyError(f"Unknown loader: {loader_key}") from err
-    if not issubclass(loader, BaseLoader):
-        raise TypeError(f"Requested loader ({loader}) is not type BaseLoader")
-    return loader
-
-
 class BaseLoader:
     """
-    Base class for building custom loaders for use with Simple-Track. To use, inherit
-    from this class and implement the `user_definable_load` method, which will take a
-    single input (filename) and should return a list of [datetime, array].
-    The loader should be initialised with a list of filenames, which will be
-    iterated through when the loader is used in Simple-Track.
-    Loaded data is checked for consistency and type before being passed to Simple-Track,
-    so the user only needs to worry about loading the data in the correct format.
-
-    Loaders should be
+    Base class for building custom loaders for use with Simple-Track.
+    Provides base functionality for checking running iterator and checking loaded data
+    for consistency and type before being passed to Simple-Track. Ensures the user only
+    needs to worry about loading the data in the correct format.
     """
 
     def __init__(self, input_data: list[str] | dict) -> None:
         self.domain_shape = None
         self.input_data = input_data
-        # Set the iterating list
-        if not isinstance(input_data, (list, tuple)):
-            raise TypeError(f"Expected input_data type list, got {type(input_data)}")
 
     def __iter__(self):
         self.iter_idx = 0
         return self
-
-    def __next__(self) -> list[dt.datetime, NDArray]:
-        if self.iter_idx >= len(self.input_data):
-            raise StopIteration
-        next_fnm = self.input_data[self.iter_idx]
-        self.iter_idx += 1
-        time, data = self.user_definable_load(next_fnm)
-        self._check_loaded_data(time, data)
-        return time, data
 
     # TODO: rename this to something better?
     def user_definable_load(self, filename: str) -> list[dt.datetime, NDArray]:
@@ -77,6 +48,65 @@ class BaseLoader:
             raise TypeError(
                 f"Expected 'output_time' to be datetime object, got {type(output_time)}"
             )
+
+
+class FilenameIterator(BaseLoader):
+    """
+    Class used when user provides their own loading function, where each timestep is
+    loaded as from a single file and iteration is performed over each filename.
+    To use, provide the loader function and input data filenames to be iterated over
+    by the loading function. The loading function must take a
+    single input (filename) and should return a list of [datetime, array].
+    The loader should be initialised with a list of filenames, which will be
+    iterated through when the loader is used in Simple-Track.
+    """
+
+    def __init__(self, input_data, input_loader_func: Callable) -> None:
+        super().__init__(input_data)
+        # Check input is a list of filenames
+        if not isinstance(input_data, (list, tuple)):
+            raise TypeError(f"Expected input_data type list, got {type(input_data)}")
+        self.user_definable_load = input_loader_func
+
+    def __next__(self) -> list[dt.datetime, NDArray]:
+        if self.iter_idx >= len(self.input_data):
+            raise StopIteration
+        next_fnm = self.input_data[self.iter_idx]
+        self.iter_idx += 1
+        time, data = self.user_definable_load(next_fnm)
+        self._check_loaded_data(time, data)
+        return time, data
+
+
+class ArrayIterator(BaseLoader):
+    """
+    Class used when user provides their own loading function, where timesteps are
+    loaded from one or more files and iteration is performed over a specified array
+    dimension.
+    To use, provide the loader function and input data filename(s) to be iterated over
+    by the loading function, as well as the iterating dimension. The loading function
+    must return two outputs: a list of datetime objects and an NDArray where the
+    iterating dimension specified in the input is of the same size as the datetime list.
+    This ensures each array slice matches with a corresponding datetime.
+    """
+
+    def __init__(
+        self, input_data, input_loader_func: Callable, iterator_dim: int
+    ) -> None:
+        super().__init__(input_data)
+        self.all_times, all_data = input_loader_func(input_data)
+        # Reshape array to make the iterating dimension the first dim
+        # This will allow for more convenient array iteration
+        self.iter_arr = np.moveaxis(all_data, iterator_dim, 0)
+
+    def __next__(self) -> list[dt.datetime, NDArray]:
+        if self.iter_idx >= len(self.input_data):
+            raise StopIteration
+        time = self.all_times[self.iter_idx]
+        data = self.iter_arr[self.iter_idx]
+        self._check_loaded_data(time, data)
+        self.iter_idx += 1
+        return time, data
 
 
 class DictIterator(BaseLoader):
@@ -104,44 +134,6 @@ class DictIterator(BaseLoader):
         data = self.input_data[time]
         self.iter_idx += 1
         self._check_loaded_data(time, data)
-        return time, data
-
-
-class MWELoader(BaseLoader):
-    def __init__(self, filenames: list):
-        super().__init__(filenames)
-
-    def user_definable_load(self, filename):
-        import numpy as np
-
-        base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
-        data = np.loadtxt(filename)
-        self.file_id = str(filename)
-        mwe_idx = str(filename)[-7]
-        time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
-        return time, data
-
-
-class ChilboltonLoader(BaseLoader):
-    def __init__(self, filenames: list):
-        super().__init__(filenames)
-
-    def user_definable_load(self, filename):
-        import numpy as np
-        from netCDF4 import Dataset as ncfile
-
-        nc = ncfile(filename)
-        data = nc.variables["var"][200:600, 250:550] / 32
-        data = np.flipud(np.transpose(data))
-        date_id = str(filename)[-18:-11]
-        time_id = str(filename)[-9:-5]
-        time = dt.datetime(
-            year=int(date_id[0:4]),
-            month=int(date_id[4:6]),
-            day=int(date_id[6:]),
-            hour=int(time_id[0:2]),
-            minute=int(time_id[2:4]),
-        )
         return time, data
 
 
