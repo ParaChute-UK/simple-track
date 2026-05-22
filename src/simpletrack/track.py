@@ -2,13 +2,20 @@
 Run the SimpleTrack algorithm to track objects through a sequence of images
 """
 
+from glob import glob
 from pathlib import Path
 
 from simpletrack.flow_solver import FlowSolver
 from simpletrack.frame import Frame, Timeline
 from simpletrack.frame_output import FrameOutputManager
 from simpletrack.frame_tracker import FrameTracker
-from simpletrack.load import ConfigError, DictIterator, LoadingBar, get_loader
+from simpletrack.load import (
+    ArrayIterator,
+    ConfigError,
+    DictIterator,
+    FilenameIterator,
+    LoadingBar,
+)
 
 
 class Tracker:
@@ -16,7 +23,7 @@ class Tracker:
     Simple-Track manager controlling inputs, processing, outputs
     """
 
-    def __init__(self, config_input: str | dict) -> None:
+    def __init__(self, config_input: str | dict, **kwargs) -> None:
         """
         Initialize SimpleTrack with configuration file
 
@@ -42,8 +49,21 @@ class Tracker:
 
         if "INPUT" in self.config:
             self.file_type = self.config["INPUT"].get("file_type", None)
+            self.loader_func = self.config["INPUT"].get("loader", None)
+            self.iterate_over_array = self.config["INPUT"].get(
+                "iterate_over_array", False
+            )
+            self.iterating_dim = self.config["INPUT"].get("iterating_dim", None)
+
         else:
             self.file_type = None
+            self.loader_func = None
+            self.iterate_over_array = False
+            self.iterating_dim = None
+
+        # Override any INPUT attributes with values from CLI (kwargs)
+        for attr_name, attr_val in kwargs.items():
+            setattr(self, attr_name, attr_val)
 
         if "FLOW_SOLVER" in self.config:
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
@@ -105,25 +125,8 @@ class Tracker:
         if input_data is None:
             input_data = self.get_filenames_from_input_path(file_type=self.file_type)
 
-        # Check type of input data and set up loader accordingly
-        if isinstance(input_data, list):
-            valid_types = (str, Path)
-            if not all([isinstance(fnm, valid_types) for fnm in input_data]):
-                types = [type(fnm) for fnm in input_data]
-                raise TypeError(
-                    f"If input_data is list it must only contain str, got {types}"
-                )
-            self.loading_bar = LoadingBar(total=len(input_data))
-            self.loader = get_loader(self.config["INPUT"]["loader"])(input_data)
+        self._setup_loaders(input_data)
 
-        elif isinstance(input_data, dict):
-            self.loading_bar = LoadingBar(total=len(input_data.values()))
-            self.loader = DictIterator(input_data)
-
-        else:
-            raise TypeError(
-                f"Expected input_data type list(str) or dict, got {type(input_data)}"
-            )
         # print(f"Hello from proc {mp.current_process().name} with arg {filenames}\n")
 
         # Iterate through sorted input data, perform tracking, output results if flagged
@@ -201,9 +204,7 @@ class Tracker:
     #     # This is apparently already solved in Will Keats/Callum Scullion MO
     #     # code so don't need to reinvent the wheel here.
 
-    def get_filenames_from_input_path(
-        self, input_path: str = None, file_type: str = None
-    ) -> list:
+    def get_filenames_from_input_path(self, input_path: str = None) -> list:
         """
         Get a list of filenames from a given input path matching a given
         file type
@@ -212,33 +213,14 @@ class Tracker:
             input_path (str, optional):
                 Input path to search for filenames
                 Defaults to self.config["INPUT"]["path"]
-            file_type (str, optional):
-                File type to search input_path for
-                Defaults to .nc
         """
         if input_path is None:
-            input_path = self.config["INPUT"]["path"]
+            input_path = self.config["INPUT"].get("path", None)
 
-        supported_filetypes = [".nc"]
-        if file_type is not None:
-            if isinstance(file_type, str):
-                supported_filetypes.append(file_type)
-            elif isinstance(file_type, list):
-                if not all([isinstance(val, str) for val in file_type]):
-                    types = [type(val) for val in file_type]
-                    raise TypeError(f"Expected list to contain only str, got {types}")
-                for ftype in file_type:
-                    supported_filetypes.append(ftype)
-            else:
-                raise TypeError(f"Expected list or str, got {type(file_type)}")
+        if input_path is None:
+            raise ConfigError("'INPUT''path' required in input config but not found")
 
-        filenames = sorted(
-            [
-                p
-                for p in Path(input_path).iterdir()
-                if p.is_file() and p.suffix in supported_filetypes
-            ]
-        )
+        filenames = sorted([Path(path) for path in glob(input_path)])
         if len(filenames) == 0:
             raise FileNotFoundError(f"No files found in directory: {input_path}")
         return filenames
@@ -284,3 +266,44 @@ class Tracker:
         #     )
         if "threshold" not in config["FEATURE"]:
             raise ConfigError("config missing required threshold input")
+
+    def _setup_loaders(self, input_data) -> None:
+        # Check type of input data and set up loader accordingly
+        if isinstance(input_data, list):
+            valid_types = (str, Path)
+            if not all([isinstance(fnm, valid_types) for fnm in input_data]):
+                types = [type(fnm) for fnm in input_data]
+                raise TypeError(
+                    f"If input_data is list it must only contain str, got {types}"
+                )
+            self.loading_bar = LoadingBar(total=len(input_data))
+            # Check type of loader to use
+
+            if self.loader_func is None:
+                raise ValueError(
+                    "loader is required to load input data. See docs for more"
+                )
+
+            # Setup ArrayIterator
+            if self.iterate_over_array:
+                if self.iterating_dim is None:
+                    raise ValueError("Iterating over arrays requires iterator_dim")
+                if not isinstance(self.iterating_dim, int):
+                    raise TypeError(
+                        f"iterator_dim must be type int, got {type(self.iterating_dim)}"
+                    )
+                self.loader = ArrayIterator(
+                    input_data, self.loader_func, self.iterating_dim
+                )
+            # Setup FilenameIterator
+            else:
+                self.loader = FilenameIterator(input_data, self.loader_func)
+
+        elif isinstance(input_data, dict):
+            self.loading_bar = LoadingBar(total=len(input_data.values()))
+            self.loader = DictIterator(input_data)
+
+        else:
+            raise TypeError(
+                f"Expected input_data type list(str) or dict, got {type(input_data)}"
+            )
