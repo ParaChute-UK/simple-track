@@ -1,10 +1,9 @@
 # Test config file for MWE
 
 INPUT:
-  path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/tests/mwe_test_files
+  path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/tests/mwe_test_files/*.field
   loader: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Simple-Track Experiments/new_loader_tests/mwe_loader.py|load_mwe
   iterate_over_array: False
-  file_type: .field
 
 OUTPUT:
   path: ./output_mwe_oost

@@ -1,9 +1,8 @@
 # Test config file for reading Chilbolton data
 
 INPUT:
-  path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Simple-Track Experiments/data
-  loader: ChilboltonLoader
-  file_type: .nc
+  path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Simple-Track Experiments/data/*.nc
+  loader: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Simple-Track Experiments/chilbolton_loader.py|chilb_loader
 
 OUTPUT:
   experiment_name: chilbolton_test

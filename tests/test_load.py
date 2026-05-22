@@ -11,7 +11,7 @@ from .test_mwe_output import generate_mwe_files
 def test_mwe_filenameiter_loader_with_str_loader_func(tmp_path):
     # Create mwe test files in tmp_path and return to variable
     mwe_fields = generate_mwe_files(tmp_path)
-    fnms = Tracker.get_filenames_from_input_path(None, tmp_path, ".field")
+    fnms = Tracker.get_filenames_from_input_path(None, f"{tmp_path}/*.field")
 
     # Set path for loader to find loading function
     func_path = "tests/mwe_loader.py|load_mwe"
@@ -33,7 +33,7 @@ def test_mwe_filenameiter_loader_with_str_loader_func(tmp_path):
 def test_mwe_filenameiter_loader_with_callable_loader_func(tmp_path):
     # Create mwe test files in tmp_path and return to variable
     mwe_fields = generate_mwe_files(tmp_path)
-    fnms = Tracker.get_filenames_from_input_path(None, tmp_path, ".field")
+    fnms = Tracker.get_filenames_from_input_path(None, f"{tmp_path}/*.field")
 
     # Set path for loader to find loading function
     func_path = "tests/mwe_loader.py|load_mwe"
@@ -57,7 +57,7 @@ def test_mwe_filenameiter_loader_with_callable_loader_func(tmp_path):
 def test_mwe_arrayiter_loader_with_str_loader_func(tmp_path):
     # Create mwe test files in tmp_path and return to variable
     mwe_fields = generate_mwe_files(tmp_path)
-    fnms = Tracker.get_filenames_from_input_path(None, tmp_path, ".field")
+    fnms = Tracker.get_filenames_from_input_path(None, f"{tmp_path}/*.field")
 
     # Set path for loader to find loading function
     func_path = "tests/mwe_loader.py|load_all_mwe"
@@ -79,7 +79,7 @@ def test_mwe_arrayiter_loader_with_str_loader_func(tmp_path):
 def test_mwe_arrayiter_loader_with_callable_loader_func(tmp_path):
     # Create mwe test files in tmp_path and return to variable
     mwe_fields = generate_mwe_files(tmp_path)
-    fnms = Tracker.get_filenames_from_input_path(None, tmp_path, ".field")
+    fnms = Tracker.get_filenames_from_input_path(None, f"{tmp_path}/*.field")
 
     # Set path for loader to find loading function
     func_path = "tests/mwe_loader.py|load_all_mwe"

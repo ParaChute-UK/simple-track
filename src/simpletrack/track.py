@@ -2,6 +2,7 @@
 Run the SimpleTrack algorithm to track objects through a sequence of images
 """
 
+from glob import glob
 from pathlib import Path
 
 from simpletrack.flow_solver import FlowSolver
@@ -31,7 +32,6 @@ class Tracker:
                 If str, provides Path to the configuration file
                 If dict, containts pre-loaded config parameters
         """
-        print(kwargs)
         if isinstance(config_input, str):
             config_path = config_input
             self.config = self._read_config(config_input)
@@ -204,9 +204,7 @@ class Tracker:
     #     # This is apparently already solved in Will Keats/Callum Scullion MO
     #     # code so don't need to reinvent the wheel here.
 
-    def get_filenames_from_input_path(
-        self, input_path: str = None, file_type: str = None
-    ) -> list:
+    def get_filenames_from_input_path(self, input_path: str = None) -> list:
         """
         Get a list of filenames from a given input path matching a given
         file type
@@ -215,33 +213,14 @@ class Tracker:
             input_path (str, optional):
                 Input path to search for filenames
                 Defaults to self.config["INPUT"]["path"]
-            file_type (str, optional):
-                File type to search input_path for
-                Defaults to .nc
         """
         if input_path is None:
-            input_path = self.config["INPUT"]["path"]
+            input_path = self.config["INPUT"].get("path", None)
 
-        supported_filetypes = [".nc"]
-        if file_type is not None:
-            if isinstance(file_type, str):
-                supported_filetypes.append(file_type)
-            elif isinstance(file_type, list):
-                if not all([isinstance(val, str) for val in file_type]):
-                    types = [type(val) for val in file_type]
-                    raise TypeError(f"Expected list to contain only str, got {types}")
-                for ftype in file_type:
-                    supported_filetypes.append(ftype)
-            else:
-                raise TypeError(f"Expected list or str, got {type(file_type)}")
+        if input_path is None:
+            raise ConfigError("'INPUT''path' required in input config but not found")
 
-        filenames = sorted(
-            [
-                p
-                for p in Path(input_path).iterdir()
-                if p.is_file() and p.suffix in supported_filetypes
-            ]
-        )
+        filenames = sorted([Path(path) for path in glob(input_path)])
         if len(filenames) == 0:
             raise FileNotFoundError(f"No files found in directory: {input_path}")
         return filenames

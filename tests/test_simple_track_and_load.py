@@ -105,42 +105,11 @@ def test_get_filenames_from_input_path(tmp_path, extensions, expected_result):
     expected_files = [f for f in files if f.suffix in [".nc"]]
 
     try:
-        retrieved_files = Tracker.get_filenames_from_input_path(None, tmp_path)
-        assert expected_files == retrieved_files
-    except expected_result as e:
-        print(e)
-
-
-@pytest.mark.parametrize(
-    "extensions_to_seed, extensions_to_find, expected_result",
-    [
-        [["field", "data"], [".field", ".data"], True],
-        [["field"], ".field", True],
-        [[".notdata"], [".field", ".data"], FileNotFoundError],
-        [["field", "data"], [".nc", 1, 2], TypeError],
-        [["field", "data"], 22, TypeError],
-    ],
-)
-def test_get_filenames_from_input_path_with_added_valid_inputs(
-    tmp_path, extensions_to_seed, extensions_to_find, expected_result
-):
-    # Create two files in temp directory
-    tmp_path.mkdir(exist_ok=True)
-    if isinstance(extensions_to_find, (list, str)):
-        files = [
-            Path(f"{tmp_path}/f{f}.{ext}") for f, ext in enumerate(extensions_to_seed)
-        ]
-    else:
-        files = []
-
-    for file in files:
-        file.touch()
-    expected_files = [f for f in files if f.suffix in extensions_to_find]
-
-    try:
         retrieved_files = Tracker.get_filenames_from_input_path(
-            None, tmp_path, file_type=extensions_to_find
+            None, f"{tmp_path}/*.nc"
         )
+        print(expected_files)
+        print(retrieved_files)
         assert expected_files == retrieved_files
     except expected_result as e:
         print(e)
