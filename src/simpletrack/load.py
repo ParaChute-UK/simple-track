@@ -32,7 +32,6 @@ class BaseLoader:
         self.iter_idx = 0
         return self
 
-    # TODO: rename this to something better?
     def user_definable_load(self, filename: str) -> list[dt.datetime, NDArray]:
         raise NotImplementedError
 
@@ -64,13 +63,12 @@ class BaseLoader:
         file_path, function_name = func_str.split("|")
 
         # Load the module from the file path
-        module_name = Path(file_path).stem
+        file_path = Path(file_path).resolve()  # Convert relative paths to absolute
+        module_name = file_path.stem
         spec = importlib.util.spec_from_file_location(module_name, file_path)
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
-
-        # Assign the function to your variable
         return getattr(module, function_name)
 
 
