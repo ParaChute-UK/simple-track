@@ -22,7 +22,7 @@ class Tracker:
     Simple-Track manager controlling inputs, processing, outputs
     """
 
-    def __init__(self, config_input: str | dict) -> None:
+    def __init__(self, config_input: str | dict, **kwargs) -> None:
         """
         Initialize SimpleTrack with configuration file
 
@@ -31,6 +31,7 @@ class Tracker:
                 If str, provides Path to the configuration file
                 If dict, containts pre-loaded config parameters
         """
+        print(kwargs)
         if isinstance(config_input, str):
             config_path = config_input
             self.config = self._read_config(config_input)
@@ -48,13 +49,21 @@ class Tracker:
 
         if "INPUT" in self.config:
             self.file_type = self.config["INPUT"].get("file_type", None)
+            self.loader_func = self.config["INPUT"].get("loader", None)
             self.iterate_over_array = self.config["INPUT"].get(
                 "iterate_over_array", False
             )
+            self.iterating_dim = self.config["INPUT"].get("iterating_dim", None)
 
         else:
             self.file_type = None
+            self.loader_func = None
             self.iterate_over_array = False
+            self.iterating_dim = None
+
+        # Override any INPUT attributes with values from CLI (kwargs)
+        for attr_name, attr_val in kwargs.items():
+            setattr(self, attr_name, attr_val)
 
         if "FLOW_SOLVER" in self.config:
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
@@ -290,21 +299,26 @@ class Tracker:
                 )
             self.loading_bar = LoadingBar(total=len(input_data))
             # Check type of loader to use
-            loader_func = self.config["INPUT"]["loader"]
+
+            if self.loader_func is None:
+                raise ValueError(
+                    "loader is required to load input data. See docs for more"
+                )
 
             # Setup ArrayIterator
             if self.iterate_over_array:
-                iterator_dim = self.config["INPUT"].get("iterator_dim", None)
-                if iterator_dim is None:
+                if self.iterating_dim is None:
                     raise ValueError("Iterating over arrays requires iterator_dim")
-                if not isinstance(iterator_dim, int):
+                if not isinstance(self.iterating_dim, int):
                     raise TypeError(
-                        f"iterator_dim must be type int, got {type(iterator_dim)}"
+                        f"iterator_dim must be type int, got {type(self.iterating_dim)}"
                     )
-                self.loader = ArrayIterator(input_data, loader_func, iterator_dim)
+                self.loader = ArrayIterator(
+                    input_data, self.loader_func, self.iterating_dim
+                )
             # Setup FilenameIterator
             else:
-                self.loader = FilenameIterator(input_data, loader_func)
+                self.loader = FilenameIterator(input_data, self.loader_func)
 
         elif isinstance(input_data, dict):
             self.loading_bar = LoadingBar(total=len(input_data.values()))

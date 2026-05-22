@@ -4,7 +4,7 @@ INPUT:
   path: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Code/simple-track/tests/mwe_test_files
   loader: /Users/workcset/Library/CloudStorage/OneDrive-UniversityofReading/Documents/Simple-Track Experiments/new_loader_tests/mwe_loader.py|load_all_mwe
   iterate_over_array: True
-  iterator_dim: 0
+  iterating_dim: 0
   file_type: .field
 
 OUTPUT:
