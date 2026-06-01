@@ -928,7 +928,7 @@ def test_check_accreted_feature_ids_are_not_provisional_ids():
     test_frame = Frame()
 
     test_time = dt.datetime.now()
-    test_coords = np.array(((1, 1),))
+    test_coords = np.array(((1, 1), (2, 2)))
     test_features = {id: Feature(id, test_coords, test_time) for id in range(1, 4)}
 
     # Add an accreted feature id to Feature 2 that is already present in the Frame
@@ -959,7 +959,7 @@ def test_check_accreted_feature_ids_are_not_provisional_ids_valid():
     test_frame = Frame()
 
     test_time = dt.datetime.now()
-    test_coords = np.array(((1, 1),))
+    test_coords = np.array(((1, 1), (2, 2)))
     test_features = {id: Feature(id, test_coords, test_time) for id in range(1, 4)}
 
     # Add accreted feature ids to each feature that are not present in the Frame
@@ -989,7 +989,7 @@ def test_check_accreted_feature_ids_are_not_provisional_ids_with_no_provisional_
     test_frame = Frame()
 
     test_time = dt.datetime.now()
-    test_coords = np.array(((1, 1),))
+    test_coords = np.array(((1, 1), (2, 2)))
     test_features = {id: Feature(id, test_coords, test_time) for id in range(1, 4)}
 
     # Add accreted feature ids to each feature that are not present in the Frame
@@ -1019,13 +1019,13 @@ def test_identify_unmatched_features_in_prev_frame_valid_inputs():
 
     # Create features for the previous frame
     prev_features = {
-        id: Feature(id, np.array(((1, 1),)), test_time) for id in range(1, 6)
+        id: Feature(id, np.array(((1, 1), (2, 2))), test_time) for id in range(1, 6)
     }
     prev_frame.features = prev_features
 
     # Create features for the current frame, where some features are unmatched with the previous frame
     current_features = {
-        id: Feature(id, np.array(((1, 1),)), test_time) for id in range(3, 8)
+        id: Feature(id, np.array(((1, 1), (2, 2))), test_time) for id in range(3, 8)
     }
     current_frame.features = current_features
 
