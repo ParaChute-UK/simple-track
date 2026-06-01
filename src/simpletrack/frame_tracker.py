@@ -778,6 +778,12 @@ class FrameTracker:
         # Replace any zero sizes with 1 to avoid division by zero
         norm_sizes = np.where(norm_sizes == 0, 1, norm_sizes)
         overlap_normed = overlap_hist / norm_sizes
+
+        # Now, add to this the overlap normalised by the size of the current feature
+        current_feature_size = np.count_nonzero(current_feature_field == feature_id)
+        overlap_normed += overlap_hist / current_feature_size
+        # To restrict bounds to between 0 and 1, divide by 2
+        overlap_normed /= 2
         return overlap_normed
 
     def _get_overlap_sizes(
