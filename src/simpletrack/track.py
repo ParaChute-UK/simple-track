@@ -48,16 +48,14 @@ class Tracker:
         self.timeline = Timeline()
 
         if "INPUT" in self.config:
-            self.file_type = self.config["INPUT"].get("file_type", None)
-            self.loader_func = self.config["INPUT"].get("loader", None)
+            self.loader = self.config["INPUT"].get("loader", None)
             self.iterate_over_array = self.config["INPUT"].get(
                 "iterate_over_array", False
             )
             self.iterating_dim = self.config["INPUT"].get("iterating_dim", None)
 
         else:
-            self.file_type = None
-            self.loader_func = None
+            self.loader = None
             self.iterate_over_array = False
             self.iterating_dim = None
 
@@ -123,7 +121,7 @@ class Tracker:
         """
         # Get input files to load if inputs not provided
         if input_data is None:
-            input_data = self.get_filenames_from_input_path(file_type=self.file_type)
+            input_data = self.get_filenames_from_input_path()
 
         self._setup_loaders(input_data)
 
@@ -279,7 +277,7 @@ class Tracker:
             self.loading_bar = LoadingBar(total=len(input_data))
             # Check type of loader to use
 
-            if self.loader_func is None:
+            if self.loader is None:
                 raise ValueError(
                     "loader is required to load input data. See docs for more"
                 )
@@ -292,12 +290,10 @@ class Tracker:
                     raise TypeError(
                         f"iterator_dim must be type int, got {type(self.iterating_dim)}"
                     )
-                self.loader = ArrayIterator(
-                    input_data, self.loader_func, self.iterating_dim
-                )
+                self.loader = ArrayIterator(input_data, self.loader, self.iterating_dim)
             # Setup FilenameIterator
             else:
-                self.loader = FilenameIterator(input_data, self.loader_func)
+                self.loader = FilenameIterator(input_data, self.loader)
 
         elif isinstance(input_data, dict):
             self.loading_bar = LoadingBar(total=len(input_data.values()))
