@@ -75,13 +75,6 @@ def generate_mwe_files(save_path=None):
 def mwe_timeline() -> Timeline:
     mwe_fields = generate_mwe_files()
 
-    # Construct dict for passing to SimpleTrack
-    base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
-    mwe_dict = {
-        base_time + dt.timedelta(minutes=5 * int(mwe_idx)): mwe_data
-        for mwe_idx, mwe_data in enumerate(mwe_fields)
-    }
-
     mwe_config = {
         "FEATURE": {
             "threshold": 0.5,
@@ -93,6 +86,14 @@ def mwe_timeline() -> Timeline:
         },
         "TRACKING": {"overlap_nbhood": 5, "overlap_threshold": 0.3},
     }
+
+    # Construct dict for passing to SimpleTrack
+    base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
+    mwe_dict = {
+        base_time + dt.timedelta(minutes=5 * int(mwe_idx)): mwe_data
+        for mwe_idx, mwe_data in enumerate(mwe_fields)
+    }
+
     timeline = Tracker(mwe_config).run(mwe_dict)
     return timeline
 
