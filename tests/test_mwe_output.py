@@ -88,8 +88,8 @@ def mwe_timeline() -> Timeline:
             "under_threshold": False,
         },
         "FLOW_SOLVER": {
-            "overlap_threshold": 0.2,  # Lower overlap needed for some reason
-            "subdomain_size": 10,
+            "overlap_threshold": 0.3,
+            "subdomain_size": 20,
         },
         "TRACKING": {"overlap_nbhood": 5, "overlap_threshold": 0.3},
     }
@@ -159,6 +159,11 @@ def test_second_mwe_outputs(mwe_timeline):
     # Test there is a flow across the feature
     assert feature.dydx != ()
     assert np.all(frame.get_flow()) is not None
+    # Full flow cannot be neatly anticipated with this MWE due to Fourier transformations of
+    # fields/data with "sharp" edges (binary), so for this timestep, just test
+    # that the maximum is within a reasonable (large) range
+    max_yflow = np.max(frame.get_flow()[0])
+    assert np.isclose(max_yflow, 5, atol=1)
 
 
 def test_third_mwe_outputs(mwe_timeline):
@@ -200,6 +205,11 @@ def test_third_mwe_outputs(mwe_timeline):
     # Test there is a flow across the feature
     assert feature.dydx != ()
     assert np.all(frame.get_flow()) is not None
+    # Full flow cannot be neatly anticipated with this MWE due to Fourier transformations of
+    # fields/data with "sharp" edges (binary), so for this timestep, just test
+    # that the maximum is within a reasonable (large) range
+    max_yflow = np.max(frame.get_flow()[0])
+    assert np.isclose(max_yflow, 5, atol=1)
 
 
 def test_fourth_mwe_outputs(mwe_timeline):
@@ -230,6 +240,9 @@ def test_fourth_mwe_outputs(mwe_timeline):
     # Test there is a flow across the feature
     assert feature.dydx != ()
     assert np.all(frame.get_flow()) is not None
+    # Flow solver does not like this setup and does not produce reasonble
+    # flow for the advected feature only. This will likely be improved
+    # using an optical flow solver
 
 
 def test_fifth_mwe_outputs(mwe_timeline):
@@ -257,6 +270,11 @@ def test_fifth_mwe_outputs(mwe_timeline):
     # Test there is a flow across the feature
     assert feature.dydx != ()
     assert np.all(frame.get_flow()) is not None
+    # Full flow cannot be neatly anticipated with this MWE due to Fourier transformations of
+    # fields/data with "sharp" edges (binary), so for this timestep, just test
+    # that the maximum is within a reasonable (large) range
+    max_yflow = np.max(frame.get_flow()[0])
+    assert np.isclose(max_yflow, 5, atol=1)
 
 
 def test_sixth_mwe_outputs(mwe_timeline):
