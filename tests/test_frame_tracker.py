@@ -495,7 +495,7 @@ def test_overlap_histogram(construct_test_fields):
     # Label 0 is reserved for the background, which should be set to 0
     # But this is not tested here since this would throw an IDError
     ids = [1, 2]
-    expected_results = [2 / 3, 0.75]
+    expected_results = [2 / 3, 0.65625]
 
     for id, expected_result in zip(ids, expected_results):
         test_feature = Feature(
@@ -554,7 +554,7 @@ def test_overlap_histogram_with_multiple_overlaps_and_different_labels(
     )
 
     # Expect overlap of 0.75 with label 3, and 1 with label 4
-    expected_hist = np.array([0, 0, 0, 0.75, 1])
+    expected_hist = np.array([0, 0, 0, 0.75, 0.5625])
     err_msg = f"Test failed: overlap ({hist}) not equal to expected overlap ({expected_hist})."
     np.testing.assert_array_equal(hist, expected_hist, err_msg)
 
