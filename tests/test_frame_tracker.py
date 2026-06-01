@@ -371,11 +371,12 @@ def test_overlap_histogram(construct_test_fields):
     test_field, test_field2 = construct_test_fields[0:2]
 
     # Expect to find overlap of 2/3 for label 1
-    # And overlap = 12/16 = 0.75 for label 2
+    # And overlap = 0.65625 for label 2 (since the area of overlap is 15 pixels,
+    # and the total area of the feature in test_field2 is 16 pixels)
     # Label 0 is reserved for the background, which should be set to 0
     # But this is not tested here since this would throw an IDError
     ids = [1, 2]
-    expected_results = [2 / 3, 0.75]
+    expected_results = [2 / 3, 0.65625]
     for id, expected_result in zip(ids, expected_results):
         hist = FrameTracker().calculate_overlap_histogram(
             test_field, test_field2, feature_id=id
@@ -395,9 +396,10 @@ def test_overlap_histogram_with_nbhood(construct_test_fields):
 
     # Using a mask of radius 3 pixels around each feature, we now expect
     # to encompass all of the features with the same label in each field
-    # Therefore, for label 1 and 2, expect an overlap of 1 (full overlap)
+    # Therefore, for label 1, expect an overlap of 1 (full overlap)
+    # But label 2 is a different size in each field, so we expect an overlap of 14/16 = 0.875
     ids = [1, 2]
-    expected_results = [1, 1]
+    expected_results = [1, 0.875]
     for id, expected_result in zip(ids, expected_results):
         hist = FrameTracker().calculate_overlap_histogram(
             test_field, test_field2, feature_id=id, nbhood=3
@@ -425,8 +427,8 @@ def test_overlap_histogram_with_multiple_overlaps_and_different_labels(
         test_field4, test_field2, feature_id=2, nbhood=0
     )
 
-    # Expect overlap of 0.75 with label 3, and 1 with label 4
-    expected_hist = np.array([0, 0, 0, 0.75, 1])
+    # Expect overlap of 0.75 with label 3, and 0.5625 with label 4
+    expected_hist = np.array([0, 0, 0, 0.75, 0.5625])
     err_msg = f"Test failed: overlap ({hist}) not equal to expected overlap ({expected_hist})."
     np.testing.assert_array_equal(hist, expected_hist, err_msg)
 
