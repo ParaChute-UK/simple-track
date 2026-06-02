@@ -7,6 +7,27 @@ from scipy.spatial import ConvexHull
 from simpletrack.feature import Feature
 
 
+def test_feature_init_with_1d_coords():
+    time = dt.datetime.now()
+    test_coords = np.array([0, 0])
+    feature = Feature(1, test_coords, time)
+    assert np.array_equal(feature.coords, test_coords)
+
+
+def test_feature_init_with_2d_coords():
+    time = dt.datetime.now()
+    test_coords = np.array([[0, 0], [1, 1], [2, 2]])
+    feature = Feature(1, test_coords, time)
+    assert np.array_equal(feature.coords, test_coords)
+
+
+def test_feature_init_with_3d_coord_raises_error():
+    time = dt.datetime.now()
+    test_coords = np.array([[[0, 0], [1, 1], [2, 2]]])
+    with pytest.raises(ValueError):
+        Feature(1, test_coords, time)
+
+
 @pytest.fixture(scope="function")
 def setup_test_feature():
     time = dt.datetime.now()

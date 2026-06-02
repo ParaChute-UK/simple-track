@@ -16,7 +16,13 @@ class Feature:
     def __init__(
         self, id: int, feature_coords: NDArray[np.integer], time: dt.datetime
     ) -> None:
-        self._feature_coords = check_arrays(feature_coords, ndim=2, dtype=int)
+        self._feature_coords = check_arrays(feature_coords, dtype=int)
+        if self._feature_coords.ndim > 2:
+            msg = (
+                "feature_coords must be a 2D array of shape (2, n)"
+                + " or 1D array of shape (2)"
+            )
+            raise ValueError(msg)
         id = check_valid_ids(id)
         self._id = native(id)
         self._provisional_id = None
@@ -32,8 +38,7 @@ class Feature:
         self._max = None
         self._mean = None
         # Only attempt pca decomposition if feature is larger than 1 pixel
-        # Checking the last coord supports ndim=1 or ndim=2
-        if self._feature_coords.shape[-1] > 1:
+        if self._feature_coords.ndim > 1 and self._feature_coords.shape[-1] > 1:
             (
                 self._major_vector,
                 self._minor_vector,
