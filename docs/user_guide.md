@@ -175,8 +175,8 @@ However, if data at multiple times are contained in a single file, this can be h
 
 * If this option is used, the loader function should also return a list of datetime.datetime objects of the same size as the iterating dimension. 
 
-# Config Parameters
-A Simple-Track config is ordered into sections, each of which control different parts of the code.
+# Input/Output Config Parameters
+A Simple-Track config is ordered into sections, each of which control different parts of the code. This part of the guide describes `INPUT` and `OUTPUT`. Explanations for the `FEATURE`, `FLOW_SOLVER` and `TRACKING` sections are [given in the workflow docs](workflow.md)
 
 ```yaml
 INPUT:
@@ -228,73 +228,3 @@ save_data (bool, optional):
 skip_tracking (bool, optional):
 * Defaults to `False`
 * If enabled, will only perform feature identification (and produce the relevant `Feature` and `Frame` objects), but will not attempt to match these features between inputs.
-
-```yaml
-FEATURE:
-  threshold: 1 
-  under_threshold: false 
-  min_size: 4
-```
-threshold (float, required):
-* Sets the minimum threshold for defining a feature using > condition
-
-under_threshold (bool, optional):
-* Defaults to `False`
-* If set to `True`, features are instead identified as being below the given threshold using < condition
-
-min_size (int, optional):
-* Defaults to `4`
-* Sets the minimum size of a contiguous region of data that will be tracked using the code
-
-```yaml
-FLOW_SOLVER:
-  overlap_threshold: 0.3
-  subdomain_size: 100 
-  min_fractional_coverage: 0.01  
-  subdomain_tolerance: 3.0  
-  apply_tukey_filtering: True 
-```
-overlap_threshold (float, optional):
-* Defaults to `0.3`
-* Sets the minimum fraction of overlap expected from features in each subdomain for a displacement to be calculated
-
-subdomain_size (int, optional):
-* Size of the subdomain over which to calculate displacement
-* Should be large enough that multiple features can be contained within each subdomain, but not so large that it is unresponsive to local changes 
-* If not set in the config, the code will estimate as being the input domain shape / 5
-
-min_fractional_coverage (float, optional):
-* Defaults to `0.1`
-* Minimum fractional cover of objects required for fft to obtain (dy, dx) displacement. If coverage is below this value, code will return 0 displacement
-
-subdomain_tolerance (float, optional):
-* Defaults to `3.0`
-* Sets the maximum difference in displacement values between adjacent subdomains (to remove spurious values).
-* If any subdomain displacements differ by more than this amount, they are set to 0
-
-apply_tukey_filtering (bool, optional):
-* Defaults to `True`
-* If enabled, applies a smooth filter to each subdomain to minimise spectral leakage during phase cross-correlation.
-
-
-```yaml
-TRACKING:
-  overlap_nbhood: 5 
-  overlap_threshold: 0.3
-  retain_lifetime_on_split: True
-```
-
-overlap_nbhood (int, optional):
-* Defaults to `5`
-* If a Feature in the current frame is not matched to another in the previous Feature just using its own extent, the code search an additional circular radius around the centre of the feature.
-* This value sets the size of the radius/nbhood to search
-* To disable this extra searching entirely, set this value to `0`
-
-overlap_threshold (float, optional):
-* Defaults to `0.3`
-* Sets the threshold required for a feature to count as being matched to another feature.
-* If multiple features meet this threshold, additional logic is employed to determine which is the most accurate match. All other features are designated as parents or children, depending on the frame
-
-retain_lifetime_on_split (bool, optional):
-* Defaults to `True`
-* Determines whether a feature that has split from a parent feature should retain the lifetime of its parent, or should be reset to 0
