@@ -51,6 +51,38 @@ def test_cli_with_mwe_config(monkeypatch, tmp_path):
     run_tracking()
 
 
+def test_cli_with_mwe_config_and_cli_input(monkeypatch, tmp_path):
+    # Generate MWE files
+    generate_mwe_files(tmp_path)
+
+    mwe_config = {
+        "INPUT": {
+            "loader": "./tests/mwe_loader.py|load_mwe",
+        },
+        "FEATURE": {
+            "threshold": 0.5,
+            "under_threshold": False,
+        },
+        "FLOW_SOLVER": {
+            "overlap_threshold": 0.3,
+            "subdomain_size": 20,
+        },
+        "TRACKING": {"overlap_nbhood": 5, "overlap_threshold": 0.3},
+    }
+
+    input_path = f"{str(tmp_path)}/*.field"
+
+    # Run tracking with MWE config
+    mwe_config_path = tmp_path / "mwe_config.yaml"
+    with open(mwe_config_path, "w") as f:
+        yaml.dump(mwe_config, f)
+
+    monkeypatch.setattr(
+        sys, "argv", ["simpletrack", str(mwe_config_path), "--path", input_path]
+    )
+    run_tracking()
+
+
 def test_cli_with_mwe_config_and_verbose_loader_input(monkeypatch, tmp_path):
     # Generate MWE files
     generate_mwe_files(tmp_path)

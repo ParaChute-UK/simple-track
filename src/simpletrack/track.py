@@ -53,11 +53,13 @@ class Tracker:
                 "iterate_over_array", False
             )
             self.iterating_dim = self.config["INPUT"].get("iterating_dim", None)
+            self.path = self.config["INPUT"].get("path", None)
 
         else:
             self.loader = None
             self.iterate_over_array = False
             self.iterating_dim = None
+            self.path = None
 
         # Override any INPUT attributes with values from CLI (kwargs)
         for attr_name, attr_val in kwargs.items():
@@ -121,7 +123,7 @@ class Tracker:
         """
         # Get input files to load if inputs not provided
         if input_data is None:
-            input_data = self.get_filenames_from_input_path()
+            input_data = self.get_filenames_from_input_path(self.path)
 
         self._setup_loaders(input_data)
 

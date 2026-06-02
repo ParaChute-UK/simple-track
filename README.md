@@ -1,13 +1,13 @@
 # Simple-Track
 
 <p align="center">
-<img src="docs/anim_feature.gif" alt="Feature field from Simple-Track" width="400"/>
-<img src="docs/anim_lifetime.gif" alt="Lifetime field from Simple-Track" width="400"/>
+<img src="docs/animations/anim_feature.gif" alt="Feature field from Simple-Track" width="400"/>
+<img src="docs/animations/anim_lifetime.gif" alt="Lifetime field from Simple-Track" width="400"/>
 </p>
 
 Simple-Track is a data-agnostic, threshold-based feature tracking algorithm for 2D data. 
 
-Features are tracked between consecutive frames of data by projecting feature fields onto common timeframes and matching between them based on the degree of overlap. Matched features retain the same identification between all tracked fields, while new features are assigned a unique label. Comprehensive information about feature merging, splitting, accretion, initiation and dissipation is compiled using Simple-Track. 
+Features are tracked between consecutive frames of data by projecting feature fields onto common timeframes and matching between them based on the degree of overlap. Matched features retain the same identification between all tracked fields, while new features are assigned a unique label. Simple-Track compiles comprehensive information about feature merging, splitting, accretion, initiation and dissipation with an easy to use interface. 
 
 # Installation
 
@@ -28,11 +28,11 @@ While Simple-Track is designed to accept a wide range of input data, certain req
 
 * The input data must be gridded and contain a consistent spatial domain and resolution between frames.
 
+* The input grid must be evenly shaped (this will be relaxed in the future)
+
 * The features of interest must be defined by a threshold value, and these features must translate as a result of a spatially consistent background flow.
 
 * The time between frames should be sufficiently short such that features can be reasonably expected to persist between frames. This is not a strict requirement since the tool includes an artificial advection step that projects data onto a common time, but it is likely that longer time steps will lead to more errors in feature matching and therefore less accurate tracking statistics. 
-
-* It is currently a requirement that the timestep between frames is fixed, although future updates may relax this requirement. 
 
 ## Running Simple-Track
 
@@ -45,37 +45,35 @@ Simple-Track can be run in two ways:
 	simpletrack my_config.yaml 
 	```
 
-* The `my_config.yaml` file contains the parameters for running Simple-Track. The necessary parameters for running Simple-Track from the command line are shown below:
+* The `my_config.yaml` file contains the parameters for running Simple-Track. The required parameters are shown below:
 
 	```yaml
 	INPUT:
-		path: /path_to_folder_containing_data
-		loader: LoaderName # See next section
+		path: /path_to_folder_containing_data/*.data
+		loader: /path_to_file_containing_function|function_name # See next section
 	FEATURE:
 		threshold: 1 # Threshold used for defining a feature
-		under_threshold: false # Whether features are defined above or below the threshold
 	```
 	
 * Other parameters, such as `experiment_name`, `output_path` and `save_data`, along with more technical options, can also be set in this config file. See [All Simple-Track Parameters](#all-simple-track-parameters) for a full list.
 
-* A valid `Loader` object is required for pre-processing input data before tracking. See [Loading Data](#loading-data) for more information.
+* A valid loader function is required for pre-processing input data before tracking. See [Loading Data](#loading-data) for more information.
 
 * Any number of config files can be provided as additional arguments, Simple-Track will iterate over each one in turn.
 
 ### 2. Importing Simple-Track to a python file
-* Simple-Track can be run by importing the `Tracker` class from `track.py` or directly from the `simpletrack` module. The config can be input either using a path to a yaml file, or by passing a dict when instantiating the object:
+* Simple-Track can be run by importing the `Tracker` class from the `simpletrack` module. A config can be input either using a path to a yaml file, or by passing a dict when instantiating the object:
 
 	```python
 	from simpletrack import Tracker
 
 	my_config = {
 		INPUT: {
-			path: "/path_to_folder_containing_data",
-			loader: "LoaderName" # See next section
+			path: "/path_to_folder_containing_data/*.data",
+			loader: "/path_to_file_containing_function|function_name" # See next section
 		},
 		FEATURE: {
 			threshold: 1, # Threshold used for defining a feature
-			under_threshold: False # Whether features are defined above or below the threshold
 		}
 	}
 
@@ -86,64 +84,78 @@ Simple-Track can be run in two ways:
 	```
 * Other parameters, such as `experiment_name`, `output_path` and `save_data`, along with more technical options, can also be set in this config. See [All Simple-Track Parameters](#all-simple-track-parameters) for a full list.
 
-* If `loader` is included as a config input, a valid `Loader` object is used for pre-processing input data before tracking. Alternatively, valid pre-processed data may be passed to the `Tracker.run()` method, bypassing the use of the `Loader` class, and eliminating the need for the `INPUT` config section. See [Loading Data](#loading-data) for more information.
+* If `loader` is included as a config input, the specified function is used for pre-processing input data before tracking. Alternatively, valid pre-processed data may be passed to the `Tracker.run()` method, bypassing the use of a separate function, and eliminating the need for the `INPUT` config section. See [Loading Data](#loading-data) for more information.
 
 * `Tracker.run()` returns a `Timeline` object which is used to store all tracking and feature data. This can be inspected and analysed beyond the [outputs](#outputs) that are saved as part of standard operation.
 
 ## Loading Data
 
-For Simple-Track to operate effectively, each input must consist of two sets of data:
+Each Simple-Track input must contain two sets of data:
 
 1. A `datetime` object specifying the time that the data is valid for
 2. A `numpy.array` object containing the data to track
 
-There are two methods of providing these data pairs to Simple-Track:
+There are three methods of providing these data pairs to Simple-Track:
 
-### 1. Using a Loader object
-* Since Simple-Track is a data-agnostic tool, there may be any number of bespoke tools for loading and pre-processing data before it is suitable for tracking. This functionality can be contained in a custom `Loader` class that will perform these actions before passing the compatible data (and time) to the main processing methods.
+### 1. Loading through config options
+* Simple-Track will load all data matching the structure given in `"INPUT": "path"` config section. This input supports wildcard matching. 
 
-* A custom `Loader` object should be defined in the `load.py` file and should inherit from the `BaseLoader` object, which 
-will perform additional checks to ensure the loaded data is in the correct format. An example of a loader class is shown in the code snippet below:
+* Since Simple-Track is a data-agnostic tool, there may be any number of bespoke tools for loading and pre-processing data before it is suitable for tracking. This functionality can be contained in a custom loader function that will perform these actions before passing the compatible data to the main processing workflow.
+
+* An example of a custom loader function is shown below:
 
 	```python
-	class ChilboltonLoader(BaseLoader):
-		def __init__(self):
-			super().__init__()
+	def user_definable_load(self, filename):
+		import iris # Import any required libraries here
 
-		def user_definable_load(self, filename):
-			import iris # Import any required libraries here
+		# Get 2D data from input file as a numpy array
+		cube = iris.load_cube(filename, "precipitation_flux")
+		data = cube.data
 
-			# Get 2D data from input file as a numpy array
-			cube = iris.load_cube(filename, "precipitation_flux")
-			data = cube.data
+		# Additional data pre-processing can be performed here too!
 
-			# Additional data pre-processing can be performed here too!
+		# Get time from input file, in datetime format
+		tcoord = cube.coord("time")
+		time = tcoord.units.num2pydate(tcoord.points)[0]
 
-			# Get time from input file, in datetime format
-			tcoord = cube.coord("time")
-			time = tcoord.units.num2pydate(tcoord.points)[0]
-
-			# Method must return a tuple of 
-			# (datetime.datetime, numpy.NDArray, ), where the 
-			# first element is the time the data is valid for
-			# and second element is the 2D array of data to be tracked
-			return time, data
+		# Method must return a tuple of 
+		# (datetime.datetime, numpy.NDArray), where the 
+		# first element is the time the data is valid for
+		# and second element is the 2D array of data to be tracked
+		return time, data
 	```
 
-* This loader class must then be added to the `available_loaders` dict in the `get_loader` function of `load.py`, where the key for this loader is used to specify the loader in the config file. This structure allows users to easily define their own loading procedures for their specific datasets, while still being able to use the core functionality of Simple-Track without modification.
 
-* A Loader object can be used whether Simple-Track is being run [from the command line](#1-running-simple-track-from-the-command-line) or [from a python file](#2-importing-simple-track-to-a-python-file). 
+* Loading via the config can be used whether Simple-Track is being run [from the command line](#1-running-simple-track-from-the-command-line) or [from a python file](#2-importing-simple-track-to-a-python-file). 
 
-* The list of filenames which will be iteratively loaded using a custom `Loader` object can be obtained and input in multiple ways:
-	* If running Simple-Track [from the command line](#1-running-simple-track-from-the-command-line), the code will find all files in the config `[INPUT][path]` directory matching a given extension defined in `Tracker.get_filenames_from_input_path()`
-	* If running Simple-Track [from a python file](#2-importing-simple-track-to-a-python-file), a list of filenames can be passed to `Tracker.run()`. Alternatively, if no filenames are passed to this method, the code will find all files in the config `[INPUT][path]` directory matching a given extension defined in `Tracker.get_filenames_from_input_path()`
 
 ### 2. Passing a dict directly to Tracker.run()
-* If SimpleTrack is being run [from a python file](#2-importing-simple-track-to-a-python-file) and a suitable set of data has already been loaded, this data can be passed directly to `Tracker.run()` as a `dict`, with the `datetime` object as the key and a `numpy.array` object as the value
+* If SimpleTrack is being run [from a python file](#2-importing-simple-track-to-a-python-file) and a suitable set of data has already been loaded, this data can be passed directly to `Tracker.run()` as a `dict`, with the `datetime` object as the key and a `numpy.array` object as the value. E.g.:
+
+	```python
+	import datetime as dt
+	import numpy as np
+	from simpletrack import Tracker
+
+	time1 = dt.datetime(year=2000, month=1, day=1, hour=10, minute=5)
+	time2 = time1 + dt.timedelta(minutes=5)
+
+	data1 = np.array(...)
+	data2 = np.array(...)
+
+	st_input = {
+		time1: data1,
+		time2: data2,
+	}
+
+	my_config = {...}
+
+	Tracker(my_config).run(st_input)
+	```
 
 * Any number of time:data pairs can be passed to `Tracker.run()` and the code will iterate over the ordered dict.
 
-* Passing data into `Tracker.run()` via this method will bypass any `Loader` or `[INPUT][path]` inputs specified in the corresponding config file. 
+* Passing data into `Tracker.run()` via this method will bypass any `[INPUT][loader]` or `[INPUT][path]` inputs specified in the corresponding config file.
 
 
 # Outputs
