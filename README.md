@@ -23,6 +23,8 @@ Coming soon to uv
 
 # User Guide
 
+This section describes the main methods of running Simple-Track. More details can be found [in the docs](docs/user_guide.md)
+
 ## Input Requirements
 While Simple-Track is designed to accept a wide range of input data, certain requirements must be met for the tool to function as intended:
 
@@ -98,7 +100,9 @@ Each Simple-Track input must contain two sets of data:
 There are three methods of providing these data pairs to Simple-Track:
 
 ### 1. Loading through config options
-* Simple-Track will load all data matching the structure given in `"INPUT": "path"` config section. This input supports wildcard matching. 
+* Simple-Track will load all data matching the structure given in `"INPUT": "path"` config section. This input supports wildcard matching (i.e., using `"./path_to_data/*.data"` would load all files with the `.data` suffix). 
+
+* Each file contains one input to Simple-Track ([see here](docs/inputs.md#extra-loading-parameters) for more information)
 
 * Since Simple-Track is a data-agnostic tool, there may be any number of bespoke tools for loading and pre-processing data before it is suitable for tracking. This functionality can be contained in a custom loader function that will perform these actions before passing the compatible data to the main processing workflow.
 
@@ -125,12 +129,21 @@ There are three methods of providing these data pairs to Simple-Track:
 		return time, data
 	```
 
+* This loader function is then specified in the `"INPUT": "loader"` config using the `./path_to_file.py|func_name` format. So in this case, the config option would be `./path_to_file.py|user_definable_load`.
 
 * Loading via the config can be used whether Simple-Track is being run [from the command line](#1-running-simple-track-from-the-command-line) or [from a python file](#2-importing-simple-track-to-a-python-file). 
 
+### 2. Loading through the Command Line
+* The same `"INPUT"` config sections mentioned above can also be input [from the command line](#1-running-simple-track-from-the-command-line)
 
-### 2. Passing a dict directly to Tracker.run()
-* If SimpleTrack is being run [from a python file](#2-importing-simple-track-to-a-python-file) and a suitable set of data has already been loaded, this data can be passed directly to `Tracker.run()` as a `dict`, with the `datetime` object as the key and a `numpy.array` object as the value. E.g.:
+	```
+	simpletrack my_config.yaml -i /path_to_folder/*.data -l ./path_to_file.py|func_name
+	```
+
+* Each file contains one input to Simple-Track ([see here](docs/inputs.md#extra-loading-parameters) for more information)
+
+### 3. Passing a dict directly to Tracker.run()
+* If SimpleTrack is being run [from a python file](#2-importing-simple-track-to-a-python-file) and a suitable set of data has already been loaded, this data can be passed directly to `Tracker.run()` as a `dict`, with the `datetime` object as the key and a `numpy.array` object as the value. For example:
 
 	```python
 	import datetime as dt
@@ -155,7 +168,7 @@ There are three methods of providing these data pairs to Simple-Track:
 
 * Any number of time:data pairs can be passed to `Tracker.run()` and the code will iterate over the ordered dict.
 
-* Passing data into `Tracker.run()` via this method will bypass any `[INPUT][loader]` or `[INPUT][path]` inputs specified in the corresponding config file.
+* Passing data into `Tracker.run()` via this method will bypass any `"INPUT":"loader"` or `"INPUT":"path"` inputs specified in the corresponding config file.
 
 
 # Outputs
@@ -183,13 +196,14 @@ It it also possible to perform further analysis of tracking statistics using the
 Alternatively, the data that is output by Simple-Track can be read back in to a `Timeline` object using the `LoadOutput` class in `frame_output.py`. This object only requires a path to the stored Simple-Track data. The `LoadOutput.load_to_timeline()` method will return a `Timeline` object containing all of the loaded data in the same data structures that Simple-Track stores its data. (Note: this does not currently load the raw input data back into the system, and therefore some methods such as `Frame.identify_features()` will not work. This data can be added manually to the `Frame.raw_field` attribute). 
 
 # All Simple-Track Parameters
-A complete list of parameters and their default values are given below:
+A complete list of parameters and their default values are given below. For a more thorough explanation of each parameter, refer to the docs. 
 
 ```yaml
 INPUT:
-  path: ./path_to_input_data
-  loader: MyLoader # Custom loader class name
-  file_type: .nc # File extension to search for when compiling files to load and iterate over
+  path: ./path_to_input_data/*.data
+  loader: /path_to_file_containing_function|function_name
+  iterate_over_array: False # Whether to iterate a single array or multiple files
+  iterating_dim: 0 # If iterate_over_array flag is enabled, this sets the dimension to iterate over
 
 OUTPUT:
   path: ./output
@@ -203,7 +217,7 @@ FEATURE:
   min_size: 4 # Minimum size of feature to be tracked (in pixels)
 
 FLOW_SOLVER:
-  overlap_threshold: 0.6 # Minimum fraction of overlap between features for use in flow_solver
+  overlap_threshold: 0.3 # Minimum fraction of overlap between features for use in flow_solver
   subdomain_size: 100 # Size in pixels of individual squares to run fft for (dy, dx) displacement. Must divide (y,x) lengths of the array. Defaults to domain size / 5
   min_fractional_coverage: 0.01  # Minimum fractional cover of objects required for fft to obtain (dy, dx) displacement
   subdomain_tolerance: 3.0  # Maximum difference in displacement values between adjacent squares (to remove spurious values)
@@ -211,6 +225,6 @@ FLOW_SOLVER:
 
 TRACKING:
   overlap_nbhood: 5 # Radius of halo in pixels for orphan storms - big halo assumes storms may spawn "children" at a distance multiple pixels away
-  overlap_threshold: 0.6 # Minimum fraction of overlap 
+  overlap_threshold: 0.3 # Minimum fraction of overlap 
   retain_lifetime_on_split: True # If a child Feature splits from its parent feature, this determines whether the child Feature should carry over the lifetime from the parent or whether its lifetime should be set to 1
 ```
