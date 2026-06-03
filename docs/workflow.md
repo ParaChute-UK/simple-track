@@ -53,7 +53,7 @@ Additionally, before displacements are calculated, input images are filtered usi
 
 An example of the flow field obtained by this process is shown above. Note in particular that it is only possible to estimate the flow over regions where features are present, hence there are sparse regions in the top left and bottom right of the domain. The main parameter for step 2 is the number (or size) of sub-domains. The size of sub-domain should reflect the largest region over which storm displacement can be considered uniform. This will vary with user case. In an effort to simplify the input options, this parameter will default to the domain shape divided by five if not set by the user. This default is a reasonable starting point for many cases but may need to be adjusted by the user if the flow field exhibits large temporal or spatial variability. 
 
-<!-- TODO: in this section, list the config options that are important and describe their impact. Also list the main classes and methods that are used here.  -->
+### Config Options
 
 ```yaml
 FLOW_SOLVER:
@@ -86,6 +86,53 @@ apply_tukey_filtering (bool, optional):
 * If enabled, applies a smooth filter to each subdomain to minimise spectral leakage during phase cross-correlation.
 
 
+### Relevant Simple-Track Methods
+
+```python 
+y_flow, x_flow = FlowSolver.analyse_flow(prev_frame, current_frame)
+```
+
+## Step 3: Artificial Frame Advection
+The next step is to use the derived flow field to artificially advect features in the previous frame to estimate their location at the time of the current frame. This pseudo-nowcasting process is an important step for accurately matching features between the two frames in a way which reduces the dependence on the time between frames. While this step could in theory be performed using an image morphing technique, a simpler solution is implemented here. Instead, the feature-average displacement is used to translate each feature in the "feature_field". In the case of multiple features ids attempting to occupy the same pixel, the id value that is closest to its feature centroid is chosen. Strictly, these features should merge if they come into contact, but this would be undesirable for the purposes of tracking features since the merged feature is then no longer present for matching.
+
+### Config Options
+None
+
+### Relevant Simple-Track Methods
+```python 
+advected_frame = FrameTracker.advect_frame(frame, y_flow, x_flow)
+```
+
+## Step 4: Match Features
+
+<p align="center">
+<img src="diagrams/feature_matching.jpg" alt="Phase cross-correlation" width="500"/>
+</p>
+
+With both frames now valid at the same effective timestep, features in the current frame can then be matched to features in the previous frame. A feature is considered matched if the fraction of overlap with a feature in the previous frame exceeds a certain threshold, set to 0.3 by default. If no features are matched, the comparison is repeated over an expanded circular neighbourhood surrounding the feature in the current frame (see [Handling Insufficient Overlaps](#handling-insufficient-overlaps)). Then, as depicted in Figure above, the following the procedures are performed based on the number of matched features:
+
+* Panel (b): If no matched features are found in the previous frame, the feature in the new frame is considered to be a new feature which is given a new id not used by a feature in any previous frames.
+
+* Panel (c): If a single matched feature is found in the previous frame, the feature in the current frame will inherit its id (and given to the `Feature.provisional_id` property) and will inherit and increment its lifetime.
+
+* Panel (d): If multiple matched features are found:
+
+    * The feature with the closest size is chosen as the matched feature to inherit its properties.
+    * If this process finds multiple suitable candidate, the feature with the closest centroid is then chosen as the match.
+    * If this still does not choose a single feature, then the feature with the smallest id is chosen.
+
+    All other matched features that are not chosen as the primary feature are considered to be accreted by the current feature, and these ids are added to the `Feature.accreted` property of the current feature.
+
+
+<p align="center">
+<img src="diagrams/id_conflicts.jpg" alt="Phase cross-correlation" width="700"/>
+</p>
+
+As mentioned above, features in the current frame will only provisionally inherit an id during this process. This is because there may be multiple features that are given the same id after this process has completed. This is likely to happen if the feature in the previous frame is fragmenting and spawning other features in the current frame, as depicted in Figure above. The feature that retains the label is initially decided by the largest overlap with the respective feature in the previous field. If multiple features share the same overlap, then the feature with the closest centroid is chosen. All other features are given a fresh id, and their `Feature.parent`| properties are set to the retaining label. Similarly, the `Feature.child` property of the feature which retains its provisional id is set to the new ids of all of the child features.
+
+At the end of this process, the features in the current frame will be consistent between frames for those features which have matched, any new features will have a fresh id not used by a feature in any previous frame, and any information about mergers or splits will be recorded by the feature. The data in this frame is now ready for output and for matching with the next frame in sequence. 
+
+### Config Options
 ```yaml
 TRACKING:
   overlap_nbhood: 5 
@@ -107,3 +154,9 @@ overlap_threshold (float, optional):
 retain_lifetime_on_split (bool, optional):
 * Defaults to `True`
 * Determines whether a feature that has split from a parent feature should retain the lifetime of its parent, or should be reset to 0
+
+### Relevant Simple-Track Methods
+```python 
+FrameTracker.run(prev_frame, current_frame)
+# Note, this also includes the artificial advection from Step 3
+```
