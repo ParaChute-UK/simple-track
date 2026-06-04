@@ -77,7 +77,6 @@ Each `Feature` contains information about its location, extent, and interaction 
 | `max` (float) | Maximum value of the input data across the feature |
 | `mean` (float) | Mean value of the input data across the feature |
 |  | __Spatial data__  |
-| `size` (int) | Number of pixels spanned by the feature |
 | `coords` (NDArray) | All (y, x) coordinates in the domain spanned by the feature |
 | `centroid` (tuple) | Central (y, x) position of the feature |
 | `major_vector` (tuple) | Unit (y, x) vector of feature semi-major axis |
@@ -91,3 +90,4 @@ Each `Feature` contains information about its location, extent, and interaction 
 | `child` (list) | List of IDs that split from this feature, if applicable |
 | `accreted` (list) | List of IDs that have been accreted by this feature, if applicable | 
 | `accreted_in_next_frame_by`  (int) | ID of feature that accretes this feature in the next frame, if applicable
+<!-- | `size` (int) | Number of pixels spanned by the feature | -->

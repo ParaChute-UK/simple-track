@@ -47,7 +47,7 @@ class Feature:
             ) = self.calculate_major_minor_axes(self._feature_coords)
 
     def __repr__(self) -> str:
-        repr_str = f"Feature id: {self._id} (provisionally {self._provisional_id}), "
+        repr_str = f"Feature id: {self._id}, "
         repr_str += f"lifetime: {self._lifetime} timestep(s) at time: {self._time}"
         return repr_str
 
