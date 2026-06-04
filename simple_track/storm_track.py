@@ -474,7 +474,7 @@ class StormTracker:
                     old_frame = None
                     continue
 
-            if old_frame is None:
+            if old_frame is None or not old_frame.numstorms:
                 for i in range(frame.numstorms):
                     storm_label_idx = i + 1  # First storm is labelled 1, but python indices start at 0.
                     frame.storm_data.append(
@@ -483,7 +483,7 @@ class StormTracker:
                         )
                     )
                     self.new_storm_idx += 1
-            elif old_frame.numstorms and frame.numstorms:
+            elif frame.numstorms:
                 # 1. Calculate correlation velocites by comparing old_frame and frame.
                 self.calc_corr_velocities(
                     old_frame, frame, self.fftpixels, self.num_dt, self.squarehalf, self.tukey_window
@@ -546,7 +546,7 @@ class StormTracker:
             'dx',
             'dy',
         ]
-        storm_times = [time for frame in frames for time in [frame.time] * frame.numstorms]
+        storm_times = [time for frame in frames for time in [frame.time] * len(frame.storm_data)]
         df = pd.DataFrame(data={col: [getattr(s, col) for s in storms] for col in cols})
         df.insert(1, 'time', np.array(storm_times))
 
