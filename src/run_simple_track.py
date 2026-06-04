@@ -12,6 +12,12 @@ def run_tracking():
         "configs", nargs="+", help="Path to one or more yaml config files."
     )
     parser.add_argument(
+        "-i",
+        "--path",
+        required=False,
+        help="Path to input data. If not supplied will use path in config file",
+    )
+    parser.add_argument(
         "-l",
         "--loader",
         required=False,
@@ -38,7 +44,7 @@ def run_tracking():
         parser.error("--iterate_over_array requires --iterating_dim")
 
     # All optional CLI args will be passed in as kwargs to Tracker config
-    kwarg_names = ["loader", "iterate_over_array", "iterating_dim"]
+    kwarg_names = ["path", "loader", "iterate_over_array", "iterating_dim"]
     kwarg_vals = [getattr(args, kw_name) for kw_name in kwarg_names]
     kwargs = {
         kw_name: kw_val

@@ -150,7 +150,7 @@ class Frame:
         self,
         threshold: float,
         under_threshold: bool = False,
-        min_size: int = 5,
+        min_size: int = 4,
     ) -> None:
         """
         Call the "label_features" function to identify distinct regions in the input
