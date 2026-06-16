@@ -1,4 +1,5 @@
 import datetime as dt
+import warnings
 
 import numpy as np
 import scipy.ndimage as ndimage
@@ -280,15 +281,21 @@ class Frame:
         Update the feature_field to reflect provisional ids.
         """
         if self._feature_field is None:
-            raise FeaturesNotFoundError(
-                "Feature field is not set. Cannot update using provisional ids."
+            print(
+                UserWarning(
+                    "Feature field is not set. Cannot update using provisional ids."
+                )
             )
+            return
 
         if not self._features:
-            raise FeaturesNotFoundError(
-                "Features have not been loaded into this Frame. "
-                "Cannot update using provisional ids."
+            print(
+                UserWarning(
+                    "Features have not been loaded into this Frame. "
+                    "Cannot update using provisional ids."
+                )
             )
+            return
 
         updated_feature_field = np.zeros_like(self._feature_field)
         updated_lifetime_field = np.zeros_like(self._feature_field)

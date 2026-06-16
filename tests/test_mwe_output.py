@@ -50,6 +50,12 @@ def generate_mwe_files(save_path=None):
     # Cells merge
     mwe_dt8[35:60, 50:70] = 1
 
+    # Ninth timestep: no features
+    mwe_dt9 = mwe_domain.copy()
+
+    # Tenth timestep: tracking when both frames contain no features
+    mwe_dt10 = mwe_domain.copy()
+
     mwe_fields = [
         mwe_dt1,
         mwe_dt2,
@@ -59,6 +65,8 @@ def generate_mwe_files(save_path=None):
         mwe_dt6,
         mwe_dt7,
         mwe_dt8,
+        mwe_dt9,
+        mwe_dt10,
     ]
     if save_path is not None:
         # Make containing directory if it doesn't exist
@@ -347,6 +355,19 @@ def test_seventh_mwe_outputs(mwe_timeline):
     # Test there is a flow across the feature
     assert feature.dydx != ()
     assert np.all(frame.get_flow()) is not None
+
+
+def test_ninth_mwe_outputs(mwe_timeline):
+    """
+    Test that there are no features in the ninth timestep
+    """
+    base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
+    mwe_idx = 8
+    frame_time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
+    frame = mwe_timeline.get_frame(frame_time)
+
+    # test there we are back to one feature
+    assert len(frame.features) == 0
 
 
 if __name__ == "__main__":

@@ -394,10 +394,8 @@ def test_update_fields_using_provisional_ids_with_no_feature_field():
     test_frame.populate_features()  # No feature field set, so no features populated
 
     # Update the feature field without setting any provisional ids
-    try:
-        test_frame.update_fields_using_provisional_ids()
-    except FeaturesNotFoundError:
-        pass
+    # Just prints a warning and returns without error
+    test_frame.update_fields_using_provisional_ids()
 
 
 def test_update_fields_using_provisional_ids_with_no_features():
@@ -406,11 +404,8 @@ def test_update_fields_using_provisional_ids_with_no_features():
     test_frame.feature_field = test_feature_field
     test_frame.populate_features()  # No features populated as feature field is all zeros
 
-    # Update the feature field without any features
-    try:
-        test_frame.update_fields_using_provisional_ids()
-    except FeaturesNotFoundError:
-        pass
+    # Update the feature field without any features. Just prints a warning
+    test_frame.update_fields_using_provisional_ids()
 
 
 def test_get_new_features():

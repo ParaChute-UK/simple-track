@@ -538,7 +538,7 @@ class FlowSolver:
         subdomain_count = np.prod(self.subdomain_shape)
         min_feature_coverage = subdomain_count * self.min_fractional_coverage
         if np.sum(arr1) < min_feature_coverage or np.sum(arr2) < min_feature_coverage:
-            print(f"Threshold for running optical flow: {self.min_fractional_coverage}")
+            print(f"Threshold for running optical flow: {min_feature_coverage}")
             print(f"Number of pixels above threshold in arr1: {np.sum(arr1)}")
             print(f"Number of pixels above threshold in arr2: {np.sum(arr2)}")
             print("Number of features in arr1 and/or arr2 less than threshold. ")
