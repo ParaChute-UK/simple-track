@@ -73,7 +73,7 @@ def generate_mwe_files(save_path=None):
         Path(save_path).mkdir(parents=True, exist_ok=True)
 
         for mwe_idx, mwe in enumerate(mwe_fields):
-            np.savetxt(f"{save_path}/mwe_dt{mwe_idx + 1}.field", mwe)
+            np.savetxt(f"{save_path}/mwe_dt{str(mwe_idx + 1).zfill(2)}.field", mwe)
     return mwe_fields
 
 
