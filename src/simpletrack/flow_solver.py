@@ -55,6 +55,10 @@ class FlowSolver:
                 Defaults to True.
         """
         if isinstance(subdomain_size, int):
+            if subdomain_size % 2 != 0:
+                raise ValueError(
+                    f"Expected subdomain_size to be even, got {subdomain_size}"
+                )
             self.subdomain_shape = np.array([subdomain_size, subdomain_size], dtype=int)
         elif isinstance(subdomain_size, float):
             raise TypeError("Expected int or array-like, got float")
@@ -107,6 +111,8 @@ class FlowSolver:
         prev_features, current_features = check_arrays(
             prev_features, current_features, equal_shape=True, ndim=2, dtype=int
         )
+
+        # If input arrays are not an even/"nice" shape,
 
         # Determine a subdomain size if not provided
         if self.subdomain_shape is None:
@@ -172,6 +178,21 @@ class FlowSolver:
             prev_features.shape,
         )
         return y_flow, x_flow
+
+    def setup_subdomain_shape(self, feature_field_shape):
+
+        if self.subdomain_shape is None:
+            # Check input field shape
+            sd_shape = np.array(feature_field_shape) // 5
+        if not self.check_subdomain_size_fits_in_full_domain(
+            feature_field_shape, sd_shape
+        ):
+            # TODO: do something more intelligent here rather than just raise an error
+            # Try to find another subdomain shape that could fit
+            raise Exception(
+                f"Subdomain shape ({sd_shape}) cannot fit ({feature_field_shape})"
+            )
+        return sd_shape
 
     def get_subdomain_containment_arrays(
         self, full_domain_shape: NDArray, subdomain_shape: NDArray
@@ -275,23 +296,6 @@ class FlowSolver:
         )
         subdomain_vals[invalid_tolerance] = np.nan
         return subdomain_vals
-
-    def get_subdomain_shape(self, feature_field_shape):
-        # TODO: figure out some logic here for getting a good sd size
-        # if none is provided.
-        # Use this for now, but it won't work in all cases!
-        # TODO: this is entirely arbitrary. Check if this is sensible. It probably isnt
-        # TODO: what if domain is an odd shape?? What then??
-        sd_shape = np.array(feature_field_shape) // 5
-        if not self.check_subdomain_size_fits_in_full_domain(
-            feature_field_shape, sd_shape
-        ):
-            # TODO: do something more intelligent here rather than just raise an error
-            # Try to find another subdomain shape that could fit
-            raise Exception(
-                f"Subdomain shape ({sd_shape}) cannot fit ({feature_field_shape})"
-            )
-        return sd_shape
 
     def check_subdomain_size_fits_in_full_domain(
         self, feature_field_shape: NDArray, subdomain_shape: NDArray
