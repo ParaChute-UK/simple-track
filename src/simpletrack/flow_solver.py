@@ -60,8 +60,10 @@ class FlowSolver:
                     f"Expected subdomain_size to be even, got {subdomain_size}"
                 )
             self.subdomain_shape = np.array([subdomain_size, subdomain_size], dtype=int)
-        elif isinstance(subdomain_size, float):
-            raise TypeError("Expected int or array-like, got float")
+        elif isinstance(subdomain_size, (float, str)):
+            raise TypeError(
+                f"Expected int or array-like, got type{type(subdomain_size)}"
+            )
         elif subdomain_size is None:
             self.subdomain_shape = None
         else:
@@ -112,7 +114,9 @@ class FlowSolver:
             prev_features, current_features, equal_shape=True, ndim=2, dtype=int
         )
 
-        # If input arrays are not an even/"nice" shape,
+        # If input arrays are not an even/"nice" shape, pad them to the next order of
+        # magnitude. This is required for an integer number of overlapping subdomains
+        # fit into the domain. Flow field will be cropped to original shape
         input_shape = prev_features.shape
         prev_features = self.pad_to_max_order_of_magnitude(prev_features)
         current_features = self.pad_to_max_order_of_magnitude(current_features)
@@ -208,8 +212,18 @@ class FlowSolver:
 
         return np.pad(arr, pad_width, mode="constant", constant_values=0)
 
-    def setup_subdomain_shape(self, feature_field_shape):
+    def setup_subdomain_shape(self, feature_field_shape: np.ndarray) -> np.ndarray:
+        """
+        Set up the subdomain shape based on the feature field shape.
+        If the subdomain shape has already been set in init, this will
+        check that the subdomain shape can fit into the feature field shape.
 
+        Args:
+            feature_field_shape (np.ndarray): Shape of the feature field
+
+        Returns:
+            np.ndarray: The setup subdomain shape.
+        """
         if self.subdomain_shape is None:
             # Check input field shape
             sd_shape = np.array(feature_field_shape) // 5
