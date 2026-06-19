@@ -720,3 +720,43 @@ def test_subdomain_iter(
         assert result == expected_subdomain_iter
     except expected_subdomain_iter:
         pass
+
+
+@pytest.mark.parametrize(
+    "subdomain_size, expected_error",
+    [
+        [9, ValueError],  # Odd subdomain size
+        [10.5, TypeError],  # Non-integer subdomain size
+        [-10, ValueError],  # Negative subdomain size
+        ["10", TypeError],  # Non-numeric subdomain size
+    ],
+)
+def test_init_catches_invalid_subdomain_size(subdomain_size, expected_error):
+    try:
+        FlowSolver(subdomain_size=subdomain_size)
+    except expected_error:
+        pass
+
+
+def test_init_accepts_valid_subdomain_size():
+    try:
+        solver = FlowSolver(subdomain_size=10)
+        np.testing.assert_array_equal(solver.subdomain_shape, np.array([10, 10]))
+    except Exception as e:
+        pytest.fail(f"Unexpected exception raised: {e}")
+
+
+@pytest.mark.parametrize(
+    "input_array, expected_output",
+    [
+        [np.zeros((10, 10)), np.zeros((10, 10))],
+        [np.zeros((5, 5)), np.zeros((5, 5))],
+        [np.zeros((21, 140)), np.zeros((100, 200))],
+        [np.zeros((230, 410)), np.zeros((300, 500))],
+        [np.zeros((3, 78)), np.zeros((10, 80))],
+        [np.zeros((4, 140)), np.zeros((100, 200))],
+    ],
+)
+def test_pad_to_max_order_of_magnitude(input_array, expected_output):
+    result = of_solver.pad_to_max_order_of_magnitude(input_array)
+    np.testing.assert_array_equal(result, expected_output)
