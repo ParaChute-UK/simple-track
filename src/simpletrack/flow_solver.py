@@ -113,10 +113,13 @@ class FlowSolver:
         )
 
         # If input arrays are not an even/"nice" shape,
+        input_shape = prev_features.shape
+        prev_features = self.pad_to_max_order_of_magnitude(prev_features)
+        current_features = self.pad_to_max_order_of_magnitude(current_features)
 
         # Determine a subdomain size if not provided
         if self.subdomain_shape is None:
-            self.subdomain_shape = self.get_subdomain_shape(prev_features.shape)
+            self.subdomain_shape = self.setup_subdomain_shape(prev_features.shape)
 
         # Check inputs, don't proceed if not validated
         prev_features, current_features = self._check_inputs(
@@ -169,15 +172,41 @@ class FlowSolver:
             interior_y_subdom_bounds,
             interior_x_subdom_bounds,
             subdomain_dy,
-            prev_features.shape,
+            input_shape,
         )
         x_flow = self.interpolate_subdomain_flows(
             interior_y_subdom_bounds,
             interior_x_subdom_bounds,
             subdomain_dx,
-            prev_features.shape,
+            input_shape,
         )
         return y_flow, x_flow
+
+    def pad_to_max_order_of_magnitude(self, arr: np.ndarray) -> np.ndarray:
+        """
+        Pad an array with zeros so each dimension is rounded up to the maximum order of
+        magnitude across all dimensions.
+        """
+
+        def _get_magnitude(n: int) -> int:
+            if n <= 1:
+                return 1
+            return 10 ** np.floor(np.log10(n))
+
+        def _round_to_magnitude(n: int, magnitude: int) -> int:
+            return int(np.ceil(n / magnitude) * magnitude)
+
+        # Get the maximum order of magnitude across all dimensions
+        magnitudes = [_get_magnitude(s) for s in arr.shape]
+        max_magnitude = max(magnitudes)
+
+        # Round each dimension to the next multiple of max_magnitude
+        target_shape = tuple(_round_to_magnitude(s, max_magnitude) for s in arr.shape)
+        pad_width = tuple(
+            (0, t - s) for s, t in zip(arr.shape, target_shape, strict=True)
+        )
+
+        return np.pad(arr, pad_width, mode="constant", constant_values=0)
 
     def setup_subdomain_shape(self, feature_field_shape):
 
