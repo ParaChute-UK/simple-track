@@ -20,16 +20,17 @@ class DISFlowSolver:
             flow but may miss small details. Defaults to 50.
         """
         self.patch_size = patch_size
+        print(self.patch_size)
 
     def analyse_flow(self, prev_field, current_field):
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
-            prev_features = prev_field.feature_field
-            current_features = current_field.feature_field
+            prev_features = prev_field.feature_field.astype(np.uint8)
+            current_features = current_field.feature_field.astype(np.uint8)
         elif isinstance(prev_field, np.ndarray) and isinstance(
             current_field, np.ndarray
         ):
-            prev_features = prev_field
-            current_features = current_field
+            prev_features = prev_field.astype(np.uint8)
+            current_features = current_field.astype(np.uint8)
         else:
             raise TypeError(
                 "prev_field and current_field must both be of type Frame or NDArray"

@@ -16,9 +16,9 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-license = "MPL-2.0"
-license-files = ["LICEN[CS]E*"]
+license = {file = "LICENSE"}
 dependencies = [
+  "opencv-python",
   "numpy >= 2.2.0",
   "pytest >= 9.0",
   "pytest-cov",
@@ -34,6 +34,9 @@ simpletrack = "run_simple_track:run_tracking"
 [project.urls]
 Homepage = "https://github.com/ParaChute-UK/simple-track/"
 Issues = "https://github.com/ParaChute-UK/simple-track/issues"
+
+[tool.setuptools]
+license-files = ["LICEN[CS]E*"]
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib"]

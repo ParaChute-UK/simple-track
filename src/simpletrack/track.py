@@ -16,6 +16,7 @@ from simpletrack.load import (
     FilenameIterator,
     LoadingBar,
 )
+from simpletrack.optical_flow_solver import DISFlowSolver
 
 
 class Tracker:
@@ -67,6 +68,10 @@ class Tracker:
 
         if "FLOW_SOLVER" in self.config:
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
+        elif "DIS_FLOW_SOLVER" in self.config:
+            print("Using DIS optical flow solver")
+            dis_flow_config = self.config["DIS_FLOW_SOLVER"] or {}
+            self.flow_solver = DISFlowSolver(**dis_flow_config)
         else:
             self.flow_solver = FlowSolver()
 
