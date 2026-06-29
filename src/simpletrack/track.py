@@ -152,8 +152,15 @@ class Tracker:
 
             # Now run flow solver between previous and current frame
             prev_frame = self.timeline.get_previous_frame(frame.time)
-            # Set max id for assigning to new features
-            frame.max_id = prev_frame.max_id
+            # Set max id for assigning to new features.
+            # An all-quiet first frame leaves prev_frame.max_id None
+            # (identify_features returns early without setting it when no
+            # features are above threshold). Skip the carry-forward then;
+            # get_next_available_feature_id lazily initialises max_id from the
+            # frame's own feature_field, and there are no earlier ids to collide
+            # with.
+            if prev_frame.max_id is not None:
+                frame.max_id = prev_frame.max_id
             # Get the flow field that translates features between the two frames
             y_flow, x_flow = self.flow_solver.analyse_flow(prev_frame, frame)
 
