@@ -311,11 +311,12 @@ class Feature:
 
         # Reverse eigenvectors to be in (y,x) format, consistent with rest of package
         # Native converts from numpy type to python type
+        # Real ensures types are not complex, which can happen with PCA decomposition
         return (
-            native(major_unit_vector[::-1]),
-            native(minor_unit_vector[::-1]),
-            native(major_diameter / 2),
-            native(minor_diameter / 2),
+            native(np.real(major_unit_vector[::-1])),
+            native(np.real(minor_unit_vector[::-1])),
+            native(np.real(major_diameter / 2)),
+            native(np.real(minor_diameter / 2)),
         )
 
     def calculate_centroid(self) -> tuple:

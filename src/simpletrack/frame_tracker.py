@@ -768,13 +768,13 @@ class FrameTracker:
         # Set the first value of the hist to 0 since this represents the background
         overlap_hist[0] = 0
 
-        # Normalise overlap histogram by size of each feature in advected field only
-        norm_sizes = np.array(
-            [
-                np.count_nonzero(advected_feature_field == idx)
-                for idx in range(len(overlap_hist))
-            ]
-        )
+        # Normalise overlap histogram by size of each feature in advected field only.
+        # bincount computes all per-id pixel counts in a single pass; the previous
+        # per-id np.count_nonzero loop was O(max_id * domain) and dominated runtime
+        # for long sequences (feature_field holds persistent ids, which grow large).
+        norm_sizes = np.bincount(
+            advected_feature_field.ravel(), minlength=len(overlap_hist)
+        )[: len(overlap_hist)]
         # Replace any zero sizes with 1 to avoid division by zero
         norm_sizes = np.where(norm_sizes == 0, 1, norm_sizes)
         overlap_normed = overlap_hist / norm_sizes
