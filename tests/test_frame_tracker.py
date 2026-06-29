@@ -446,7 +446,8 @@ def test_overlap_histogram_with_multiple_overlaps_and_different_labels(
         ],
         [np.zeros((10), dtype=int), np.zeros((10), dtype=int), 1, 0, ArrayShapeError],
         [np.zeros((5, 10), dtype=int), zero_arr, 1, 0, ArrayShapeError],
-        [np.zeros((10, 10), dtype=float), np.zeros((10, 10)), 1, 0, ArrayTypeError],
+        # This test should pass now that check_arrays converts to int type if values don't change
+        # [np.zeros((10, 10), dtype=float), np.zeros((10, 10)), 1, 0, ArrayTypeError],
         [zero_arr, zero_arr, -1, 0, NegativeIDError],
         [zero_arr, zero_arr, 1.5, 0, FloatIDError],
         [zero_arr, zero_arr, 0, 0, ZeroIDError],
