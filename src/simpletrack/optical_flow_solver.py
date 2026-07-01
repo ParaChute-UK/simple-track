@@ -10,17 +10,15 @@ class DISFlowSolver:
     OpenCV's DIS optical flow algorithm [Kroeger et al., 2016].
     """
 
-    def __init__(self, patch_size=50):
+    def __init__(self, subdomain_size=50):
         """
         Initialize the DISFlowSolver.
 
         Args:
-            patch_size (int, optional):
-            Size of the patch used for matching. Larger values result in smoother
-            flow but may miss small details. Defaults to 50.
+            subdomain_size (int, optional):
+                Size of the subdomain used for matching.
         """
-        self.patch_size = patch_size
-        print(self.patch_size)
+        self.patch_size = subdomain_size
 
     def analyse_flow(self, prev_field, current_field):
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
@@ -36,6 +34,9 @@ class DISFlowSolver:
                 "prev_field and current_field must both be of type Frame or NDArray"
             )
 
+        if self.patch_size is None or self.patch_size == "default":
+            self.patch_size = self.get_patch_size(prev_features.shape)
+
         # Create an instance of the DIS optical flow algorithm
         # Use the "2" preset, which is slower but more accurate
         of_instance = cv2.DISOpticalFlow_create(2)
@@ -46,3 +47,19 @@ class DISFlowSolver:
         x_flow, y_flow = flow[..., 0], flow[..., 1]
 
         return y_flow, x_flow
+
+    def get_patch_size(self, field_shape: tuple) -> int:
+        """
+        Get the patch size for the DIS optical flow algorithm based on the shape of the
+        input field.
+
+        Args:
+            field_shape (tuple):
+                Shape of the input field.
+
+        Returns:
+            int: Patch size for the DIS optical flow algorithm.
+        """
+        min_dim = min(field_shape)
+        patch_size = max(5, min_dim // 5)  # Ensure patch size is at least 5 pixels
+        return patch_size
