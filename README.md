@@ -30,8 +30,6 @@ While Simple-Track is designed to accept a wide range of input data, certain req
 
 * The input data must be gridded and contain a consistent spatial domain and resolution between frames.
 
-* The input grid must be evenly shaped (this will be relaxed in the future)
-
 * The features of interest must be defined by a threshold value, and these features must translate as a result of a spatially consistent background flow.
 
 * The time between frames should be sufficiently short such that features can be reasonably expected to persist between frames. This is not a strict requirement since the tool includes an artificial advection step that projects data onto a common time, but it is likely that longer time steps will lead to more errors in feature matching and therefore less accurate tracking statistics. 

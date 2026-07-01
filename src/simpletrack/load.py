@@ -43,16 +43,7 @@ class BaseLoader:
         # Check consistency of data shape
         if self.domain_shape is None:
             self.domain_shape = output_arr.shape
-            # Check that the domain sizes are even.
-            # This requirement will ideally be relaxed in future
-            # but currently required for flow_solver to work correctly.
-            if not all([size % 2 == 0 for size in self.domain_shape]):
-                msg = (
-                    "Simple-Track requires even domain sizes, "
-                    + f"input is shape {self.domain_shape}. Consider"
-                    + " padding or cropping your data to meet this requirement."
-                )
-                raise ValueError(msg)
+
         output_arr = check_arrays(output_arr, shape=self.domain_shape, ndim=2)
 
         # Check output time is a sensible type
