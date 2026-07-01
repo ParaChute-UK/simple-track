@@ -17,6 +17,8 @@ class DISFlowSolver:
         Args:
             subdomain_size (int, optional):
                 Size of the subdomain used for matching.
+                Defaults to feature_field.shape // 5 if not provided,
+                or 50 pixels running DISFlowSolver standalone.
         """
         self.patch_size = subdomain_size
 
