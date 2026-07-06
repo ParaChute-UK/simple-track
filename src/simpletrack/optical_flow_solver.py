@@ -39,19 +39,26 @@ class TVL1FlowSolver:
         self.attachment = attachment
         self.tightness = tightness
 
-    def analyse_flow(self, prev_field, current_field):
+    def analyse_flow(
+        self, prev_field: Frame | NDArray, current_field: Frame | NDArray
+    ) -> tuple[NDArray, NDArray]:
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
-            prev_features = prev_field.feature_field
-            current_features = current_field.feature_field
+            prev_features = prev_field.raw_field
+            current_features = current_field.raw_field
         elif isinstance(prev_field, np.ndarray) and isinstance(
             current_field, np.ndarray
         ):
-            prev_features = prev_field.astype(np.uint8)
-            current_features = current_field.astype(np.uint8)
+            prev_features = prev_field
+            current_features = current_field
         else:
             raise TypeError(
                 "prev_field and current_field must both be of type Frame or NDArray"
             )
+
+        # TV-L1 expects image-like float inputs. Feature fields are integer labels,
+        # so convert to binary float fields to avoid dtype/range scale issues.
+        prev_features = prev_features.astype(np.float32)
+        current_features = current_features.astype(np.float32)
 
         # Check inputs are not empty
         if not np.count_nonzero(prev_features) or not np.count_nonzero(
@@ -66,6 +73,7 @@ class TVL1FlowSolver:
             current_features,
             attachment=self.attachment,
             tightness=self.tightness,
+            num_warp=5,
         )
 
         return y_flow, x_flow
