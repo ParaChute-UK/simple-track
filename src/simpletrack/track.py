@@ -16,6 +16,7 @@ from simpletrack.load import (
     FilenameIterator,
     LoadingBar,
 )
+from simpletrack.optical_flow_solver import TVL1FlowSolver
 
 
 class Tracker:
@@ -67,6 +68,10 @@ class Tracker:
 
         if "FLOW_SOLVER" in self.config:
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
+        elif "TVL1_FLOW_SOLVER" in self.config:
+            print("Using TV-L1 optical flow solver")
+            tvl1_flow_config = self.config["TVL1_FLOW_SOLVER"] or {}
+            self.flow_solver = TVL1FlowSolver(**tvl1_flow_config)
         else:
             self.flow_solver = FlowSolver()
 

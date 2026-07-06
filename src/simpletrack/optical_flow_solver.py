@@ -30,6 +30,11 @@ class TVL1FlowSolver:
                 flow fields.
                 Defaults to 0.3
         """
+        if attachment == "default":
+            attachment = 0.7
+        if tightness == "default":
+            tightness = 0.3
+
         self.attachment = attachment
         self.tightness = tightness
 
