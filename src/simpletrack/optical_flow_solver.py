@@ -1,5 +1,6 @@
 import numpy as np
 import skimage
+from numpy.typing import NDArray
 
 from simpletrack.frame import Frame
 
@@ -40,8 +41,8 @@ class TVL1FlowSolver:
 
     def analyse_flow(self, prev_field, current_field):
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
-            prev_features = prev_field.feature_field.astype(np.uint8)
-            current_features = current_field.feature_field.astype(np.uint8)
+            prev_features = prev_field.feature_field
+            current_features = current_field.feature_field
         elif isinstance(prev_field, np.ndarray) and isinstance(
             current_field, np.ndarray
         ):
@@ -51,6 +52,13 @@ class TVL1FlowSolver:
             raise TypeError(
                 "prev_field and current_field must both be of type Frame or NDArray"
             )
+
+        # Check inputs are not empty
+        if not np.count_nonzero(prev_features) or not np.count_nonzero(
+            current_features
+        ):
+            print("No features detected in an input field. Skipping optical flow.")
+            return None, None
 
         # Run optical flow using the TV-L1 algorithm from scikit-image
         y_flow, x_flow = skimage.registration.optical_flow_tvl1(

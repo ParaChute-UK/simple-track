@@ -576,8 +576,8 @@ class FlowSolver:
 
     def _check_inputs(self, arr1: NDArray, arr2: NDArray) -> bool:
         # Check both fields have features
-        if not np.count_nonzero(arr1) and not np.count_nonzero(arr2):
-            print("No features detected in both fields. Skipping optical flow.")
+        if not np.count_nonzero(arr1) or not np.count_nonzero(arr2):
+            print("No features detected in an input field. Skipping optical flow.")
             return None, None
 
         # If there are too few features, don't proceed with optical flow
