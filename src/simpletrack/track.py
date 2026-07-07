@@ -69,7 +69,8 @@ class Tracker:
         if "FLOW_SOLVER" in self.config:
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
         elif "ILK_FLOW_SOLVER" in self.config:
-            self.flow_solver = ILKFlowSolver(**self.config["ILK_FLOW_SOLVER"])
+            ilk_flow_config = self.config["ILK_FLOW_SOLVER"] or {}
+            self.flow_solver = ILKFlowSolver(**ilk_flow_config)
         else:
             self.flow_solver = FlowSolver()
 
