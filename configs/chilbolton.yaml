@@ -7,7 +7,7 @@ INPUT:
 OUTPUT:
   experiment_name: chilbolton_test
   path: ./output_chilbolton_oost_test
-  save_data: true
+  save_data: false
   skip_tracking: false # Whether to skip tracking and just output feature properties
 
 FEATURE:
