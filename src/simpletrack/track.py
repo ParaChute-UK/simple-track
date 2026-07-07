@@ -16,6 +16,7 @@ from simpletrack.load import (
     FilenameIterator,
     LoadingBar,
 )
+from simpletrack.optical_flow_solver import ILKFlowSolver
 
 
 class Tracker:
@@ -67,6 +68,8 @@ class Tracker:
 
         if "FLOW_SOLVER" in self.config:
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
+        elif "ILK_FLOW_SOLVER" in self.config:
+            self.flow_solver = ILKFlowSolver(**self.config["ILK_FLOW_SOLVER"])
         else:
             self.flow_solver = FlowSolver()
 
