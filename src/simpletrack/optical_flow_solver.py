@@ -50,8 +50,8 @@ class TVL1FlowSolver:
         self, prev_field: Frame | NDArray, current_field: Frame | NDArray
     ) -> tuple[NDArray, NDArray]:
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
-            prev_features = prev_field.raw_field
-            current_features = current_field.raw_field
+            prev_features = prev_field.feature_field
+            current_features = current_field.feature_field
         elif isinstance(prev_field, np.ndarray) and isinstance(
             current_field, np.ndarray
         ):
