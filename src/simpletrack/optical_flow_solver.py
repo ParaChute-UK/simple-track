@@ -12,7 +12,7 @@ class TVL1FlowSolver:
     https://scikit-image.org/docs/stable/api/skimage.registration.html#module-skimage.registration
     """
 
-    def __init__(self, attachment=0.7, tightness=0.3):
+    def __init__(self, attachment=0.7, tightness=0.3, num_warp=5):
         """
         Initialize the TVL1FlowSolver.
         Default values for attachment and tightness were found to minimise RMSE when
@@ -30,14 +30,21 @@ class TVL1FlowSolver:
                 (accuracy to the input images). Smaller values return smoother
                 flow fields.
                 Defaults to 0.3
+            num_warp (int):
+                Number of warpings per scale. The more warpings, the more accurate the
+                flow estimation, but also the more expensive the computation.
+                Defaults to 5.
         """
         if attachment == "default":
             attachment = 0.7
         if tightness == "default":
             tightness = 0.3
+        if num_warp == "default":
+            num_warp = 5
 
         self.attachment = attachment
         self.tightness = tightness
+        self.num_warp = num_warp
 
     def analyse_flow(
         self, prev_field: Frame | NDArray, current_field: Frame | NDArray
@@ -73,7 +80,7 @@ class TVL1FlowSolver:
             current_features,
             attachment=self.attachment,
             tightness=self.tightness,
-            num_warp=5,
+            num_warp=self.num_warp,
         )
 
         return y_flow, x_flow
