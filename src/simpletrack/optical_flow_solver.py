@@ -23,14 +23,15 @@ class DISFlowSolver:
         self.patch_size = subdomain_size
 
     def analyse_flow(self, prev_field, current_field):
+        # Extract field and normalize to unsigned 8-bit for optical flow calculation
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
-            prev_features = prev_field.feature_field.astype(np.uint8)
-            current_features = current_field.feature_field.astype(np.uint8)
+            prev_features = normalize8(prev_field.feature_field)
+            current_features = normalize8(current_field.feature_field)
         elif isinstance(prev_field, np.ndarray) and isinstance(
             current_field, np.ndarray
         ):
-            prev_features = prev_field.astype(np.uint8)
-            current_features = current_field.astype(np.uint8)
+            prev_features = normalize8(prev_field)
+            current_features = normalize8(current_field)
         else:
             raise TypeError(
                 "prev_field and current_field must both be of type Frame or NDArray"
@@ -72,3 +73,13 @@ class DISFlowSolver:
         min_dim = min(field_shape)
         patch_size = max(5, min_dim // 5)  # Ensure patch size is at least 5 pixels
         return patch_size
+
+
+def normalize8(I):
+    mn = I.min()
+    mx = I.max()
+
+    mx -= mn
+
+    I = ((I - mn) / mx) * 255
+    return I.astype(np.uint8)
