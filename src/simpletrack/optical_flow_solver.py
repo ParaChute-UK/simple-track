@@ -36,6 +36,13 @@ class DISFlowSolver:
                 "prev_field and current_field must both be of type Frame or NDArray"
             )
 
+        # Check inputs are not empty
+        if not np.count_nonzero(prev_features) or not np.count_nonzero(
+            current_features
+        ):
+            print("No features detected in an input field. Skipping optical flow.")
+            return None, None
+
         if self.patch_size is None or self.patch_size == "default":
             self.patch_size = self.get_patch_size(prev_features.shape)
 
