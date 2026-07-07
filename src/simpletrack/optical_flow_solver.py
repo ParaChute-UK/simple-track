@@ -35,8 +35,8 @@ class ILKFlowSolver:
     ) -> tuple[NDArray, NDArray]:
         # Extract and convert data to float32 type
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
-            prev_features = prev_field.raw_field.astype(np.float32)
-            current_features = current_field.raw_field.astype(np.float32)
+            prev_features = prev_field.feature_field.astype(np.float32)
+            current_features = current_field.feature_field.astype(np.float32)
         elif isinstance(prev_field, np.ndarray) and isinstance(
             current_field, np.ndarray
         ):
@@ -61,6 +61,10 @@ class ILKFlowSolver:
         ):
             print("No features detected in an input field. Skipping optical flow.")
             return None, None
+
+        # Convert to binary field
+        prev_features = np.where(prev_features > 0, 1, 0).astype(np.float32)
+        current_features = np.where(current_features > 0, 1, 0).astype(np.float32)
 
         # Calculate radius if not defined
         if self.radius is None:
