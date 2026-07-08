@@ -62,10 +62,11 @@ class TVL1FlowSolver:
                 "prev_field and current_field must both be of type Frame or NDArray"
             )
 
+        # Convert to binary field
         # TV-L1 expects image-like float inputs. Feature fields are integer labels,
         # so convert to binary float fields to avoid dtype/range scale issues.
-        prev_features = prev_features.astype(np.float32)
-        current_features = current_features.astype(np.float32)
+        prev_features = np.where(prev_features > 0, 1, 0).astype(np.float32)
+        current_features = np.where(current_features > 0, 1, 0).astype(np.float32)
 
         # Check inputs are not empty
         if not np.count_nonzero(prev_features) or not np.count_nonzero(
