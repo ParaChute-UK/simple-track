@@ -875,7 +875,7 @@ def advect_field_using_motion_vectors(
 
             # If this coordinate is out of bounds of the field, no further action needed
             oob_y_check = advected_y_coord < 0 or advected_y_coord > field.shape[0] - 1
-            oob_x_check = advected_y_coord < 0 or advected_x_coord > field.shape[1] - 1
+            oob_x_check = advected_x_coord < 0 or advected_x_coord > field.shape[1] - 1
             if oob_y_check or oob_x_check:
                 continue
 
