@@ -20,7 +20,6 @@ class FrameTracker:
         overlap_nbhood: int = 5,
         overlap_threshold: float = 0.6,
         retain_lifetime_on_split: bool = True,
-        # If True, uses overlap_nbhood to multiply feature size to get radial mask size
     ):
         """
         Initialise FrameTracker class to track Features between Frames
