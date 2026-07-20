@@ -21,6 +21,8 @@ conda install conda-forge::simple-track
 ```
 Coming soon to uv
 
+Alternatively, Simple-Track can be run on meteorological data in [CSET](https://metoffice.github.io/CSET/index.html#) using the `feature.track` operator. See CSET docs for more information. 
+
 # User Guide
 
 This section describes the main methods of running Simple-Track. More details can be found [in the docs](docs/user_guide.md)
