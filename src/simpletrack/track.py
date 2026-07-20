@@ -66,7 +66,10 @@ class Tracker:
             setattr(self, attr_name, attr_val)
 
         if "FLOW_SOLVER" in self.config:
-            self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
+            # Allows empty config to be passed into FlowSolver,
+            # which will then use default values
+            flow_config = self.config["FLOW_SOLVER"] or {}
+            self.flow_solver = FlowSolver(**flow_config)
         else:
             self.flow_solver = FlowSolver()
 
