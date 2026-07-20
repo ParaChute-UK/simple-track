@@ -21,6 +21,7 @@ class FrameOutputManager:
         expt_name: str = "default",
         start_time: str = None,
         config_path: str = None,
+        output_raw_data: bool = True,
     ):
         output_path = Path(output_path)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -28,6 +29,7 @@ class FrameOutputManager:
         self.expt_name = expt_name
         self.start_time = start_time
         self.config_path = config_path
+        self.output_raw_data = output_raw_data
         self.strftime = "%Y%m%d_%H%M"
 
     def features_to_txt(self, frame: Frame) -> None:
@@ -103,6 +105,8 @@ class FrameOutputManager:
         frame_time_str = frame_time.strftime("%Y%m%d_%H%M")
         for output_fnm, [output, output_fmt] in outputs.items():
             if output is None:
+                continue
+            if output_fnm == "raw" and not self.output_raw_data:
                 continue
             full_fnm = f"{self.output_path}/{output_fnm}_{frame_time_str}.field"
             np.savetxt(full_fnm, output, fmt=output_fmt)
