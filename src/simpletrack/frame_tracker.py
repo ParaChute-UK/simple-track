@@ -20,7 +20,6 @@ class FrameTracker:
         overlap_nbhood: int = 5,
         overlap_threshold: float = 0.6,
         retain_lifetime_on_split: bool = True,
-        _nbhood_coeff_test=False,
         # If True, uses overlap_nbhood to multiply feature size to get radial mask size
     ):
         """
@@ -46,7 +45,6 @@ class FrameTracker:
         self.overlap_nbhood = int(overlap_nbhood)
         self.overlap_threshold = overlap_threshold
         self.retain_lifetime_on_split = retain_lifetime_on_split
-        self._nbhood_coeff_test = _nbhood_coeff_test
 
     def run(self, prev_frame: Frame, current_frame: Frame) -> None:
         """
@@ -747,10 +745,7 @@ class FrameTracker:
         feature_mask = np.where(current_feature_field == feature_id, True, False)
         if nbhood:
             centroid = get_centroid(current_feature_field, feature_id)
-            if self._nbhood_coeff_test:
-                radial_mask_size = nbhood * np.count_nonzero(feature_mask)
-            else:
-                radial_mask_size = nbhood
+            radial_mask_size = nbhood
             feature_mask += generate_radial_mask(
                 current_feature_field, centroid, radial_mask_size
             )
@@ -801,22 +796,15 @@ class FrameTracker:
             current_feature_mask = current_feature_field == feature_id
 
             if nbhood > 0:
-                if self._nbhood_coeff_test:
-                    adv_nb = nbhood * np.count_nonzero(advected_feature_mask)
-                    curr_nb = nbhood * np.count_nonzero(current_feature_mask)
-                else:
-                    adv_nb = nbhood
-                    curr_nb = nbhood
-
                 advected_feature_mask += generate_radial_mask(
                     advected_feature_field,
                     get_centroid(advected_feature_field, advected_id),
-                    adv_nb,
+                    nbhood,
                 )
                 current_feature_mask += generate_radial_mask(
                     current_feature_field,
                     get_centroid(current_feature_field, feature_id),
-                    curr_nb,
+                    nbhood,
                 )
 
             overlap_size = np.size(
