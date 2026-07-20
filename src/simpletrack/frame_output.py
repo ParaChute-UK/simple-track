@@ -93,6 +93,7 @@ class FrameOutputManager:
             frame (Frame): _description_
         """
         outputs = {
+            "raw": [frame.raw_field, "%.6e"],
             "features": [frame.feature_field, "%.6e"],
             "lifetime": [frame.lifetime_field, "%.4e"],
             "y-flow": [frame.get_flow()[0], "%.2e"],
@@ -148,11 +149,20 @@ class FrameOutputManager:
 class LoadOutput:
     """
     Contains functionality for reading previous outputs back into a Timeline object
-    (contanining Frames of field and Feature data) for further inspection and analysis.
+    (containing Frames of field and Feature data) for further inspection and analysis.
     """
 
-    def __init__(self, st_data_path: str | Path):
-        self.path = Path(st_data_path)
+    def __init__(self, st_data_path: str | Path) -> None:
+        """
+        Set parameters for loading previous outputs into Timeline object.
+        The only required parameter is st_data_path, which should be a path to a
+        directory containing previously outputted .field and .csv files.
+
+        Args:
+            st_data_path (str | Path):
+                Path to directory containing previously outputted .field and .csv files.
+        """
+        self.st_data_path = Path(st_data_path)
         self.strftime = "%Y%m%d_%H%M"
         # Links field type names in outputs to attribute names in Frame
         self.field_attributes = {
@@ -160,6 +170,7 @@ class LoadOutput:
             "lifetime": "lifetime_field",
             "x-flow": "x_flow",
             "y-flow": "y_flow",
+            "raw": "raw_field",
         }
 
     def load_to_timeline(self) -> Timeline:
@@ -176,9 +187,8 @@ class LoadOutput:
 
         # Load fields into blank Frames
         self.load_frame_fields(timeline)
+
         # Load raw data into frame
-        # TODO: will need config file for this to determine
-        # if a Loader has been used, and location of input data
         # self.load_raw_fields(timeline)
 
         # Populate features in each Frame
@@ -203,7 +213,7 @@ class LoadOutput:
         for frame_time, frame in timeline.get_timeline().items():
             # Load all data for the current time
             frame_time_str = frame_time.strftime(self.strftime)
-            frame_time_fnames = self.path.rglob(f"*{frame_time_str}.csv")
+            frame_time_fnames = self.st_data_path.rglob(f"*{frame_time_str}.csv")
 
             for fname in frame_time_fnames:
                 # Read data from output
@@ -235,7 +245,7 @@ class LoadOutput:
         for frame_time, frame in timeline.get_timeline().items():
             # Load all data for the current time
             frame_time_str = frame_time.strftime(self.strftime)
-            frame_time_fnames = self.path.rglob(f"*{frame_time_str}.field")
+            frame_time_fnames = self.st_data_path.rglob(f"*{frame_time_str}.field")
 
             for fname in frame_time_fnames:
                 ftype = fname.name.split("_")[0]
