@@ -93,11 +93,20 @@ class Tracker:
         self.frame_output = None
         if "OUTPUT" in self.config:
             if self.config["OUTPUT"]["save_data"]:
+                save_raw_data = self.config["OUTPUT"].get("output_raw_data", True)
+                if not save_raw_data:
+                    msg = (
+                        "Warning: disabling output of raw data will prevent "
+                        "re-loading of this data for further analysis."
+                    )
+                    print(msg)
+
                 self.frame_output = FrameOutputManager(
                     output_path,
                     expt_name,
                     self.start_time,
                     config_path,
+                    output_raw_data=save_raw_data,
                 )
 
     def run(self, input_data: list[str] | dict = None) -> Timeline:
