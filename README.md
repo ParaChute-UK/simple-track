@@ -193,7 +193,7 @@ Features (`.csv` or `.txt` files):
 
 It it also possible to perform further analysis of tracking statistics using the data structures and tools of Simple-Track. This can be done using the `Timeline` object returned by `Tracker.run()`, which contains `Frame` and `Feature` data and built-in methods for easily accessing relevant data. 
 
-Alternatively, the data that is output by Simple-Track can be read back in to a `Timeline` object using the `LoadOutput` class in `frame_output.py`. This object only requires a path to the stored Simple-Track data. The `LoadOutput.load_to_timeline()` method will return a `Timeline` object containing all of the loaded data in the same data structures that Simple-Track stores its data. (Note: this does not currently load the raw input data back into the system, and therefore some methods such as `Frame.identify_features()` will not work. This data can be added manually to the `Frame.raw_field` attribute). 
+Alternatively, the data that is output by Simple-Track can be read back in to a `Timeline` object using the `LoadOutput` class in `frame_output.py`. This object only requires a path to the stored Simple-Track data. The `LoadOutput.load_to_timeline()` method will return a `Timeline` object containing all of the loaded data in the same data structures that Simple-Track stores its data. See User Guide in docs for more details.
 
 # All Simple-Track Parameters
 A complete list of parameters and their default values are given below. For a more thorough explanation of each parameter, refer to the docs. 
