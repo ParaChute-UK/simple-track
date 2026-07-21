@@ -78,7 +78,11 @@ class FrameOutputManager:
             # Write data
             frame_features_dict = frame.features
             # Get data headers by looking at any feature in the frame features dict
-            random_feature = frame_features_dict[list(frame_features_dict.keys())[0]]
+            random_feature = frame_features_dict.values()
+            if len(random_feature) == 0:
+                print("No features in frame, skipping output to csv")
+                return
+            random_feature = list(random_feature)[0]
             data_headers = random_feature.summarise("dict").keys()
             dict_writer = csv.DictWriter(output_file, fieldnames=data_headers)
             dict_writer.writeheader()
