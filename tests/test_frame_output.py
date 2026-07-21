@@ -50,3 +50,57 @@ def test_output_mwe_timeline(output_mwe_timeline):
         if mwe_idx not in missing_feature_idxs:
             assert (output_path / f"frame_{frame_time_str}.txt").is_file()
             assert (output_path / f"frame_{frame_time_str}.csv").is_file()
+
+
+def test_load_output_mwe_timeline(output_mwe_timeline):
+    """
+    Test that the output files can be loaded back into a timeline
+    and that the features and flow match the original timeline
+    """
+    mwe_timeline, output_path = output_mwe_timeline
+
+    load_output = LoadOutput(output_path)
+    loaded_timeline = load_output.load_to_timeline()
+
+    properties_to_check = [
+        "id",
+        "lifetime",
+        "parent",
+        "children",
+        "centroid",
+        "max",
+        "mean",
+        "dydx",
+    ]
+
+    for frame_time, frame in mwe_timeline.timeline.items():
+        loaded_frame = loaded_timeline.get_frame(frame_time)
+
+        # Compare fields (assert same precision as output)
+        np.testing.assert_array_almost_equal(
+            frame.feature_field, loaded_frame.feature_field, decimal=6
+        )
+        np.testing.assert_array_almost_equal(
+            frame.lifetime_field, loaded_frame.lifetime_field, decimal=4
+        )
+        np.testing.assert_array_almost_equal(
+            frame.raw_field, loaded_frame.raw_field, decimal=6
+        )
+
+        # Compare flow fields (only to 2dp precision, since this is a derived parameter
+        # that is dependent on the flow scheme used)
+        y_flow, x_flow = frame.get_flow()
+        loaded_y_flow, loaded_x_flow = loaded_frame.get_flow()
+        if y_flow is not None and loaded_y_flow is not None:
+            np.testing.assert_array_almost_equal(y_flow, loaded_y_flow, decimal=2)
+        if x_flow is not None and loaded_x_flow is not None:
+            np.testing.assert_array_almost_equal(x_flow, loaded_x_flow, decimal=2)
+
+        # Compare features
+        assert len(frame.features) == len(loaded_frame.features)
+
+        for feature_id, feature in frame.features.items():
+            loaded_feature = loaded_frame.get_feature(feature_id)
+            for prop in properties_to_check:
+                assert getattr(feature, prop) == getattr(loaded_feature, prop)
+            np.testing.assert_array_equal(feature.get_size(), loaded_feature.get_size())

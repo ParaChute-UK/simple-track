@@ -190,7 +190,7 @@ class LoadOutput:
         # Load blank Frames into Timeline
         for frame_time in frame_times:
             frame = Frame()
-            frame.set_time(frame_time)
+            frame.time = frame_time
             timeline.add_to_timelime(frame)
 
         # Load fields into blank Frames
@@ -208,6 +208,17 @@ class LoadOutput:
         return timeline
 
     def load_feature_data(self, timeline: Timeline) -> None:
+        for frame_time, frame in timeline.get_timeline().items():
+            # Load all data for the current time
+            frame_time_str = frame_time.strftime(self.strftime)
+            frame_time_fnames = self.st_data_path.rglob(f"*{frame_time_str}.csv")
+
+            for fname in frame_time_fnames:
+                self._read_feature_data_from_file_to_feature(fname, frame)
+
+    def _read_feature_data_from_file_to_feature(
+        self, fname: Path, frame: Frame
+    ) -> None:
         # Get list of headers from blank Feature class
         blank_feature = Feature(
             id=1,
@@ -215,39 +226,52 @@ class LoadOutput:
             time=datetime.datetime.now(),
         )
         headers = blank_feature.summarise(headers_only=True)
-        # Set the number of headers to skip in each csv file
-        number_header_rows = 5
 
-        for frame_time, frame in timeline.get_timeline().items():
-            # Load all data for the current time
-            frame_time_str = frame_time.strftime(self.strftime)
-            frame_time_fnames = self.st_data_path.rglob(f"*{frame_time_str}.csv")
+        # Read data from output
+        with open(fname) as csv_file:
+            reader = csv.DictReader(csv_file, fieldnames=headers)
 
-            for fname in frame_time_fnames:
-                # Read data from output
-                with open(fname) as csv_file:
-                    reader = csv.DictReader(csv_file, fieldnames=headers)
-                    all_feature_data = [
-                        row
-                        for row_idx, row in enumerate(reader)
-                        if row_idx > number_header_rows
-                    ]
+            # Find the header row dynamically and then collect rows after it
+            header_found = False
+            all_feature_data = []
 
-                # Add data to feature object in Frame
-                for feature_data in all_feature_data:
-                    id = int(feature_data["id"])
-                    feature = frame.get_feature(id)
+            for row in reader:
+                first_col = (row.get("id") or "").strip()
+                if not header_found:
+                    if first_col == "id":
+                        header_found = True
+                    continue
+                if first_col == "":
+                    continue
+                all_feature_data.append(row)
 
-                    # Loop over all features, set attribute to value
-                    for property, value in feature_data.items():
-                        if property == "id" or property == "centroid":
-                            continue
+        # Add data to feature object in Frame
+        for feature_data in all_feature_data:
+            id = int(feature_data["id"])
+            feature = frame.get_feature(id)
 
-                        if len(value) == 0:
-                            setattr(feature, property, None)
-                        else:
-                            # Literal eval converts str to inferred python type
-                            setattr(feature, property, literal_eval(value))
+            # Loop over all features, set attribute to value
+            for property, value in feature_data.items():
+                if property == "id" or property == "centroid":
+                    continue
+
+                if len(value) == 0:
+                    setattr(feature, property, None)
+                elif property == "accreted":
+                    if len(value) == 2:
+                        # This is just '[]', so continue
+                        continue
+                    ids = list(map(int, value.strip("[]").split(",")))
+                    feature.accrete_ids(ids)
+                elif property == "children":
+                    if len(value) == 2:
+                        # This is just '[]', so continue
+                        continue
+                    ids = list(map(int, value.strip("[]").split(",")))
+                    feature.spawns(ids)
+                else:
+                    # Literal eval converts str to inferred python type
+                    setattr(feature, property, literal_eval(value))
 
     def load_frame_fields(self, timeline: Timeline) -> None:
         for frame_time, frame in timeline.get_timeline().items():
@@ -276,7 +300,7 @@ class LoadOutput:
         # Iterate over each field type to find time the data is available for
         for ftype in self.field_attributes:
             # Setup containing array for times
-            field_filenames = self.path.rglob(f"{ftype}*.field")
+            field_filenames = self.st_data_path.rglob(f"{ftype}*.field")
             field_times = []
 
             for field_fname in sorted(field_filenames):
