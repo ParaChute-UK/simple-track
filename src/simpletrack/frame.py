@@ -21,7 +21,7 @@ class Frame:
 
     def __init__(self):
         self._time = None
-        self.raw_field = None
+        self._raw_field = None
         self._feature_field = None
         self._lifetime_field = None
         self._max_id = None
@@ -75,6 +75,13 @@ class Frame:
         """
         return self._max_id
 
+    @property
+    def raw_field(self) -> NDArray:
+        """
+        Get the raw data field for the current frame
+        """
+        return self._raw_field
+
     @features.setter
     def features(self, features_dict: dict) -> None:
         """
@@ -102,6 +109,20 @@ class Frame:
         Sets the self._feature_field attribute of the frame
         """
         self._feature_field = check_arrays(feature_field, ndim=2, dtype=int)
+
+    @lifetime_field.setter
+    def lifetime_field(self, lifetime_field: NDArray) -> None:
+        """
+        Sets the self._lifetime_field attribute of the frame
+        """
+        self._lifetime_field = check_arrays(lifetime_field, ndim=2, dtype=int)
+
+    @raw_field.setter
+    def raw_field(self, raw_field: NDArray) -> None:
+        """
+        Sets the self._raw_field attribute of the frame
+        """
+        self._raw_field = check_arrays(raw_field, ndim=2)
 
     @max_id.setter
     def max_id(self, max_id: int) -> None:
@@ -140,7 +161,7 @@ class Frame:
             time (dt.datetime): Time the frame is valid for.
             data (NDArray): Raw data to perform tracking on
         """
-        self.raw_field = check_arrays(data, ndim=2)
+        self._raw_field = check_arrays(data, ndim=2)
         if not isinstance(time, dt.datetime):
             raise TypeError(
                 f"Expected 'output_time' to be datetime objcet, got {type(time)}"
@@ -165,11 +186,11 @@ class Frame:
             - under_threshold (bool): If True, regions under the threshold
             are considered; if False, regions over the threshold are considered.
         """
-        if self.raw_field is None:
+        if self._raw_field is None:
             raise Exception("Data has not been loaded into Frame")
 
         self._feature_field = label_features(
-            field=self.raw_field,
+            field=self._raw_field,
             min_area=min_size,
             threshold=threshold,
             under_threshold=under_threshold,
@@ -213,9 +234,9 @@ class Frame:
                 id=feature_id, feature_coords=feature_coords, time=self._time
             )
             # If raw field is not None, use this to find max value within Feature
-            if self.raw_field is not None:
-                feature.max = np.max(self.raw_field[feature_mask])
-                feature.mean = np.mean(self.raw_field[feature_mask])
+            if self._raw_field is not None:
+                feature.max = np.max(self._raw_field[feature_mask])
+                feature.mean = np.mean(self._raw_field[feature_mask])
             self._features[feature_id] = feature
 
     def assign_displacements(self, y_flow: NDArray, x_flow: NDArray) -> None:
