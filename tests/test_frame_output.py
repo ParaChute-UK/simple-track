@@ -12,7 +12,7 @@ def output_mwe_timeline(mwe_timeline, tmp_path):
         output_path=tmp_path,
         expt_name="mwe_test",
         start_time="2024-01-01 00:00:00",
-        config_path=None,
+        config_path="./test_config.yaml",
         output_raw_data=True,
     )
     for frame in mwe_timeline.timeline.values():
@@ -29,7 +29,7 @@ def output_mwe_timeline_without_raw_data(mwe_timeline, tmp_path):
         output_path=tmp_path,
         expt_name="mwe_test",
         start_time="2024-01-01 00:00:00",
-        config_path=None,
+        config_path="./test_config.yaml",
         output_raw_data=False,
     )
     for frame in mwe_timeline.timeline.values():
@@ -137,3 +137,37 @@ def test_load_output_mwe_timeline(timeline_fixture, output_raw_data, request):
             for prop in properties_to_check:
                 assert getattr(feature, prop) == getattr(loaded_feature, prop)
             np.testing.assert_array_equal(feature.get_size(), loaded_feature.get_size())
+
+
+def test_output_mwe_init_density_field(output_mwe_timeline):
+    """
+    Test that the density field is output correctly for each frame in the timeline
+    """
+    mwe_timeline, output_path = output_mwe_timeline
+    output_manager = FrameOutputManager(
+        output_path=output_path,
+        expt_name="mwe_test",
+        start_time="2024-01-01 00:00:00",
+        config_path="./test_config.yaml",
+        output_raw_data=False,
+    )
+    output_manager.output_density_field(mwe_timeline, "init")
+
+    assert (output_path / "init_density.npy").is_file()
+
+
+def test_output_mwe_dissipation_density_field(output_mwe_timeline):
+    """
+    Test that the density field is output correctly for each frame in the timeline
+    """
+    mwe_timeline, output_path = output_mwe_timeline
+    output_manager = FrameOutputManager(
+        output_path=output_path,
+        expt_name="mwe_test",
+        start_time="2024-01-01 00:00:00",
+        config_path="./test_config.yaml",
+        output_raw_data=False,
+    )
+    output_manager.output_density_field(mwe_timeline, "dissipation")
+
+    assert (output_path / "dissipation_density.npy").is_file()
