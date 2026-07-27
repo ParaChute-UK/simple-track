@@ -45,7 +45,13 @@ class Tracker:
             )
 
         self.start_time = None  # Will be set during run()
-        self.timeline = Timeline()
+
+        # Get "max_frames" from config if present, otherwise default to None (no limit)
+        if "TIMELINE" in self.config:
+            max_frames = self.config["TIMELINE"].get("max_frames", None)
+            self.timeline = Timeline(max_frames=max_frames)
+        else:
+            self.timeline = Timeline()
 
         if "INPUT" in self.config:
             self.loader = self.config["INPUT"].get("loader", None)

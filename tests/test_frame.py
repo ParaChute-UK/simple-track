@@ -544,3 +544,32 @@ def test_get_previous_frame_with_empty_timeline():
         test_timeline.get_previous_frame(time)
     except ValueError:
         pass
+
+
+def test_purge_max_frames():
+    test_timeline = Timeline(max_frames=3)
+    # Add 5 frames to the timeline
+    for i in range(5):
+        frame = Frame()
+        frame.time = dt.datetime(2024, 1, 1, 0, 0, 0) + dt.timedelta(minutes=5 * i)
+        test_timeline.add_to_timelime(frame)
+
+    # After adding 5 frames with max_frames=3, only the last 3 should remain
+    assert len(test_timeline.timeline) == 3
+    expected_times = [
+        dt.datetime(2024, 1, 1, 0, 10, 0),
+        dt.datetime(2024, 1, 1, 0, 15, 0),
+        dt.datetime(2024, 1, 1, 0, 20, 0),
+    ]
+    assert list(test_timeline.timeline.keys()) == expected_times
+
+
+def test_purge_max_frames_default_value():
+    test_timeline = Timeline()
+    # Add 5 frames to the timeline
+    for i in range(5):
+        frame = Frame()
+        frame.time = dt.datetime(2024, 1, 1, 0, 0, 0) + dt.timedelta(minutes=5 * i)
+        test_timeline.add_to_timelime(frame)
+
+    assert len(test_timeline.timeline) == 5

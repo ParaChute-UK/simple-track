@@ -414,8 +414,17 @@ class Timeline:
     and Frame values.
     """
 
-    def __init__(self):
+    def __init__(self, max_frames: int = None) -> None:
+        """
+        Setup the Timeline object.
+
+        Args:
+            max_frames (int, optional):
+                The maximum number of frames to keep in the timeline.
+                Defaults to None (i.e., keep all frames)
+        """
         self.timeline = {}
+        self.max_frames = max_frames
 
     def __len__(self) -> int:
         return len(self.timeline)
@@ -430,6 +439,10 @@ class Timeline:
         if frame.time is None:
             raise ValueError("Frame time is not set. Cannot add to timeline.")
         self.timeline[frame.time] = frame
+
+        # Check if older frames need to be purged
+        if self.max_frames is not None and len(self.timeline) > self.max_frames:
+            self.purge_old_frame()
 
     def get_previous_frame(self, current_time: dt.time) -> Frame:
         """
@@ -447,9 +460,15 @@ class Timeline:
             raise ValueError("No previous frame found in timeline")
         return self.timeline[closest_time]
 
-    def purge_old_frame(self, max_frames: int = 2) -> None:
-        # Remove any frames that aren't needed anymore, as defined by max_frames
-        pass
+    def purge_old_frame(self) -> None:
+        # Remove any frames that aren't needed anymore, as defined by self.max_frames
+        frames_to_remove = len(self.timeline) - self.max_frames
+        if frames_to_remove > 0:
+            # Sort the timeline by time and remove the oldest frames
+            sorted_times = sorted(self.timeline.keys())
+            times_to_remove = sorted_times[:frames_to_remove]
+            for time in times_to_remove:
+                del self.timeline[time]
 
     def get_timeline(self) -> dict:
         """
