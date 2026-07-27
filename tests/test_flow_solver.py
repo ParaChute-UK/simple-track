@@ -7,6 +7,7 @@ from simpletrack.exceptions import (
     ArrayTypeError,
 )
 from simpletrack.flow_solver import FlowSolver, pairwise_with_stride
+from simpletrack.frame import Frame
 
 of_solver = FlowSolver()
 mwe_domain = np.zeros((100, 100), dtype=int)
@@ -763,3 +764,88 @@ def test_init_accepts_valid_subdomain_size():
 def test_pad_to_max_order_of_magnitude(input_array, expected_output):
     result = of_solver.pad_to_max_order_of_magnitude(input_array)
     np.testing.assert_array_equal(result, expected_output)
+
+
+def test_analyse_flow_ndarray_input():
+    test_field0 = mwe_domain.copy()
+    test_field1 = mwe_domain.copy()
+
+    test_field0[20:40, 20:40] = 1
+    test_field1[25:45, 25:45] = 1
+
+    of_solver.analyse_flow(test_field0, test_field1)
+
+
+def test_analyse_flow_frame_input():
+    test_field0 = mwe_domain.copy()
+    test_field1 = mwe_domain.copy()
+
+    test_field0[20:40, 20:40] = 1
+    test_field1[25:45, 25:45] = 1
+
+    frame0 = Frame()
+    frame1 = Frame()
+    frame0.feature_field = test_field0
+    frame1.feature_field = test_field1
+
+    of_solver.analyse_flow(frame0, frame1)
+
+
+def test_analyse_flow_mixed_input():
+    test_field0 = mwe_domain.copy()
+    test_field1 = mwe_domain.copy()
+
+    test_field0[20:40, 20:40] = 1
+    test_field1[25:45, 25:45] = 1
+
+    frame0 = Frame()
+    frame0.feature_field = test_field0
+
+    with pytest.raises(TypeError):
+        of_solver.analyse_flow(frame0, test_field1)
+
+
+def test_analyse_flow_invalid_input():
+    test_field0 = mwe_domain.copy()
+    test_field0[20:40, 20:40] = 1
+
+    with pytest.raises(TypeError):
+        of_solver.analyse_flow(test_field0, "not an array or Frame")
+
+
+def test_analyse_flow_with_too_few_features():
+    test_field0 = mwe_domain.copy()
+    test_field1 = mwe_domain.copy()
+
+    test_field0[20:21, 20:21] = 1
+    test_field1[25:26, 25:26] = 1
+
+    dy, dx = of_solver.analyse_flow(test_field0, test_field1)
+    assert dy is None
+    assert dx is None
+
+
+def test_check_inputs_zero_value_arrays():
+    """
+    Test that the function handles zero-value arrays correctly.
+    """
+    test_field0 = np.zeros((100, 100))
+    test_field1 = np.zeros((100, 100))
+
+    dy, dx = of_solver.analyse_flow(test_field0, test_field1)
+    assert dy is None
+    assert dx is None
+
+
+def test_pairwise_with_stride_invalid_stride():
+    """
+    Test that the function raises a ValueError for invalid stride values.
+    """
+    with pytest.raises(ValueError):
+        pairwise_with_stride([0, 1, 2, 3], 0)
+
+    with pytest.raises(ValueError):
+        pairwise_with_stride([0, 1, 2, 3], -1)
+
+    with pytest.raises(TypeError):
+        pairwise_with_stride([0, 1, 2, 3], "invalid")

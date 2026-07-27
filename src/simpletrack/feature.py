@@ -197,22 +197,26 @@ class Feature:
 
     @coords.setter
     def coords(self, new_coords: NDArray[np.integer]) -> None:
-        self._feature_coords = new_coords
+        self._feature_coords = check_arrays(new_coords, dtype=int)
         self._centroid = self.calculate_centroid()  # Update centroid when coords change
         # Update feature elongation information
         # Only attempt pca decomposition if feature is larger than 1 pixel
-        if new_coords.shape[1] > 1:
+        if new_coords.ndim == 2:
             (
                 self._major_vector,
                 self._minor_vector,
                 self._major_radius,
                 self._minor_radius,
             ) = self.calculate_major_minor_axes(self._feature_coords)
-        else:
+        elif new_coords.ndim == 1:
             self._major_vector = None
             self._minor_vector = None
             self._major_radius = None
             self._minor_radius = None
+        else:
+            raise ValueError(
+                "feature_coords must be a 1D or 2D array of shape (2, n) or (2)"
+            )
 
     @parent.setter
     def parent(self, parent_id: int) -> None:
@@ -327,9 +331,16 @@ class Feature:
         Returns:
             tuple: (y_centroid, x_centroid)
         """
-        y_centroid = native(np.mean(self._feature_coords[0, :]))
-        x_centroid = native(np.mean(self._feature_coords[1, :]))
-        return (y_centroid, x_centroid)
+        if self._feature_coords.ndim == 1:
+            return (self._feature_coords[0], self._feature_coords[1])
+        elif self._feature_coords.ndim == 2:
+            y_centroid = native(np.mean(self._feature_coords[0, :]))
+            x_centroid = native(np.mean(self._feature_coords[1, :]))
+            return (y_centroid, x_centroid)
+        else:
+            raise ValueError(
+                "feature_coords must be a 1D or 2D array of shape (2, n) or (2)"
+            )
 
     def accrete_ids(self, feature_ids: int | list[int], replace: bool = False) -> None:
         """
@@ -379,7 +390,7 @@ class Feature:
         Get number of pixels spanned by the Feature, calculated as the number of
         coordinate pairs in feature_coords array
         """
-        return len(self._feature_coords[0])
+        return self._feature_coords.shape[1] if self._feature_coords.ndim == 2 else 1
 
     def set_as_final_timestep(self) -> None:
         """

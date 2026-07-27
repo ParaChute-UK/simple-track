@@ -624,6 +624,9 @@ def pairwise_with_stride(input_iter: Iterable, stride: int) -> Iterable:
     if not isinstance(stride, int):
         raise TypeError(f"Expected int, got f{type(stride)}")
 
+    if stride < 1:
+        raise ValueError(f"Expected stride >= 1, got {stride}")
+
     pairwise_list = []
     for idx, element in enumerate(input_iter):
         try:
