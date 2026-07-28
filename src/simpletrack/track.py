@@ -16,6 +16,7 @@ from simpletrack.load import (
     FilenameIterator,
     LoadingBar,
 )
+from simpletrack.optical_flow_solver import DISFlowSolver
 
 
 class Tracker:
@@ -76,6 +77,15 @@ class Tracker:
             # which will then use default values
             flow_config = self.config["FLOW_SOLVER"] or {}
             self.flow_solver = FlowSolver(**flow_config)
+        elif "DIS_FLOW_SOLVER" in self.config:
+            dis_flow_config = self.config["DIS_FLOW_SOLVER"] or {}
+            self.flow_solver = DISFlowSolver(**dis_flow_config)
+            if not self.flow_solver.check_cv2_importable():
+                print(
+                    "OpenCV is not importable. Check opencv-python package "
+                    "is installed. Falling back to default flow solver."
+                )
+                self.flow_solver = FlowSolver()
         else:
             self.flow_solver = FlowSolver()
 
