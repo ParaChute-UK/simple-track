@@ -849,3 +849,24 @@ def test_pairwise_with_stride_invalid_stride():
 
     with pytest.raises(TypeError):
         pairwise_with_stride([0, 1, 2, 3], "invalid")
+
+
+def test_pad_to_subdomain_shape():
+    input_shape = (412, 514)
+    input_array = np.ones(input_shape)
+    subdomain_shape = (50, 50)
+
+    padded_array = of_solver.pad_to_subdomain_shape(input_array, subdomain_shape)
+    expected_shape = (450, 550)  # Next multiples of 50
+    np.testing.assert_array_equal(padded_array.shape, expected_shape)
+
+
+def test_pad_to_subdomain_shape_invalid_input():
+    with pytest.raises(ArrayShapeError):
+        of_solver.pad_to_subdomain_shape(np.ones((10, 10)), (50, 50, 50))
+
+    with pytest.raises(ArrayTypeError):
+        of_solver.pad_to_subdomain_shape(np.ones((10, 10)), (43.2, 0.5))
+
+    with pytest.raises(ArrayTypeError):
+        of_solver.pad_to_subdomain_shape(np.ones((10, 10)), (-10, 10))
