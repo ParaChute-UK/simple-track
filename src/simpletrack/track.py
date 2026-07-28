@@ -16,7 +16,7 @@ from simpletrack.load import (
     FilenameIterator,
     LoadingBar,
 )
-from simpletrack.optical_flow_solver import DISFlowSolver
+from simpletrack.optical_flow_solver import DISFlowSolver, ILKFlowSolver
 
 
 class Tracker:
@@ -86,6 +86,9 @@ class Tracker:
                     "is installed. Falling back to default flow solver."
                 )
                 self.flow_solver = FlowSolver()
+        elif "ILK_FLOW_SOLVER" in self.config:
+            ilk_flow_config = self.config["ILK_FLOW_SOLVER"] or {}
+            self.flow_solver = ILKFlowSolver(**ilk_flow_config)
         else:
             self.flow_solver = FlowSolver()
 
