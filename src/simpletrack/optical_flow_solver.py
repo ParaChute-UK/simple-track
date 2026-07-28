@@ -59,6 +59,20 @@ class DISFlowSolver:
 
         return y_flow, x_flow
 
+    def check_cv2_importable(self) -> bool:
+        """
+        Check if OpenCV is importable.
+
+        Returns:
+            bool: True if OpenCV is importable, False otherwise.
+        """
+        try:
+            import cv2  # noqa: F401
+
+            return True
+        except ImportError:
+            return False
+
     def get_patch_size(self, field_shape: tuple) -> int:
         """
         Get the patch size for the DIS optical flow algorithm based on the shape of the

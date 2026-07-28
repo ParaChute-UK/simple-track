@@ -85,6 +85,37 @@ def test_invalid_config_input():
         pass
 
 
+def test_tracker_falls_back_to_default_flow_solver_when_cv2_unavailable(
+    monkeypatch, capsys
+):
+    class DummyDISFlowSolver:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def check_cv2_importable(self):
+            return False
+
+    class DummyFlowSolver:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    monkeypatch.setattr("simpletrack.track.DISFlowSolver", DummyDISFlowSolver)
+    monkeypatch.setattr("simpletrack.track.FlowSolver", DummyFlowSolver)
+
+    config = {
+        "FEATURE": {"threshold": 3},
+        "DIS_FLOW_SOLVER": {"window_size": 5},
+    }
+
+    tracker = Tracker(config)
+
+    assert isinstance(tracker.flow_solver, DummyFlowSolver)
+    assert tracker.flow_solver.kwargs == {}
+
+    captured = capsys.readouterr()
+    assert "Falling back to default flow solver." in captured.out
+
+
 @pytest.mark.parametrize(
     "extensions, expected_result",
     [

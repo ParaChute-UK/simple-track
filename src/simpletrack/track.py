@@ -69,9 +69,14 @@ class Tracker:
         if "FLOW_SOLVER" in self.config:
             self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
         elif "DIS_FLOW_SOLVER" in self.config:
-            print("Using DIS optical flow solver")
             dis_flow_config = self.config["DIS_FLOW_SOLVER"] or {}
             self.flow_solver = DISFlowSolver(**dis_flow_config)
+            if not self.flow_solver.check_cv2_importable():
+                print(
+                    "OpenCV is not importable. Check opencv-python package "
+                    "is installed. Falling back to default flow solver."
+                )
+                self.flow_solver = FlowSolver()
         else:
             self.flow_solver = FlowSolver()
 
