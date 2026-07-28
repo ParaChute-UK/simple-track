@@ -1,8 +1,13 @@
+import importlib.util
+
 import numpy as np
 import pytest
 
 from simpletrack.frame import Frame
 from simpletrack.optical_flow_solver import DISFlowSolver, ILKFlowSolver, normalize8
+
+# Check if opencv is installed
+OPENCV_INSTALLED = importlib.util.find_spec("cv2") is not None
 
 
 def test_normalize8():
@@ -27,11 +32,7 @@ def test_normalize8():
     assert normalized.dtype == np.uint8
 
 
-# The following tests require opencv to be installed, which is an optional dependency
-# Therefore, they are commented out to avoid test failures in environments where opencv
-# is not available.
-
-
+@pytest.mark.skipif(not OPENCV_INSTALLED, reason="OpenCV not installed")
 @pytest.mark.parametrize(
     "field_shape, expected_patch_size",
     [
@@ -47,6 +48,7 @@ def test_get_patch_size(field_shape, expected_patch_size):
     assert patch_size == expected_patch_size
 
 
+@pytest.mark.skipif(not OPENCV_INSTALLED, reason="OpenCV not installed")
 def test_analyse_flow_ndarray_input():
     dis_solver = DISFlowSolver()
 
@@ -64,6 +66,7 @@ def test_analyse_flow_ndarray_input():
     assert x_flow.shape == prev_features.shape
 
 
+@pytest.mark.skipif(not OPENCV_INSTALLED, reason="OpenCV not installed")
 def test_analyse_flow_frame_input():
     dis_solver = DISFlowSolver()
 
@@ -86,6 +89,7 @@ def test_analyse_flow_frame_input():
     assert x_flow.shape == prev_features.shape
 
 
+@pytest.mark.skipif(not OPENCV_INSTALLED, reason="OpenCV not installed")
 def test_analyse_flow_invalid_input():
     dis_solver = DISFlowSolver()
 
@@ -96,6 +100,7 @@ def test_analyse_flow_invalid_input():
         y_flow, x_flow = dis_solver.analyse_flow(invalid_input, invalid_input)
 
 
+@pytest.mark.skipif(not OPENCV_INSTALLED, reason="OpenCV not installed")
 def test_analyse_flow_empty_input():
     dis_solver = DISFlowSolver()
 
