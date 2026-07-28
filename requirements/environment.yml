@@ -3,6 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - numpy >= 2.3.4
+  - opencv
   - pytest >= 9.0
   - pytest-cov
   - pytest-xdist

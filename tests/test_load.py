@@ -5,7 +5,7 @@ import numpy as np
 from simpletrack import Tracker
 from simpletrack.load import ArrayIterator, BaseLoader, FilenameIterator
 
-from .test_mwe_output import generate_mwe_files
+from .conftest import generate_mwe_files
 
 
 def test_mwe_filenameiter_loader_with_str_loader_func(tmp_path):

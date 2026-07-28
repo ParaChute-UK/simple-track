@@ -16,7 +16,7 @@ from simpletrack.load import (
     FilenameIterator,
     LoadingBar,
 )
-from simpletrack.optical_flow_solver import ILKFlowSolver
+from simpletrack.optical_flow_solver import DISFlowSolver, ILKFlowSolver
 
 
 class Tracker:
@@ -46,7 +46,13 @@ class Tracker:
             )
 
         self.start_time = None  # Will be set during run()
-        self.timeline = Timeline()
+
+        # Get "max_frames" from config if present, otherwise default to None (no limit)
+        if "TIMELINE" in self.config:
+            max_frames = self.config["TIMELINE"].get("max_frames", None)
+            self.timeline = Timeline(max_frames=max_frames)
+        else:
+            self.timeline = Timeline()
 
         if "INPUT" in self.config:
             self.loader = self.config["INPUT"].get("loader", None)
@@ -67,7 +73,19 @@ class Tracker:
             setattr(self, attr_name, attr_val)
 
         if "FLOW_SOLVER" in self.config:
-            self.flow_solver = FlowSolver(**self.config["FLOW_SOLVER"])
+            # Allows empty config to be passed into FlowSolver,
+            # which will then use default values
+            flow_config = self.config["FLOW_SOLVER"] or {}
+            self.flow_solver = FlowSolver(**flow_config)
+        elif "DIS_FLOW_SOLVER" in self.config:
+            dis_flow_config = self.config["DIS_FLOW_SOLVER"] or {}
+            self.flow_solver = DISFlowSolver(**dis_flow_config)
+            if not self.flow_solver.check_cv2_importable():
+                print(
+                    "OpenCV is not importable. Check opencv-python package "
+                    "is installed. Falling back to default flow solver."
+                )
+                self.flow_solver = FlowSolver()
         elif "ILK_FLOW_SOLVER" in self.config:
             ilk_flow_config = self.config["ILK_FLOW_SOLVER"] or {}
             self.flow_solver = ILKFlowSolver(**ilk_flow_config)
@@ -94,11 +112,20 @@ class Tracker:
         self.frame_output = None
         if "OUTPUT" in self.config:
             if self.config["OUTPUT"]["save_data"]:
+                save_raw_data = self.config["OUTPUT"].get("output_raw_data", True)
+                if not save_raw_data:
+                    msg = (
+                        "Warning: disabling output of raw data will prevent "
+                        "re-loading of this data for further analysis."
+                    )
+                    print(msg)
+
                 self.frame_output = FrameOutputManager(
                     output_path,
                     expt_name,
                     self.start_time,
                     config_path,
+                    output_raw_data=save_raw_data,
                 )
 
     def run(self, input_data: list[str] | dict = None) -> Timeline:
@@ -156,13 +183,7 @@ class Tracker:
 
             # Now run flow solver between previous and current frame
             prev_frame = self.timeline.get_previous_frame(frame.time)
-            # Set max id for assigning to new features.
-            # An all-quiet first frame leaves prev_frame.max_id None
-            # (identify_features returns early without setting it when no
-            # features are above threshold). Skip the carry-forward then;
-            # get_next_available_feature_id lazily initialises max_id from the
-            # frame's own feature_field, and there are no earlier ids to collide
-            # with.
+            # Set max id for assigning to new features
             if prev_frame.max_id is not None:
                 frame.max_id = prev_frame.max_id
             # Get the flow field that translates features between the two frames

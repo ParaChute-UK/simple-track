@@ -3,7 +3,7 @@
 Once inputs have been loaded into Simple-Track, the code performs the following workflow. The process can be broken down into four main steps.
 
 <p align="center">
-<img src="diagrams/st_workflow.jpg" alt="Simple-Track workflow steps" width="800"/>
+<img src="diagrams/st_workflow.png" alt="Simple-Track workflow steps" width="1000"/>
 </p>
 
 ## Step 1: Identify Features
@@ -37,7 +37,7 @@ min_size (int, optional):
 Frame.identify_features(threshold, under_threshold, min_size)
 ```
 
-## Step 2: Diagnose Flow Field
+## Step 2a: Diagnose Flow Field (FlowSolver)
 
 <p align="center">
 <img src="diagrams/phase_correlation.png" alt="Phase cross-correlation" width="500"/>
@@ -52,6 +52,7 @@ Additionally, before displacements are calculated, input images are filtered usi
 </p>
 
 An example of the flow field obtained by this process is shown above. Note in particular that it is only possible to estimate the flow over regions where features are present, hence there are sparse regions in the top left and bottom right of the domain. The main parameter for step 2 is the number (or size) of sub-domains. The size of sub-domain should reflect the largest region over which storm displacement can be considered uniform. This will vary with user case. In an effort to simplify the input options, this parameter will default to the domain shape divided by five if not set by the user. This default is a reasonable starting point for many cases but may need to be adjusted by the user if the flow field exhibits large temporal or spatial variability. 
+
 
 ### Config Options
 
@@ -91,6 +92,32 @@ apply_tukey_filtering (bool, optional):
 ```python 
 y_flow, x_flow = FlowSolver.analyse_flow(prev_frame, current_frame)
 ```
+
+## Step 2b: Diagnose Flow Field (DISFlowSolver)
+Rather than using the built-in Simple-Track Solver, users may instead wish to use existing optical flow algorithms. Here, we have implemented one such solver, the [Dense Inverse Search (DIS)](https://arxiv.org/abs/1603.03590) optical flow scheme [from the opencv repository](https://opencv-opencv.mintlify.app/api/video/optical-flow#disopticalflow).
+
+As with the built-in FlowSolver, the estimated flow fields are dependent on a subdomain size. However, rather than being used to estimate the flow within the subdomain, a given subdomains is matched to the closest corresponding subdomain in the next frame from within a given search window. The displacement is then estimated as the vector that translates matched subdomains.
+
+Compared to the built-in flow solver, which can only estimate flow over regions containing feature, The DIS scheme can more effectively fill in the expected flow field in regions without features. This is because it uses patch aggregation across multiple scales, and so the flow-field from lower resolution searches can be used to fill in gaps in the domain. This also has the benefit of being less sensitive to small or inconsistent features, and therefore produces flow fields that are more consistent between frames. This comes at the expense of being slightly slower than the built-in method. 
+
+For tracking purposes, both schemes produce good estimates of the flow in the regions that are important for the artificial frame advection step. Sensitivity tests between the two schemes have showed that the largest differences in the flow field occur over regions that do not contain features, and therefore will not impact the tracking.
+
+### Config Options
+```yaml
+DIS_FLOW_SOLVER:
+  subdomain_size: default
+```
+
+subdomain_size (int|str, optional):
+* Size of the patch over which to calculate displacements.
+* If set to "default", automatically calculates this as the minimum input domain shape / 5
+
+### Relevant Simple-Track Methods
+
+```python 
+y_flow, x_flow = DISFlowSolver.analyse_flow(prev_frame, current_frame)
+```
+
 
 ## Step 3: Artificial Frame Advection
 The next step is to use the derived flow field to artificially advect features in the previous frame to estimate their location at the time of the current frame. This pseudo-nowcasting process is an important step for accurately matching features between the two frames in a way which reduces the dependence on the time between frames. While this step could in theory be performed using an image morphing technique, a simpler solution is implemented here. Instead, the feature-average displacement is used to translate each feature in the "feature_field". In the case of multiple features ids attempting to occupy the same pixel, the id value that is closest to its feature centroid is chosen. Strictly, these features should merge if they come into contact, but this would be undesirable for the purposes of tracking features since the merged feature is then no longer present for matching.
