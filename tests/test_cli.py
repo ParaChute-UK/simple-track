@@ -5,7 +5,7 @@ import yaml
 
 from run_simple_track import run_tracking
 
-from .test_mwe_output import generate_mwe_files
+from .conftest import generate_mwe_files
 
 
 def test_cli_help(monkeypatch):

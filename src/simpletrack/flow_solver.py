@@ -32,7 +32,7 @@ class FlowSolver:
         apply_tukey_filtering: bool = True,
     ) -> None:
         """
-            Class containing funcitonality for deriving flow between two input frames
+        Class containing funcitonality for deriving flow between two input frames
 
         Args:
             subdomain_size (int, optional):
@@ -67,6 +67,11 @@ class FlowSolver:
         elif subdomain_size is None:
             self.subdomain_shape = None
         else:
+            # Check both dimensions are even and convert to int array
+            if any(size % 2 != 0 for size in subdomain_size):
+                raise ValueError(
+                    f"Expected all subdomain_size to be even, got {subdomain_size}"
+                )
             self.subdomain_shape = check_arrays(subdomain_size, ndim=2).astype(int)
         self.min_fractional_coverage = min_fractional_coverage
         self.subdomain_tolerance = subdomain_tolerance
@@ -114,16 +119,28 @@ class FlowSolver:
             prev_features, current_features, equal_shape=True, ndim=2, dtype=int
         )
 
-        # If input arrays are not an even/"nice" shape, pad them to the next order of
-        # magnitude. This is required for an integer number of overlapping subdomains
-        # fit into the domain. Flow field will be cropped to original shape
+        # Save the input shape for cropping the final flow field back to original size
         input_shape = prev_features.shape
-        prev_features = self.pad_to_max_order_of_magnitude(prev_features)
-        current_features = self.pad_to_max_order_of_magnitude(current_features)
 
-        # Determine a subdomain size if not provided
+        # Make sure an equal number of subdomains can fit into the input fields
         if self.subdomain_shape is None:
+            # If input arrays are not an even/"nice" shape, pad them to the next
+            # order of magnitude. This is required for an integer number of
+            # overlapping subdomains to fit into the domain.
+            # Final flow field will be cropped back to original shape
+            prev_features = self.pad_to_max_order_of_magnitude(prev_features)
+            current_features = self.pad_to_max_order_of_magnitude(current_features)
+
+            # Now, calculate a subdomain shape from this padded input
             self.subdomain_shape = self.setup_subdomain_shape(prev_features.shape)
+        else:
+            # Expand the input fields to the next multiple of the subdomain shape
+            prev_features = self.pad_to_subdomain_shape(
+                prev_features, self.subdomain_shape
+            )
+            current_features = self.pad_to_subdomain_shape(
+                current_features, self.subdomain_shape
+            )
 
         # Check inputs, don't proceed if not validated
         prev_features, current_features = self._check_inputs(
@@ -186,6 +203,32 @@ class FlowSolver:
         )
         return y_flow, x_flow
 
+    def pad_to_subdomain_shape(self, arr: np.ndarray, sd_shape: tuple) -> np.ndarray:
+        """
+        Pad an array with zeros so each dimension is rounded up to the next multiple of
+        the requested subdomain shape. This is required for an integer number of
+        overlapping subdomains to fit into the domain.
+
+        Args:
+            arr (np.ndarray): Input array to pad
+            sd_shape (NDArray | None): Requested subdomain shape. If omitted, use the
+                solver's configured subdomain shape.
+
+        Returns:
+            np.ndarray: Padded array
+        """
+        # Check subdomain shape is valid
+        check_arrays(sd_shape, dtype=int, shape=(2,), non_negative=True)
+
+        # Round each dimension to the next multiple of subdomain_shape
+        target_shape = tuple(
+            int(np.ceil(s / sd) * sd) for s, sd in zip(arr.shape, sd_shape, strict=True)
+        )
+        pad_width = tuple(
+            (0, t - s) for s, t in zip(arr.shape, target_shape, strict=True)
+        )
+        return np.pad(arr, pad_width, mode="constant", constant_values=0)
+
     def pad_to_max_order_of_magnitude(self, arr: np.ndarray) -> np.ndarray:
         """
         Pad an array with zeros so each dimension is rounded up to the maximum order of
@@ -227,6 +270,8 @@ class FlowSolver:
         if self.subdomain_shape is None:
             # Check input field shape
             sd_shape = np.array(feature_field_shape) // 5
+        else:
+            sd_shape = self.subdomain_shape
         if not self.check_subdomain_size_fits_in_full_domain(
             feature_field_shape, sd_shape
         ):
@@ -623,6 +668,9 @@ def pairwise_with_stride(input_iter: Iterable, stride: int) -> Iterable:
 
     if not isinstance(stride, int):
         raise TypeError(f"Expected int, got f{type(stride)}")
+
+    if stride < 1:
+        raise ValueError(f"Expected stride >= 1, got {stride}")
 
     pairwise_list = []
     for idx, element in enumerate(input_iter):

@@ -20,7 +20,7 @@ class Frame:
 
     def __init__(self):
         self._time = None
-        self.raw_field = None
+        self._raw_field = None
         self._feature_field = None
         self._lifetime_field = None
         self._max_id = None
@@ -74,6 +74,13 @@ class Frame:
         """
         return self._max_id
 
+    @property
+    def raw_field(self) -> NDArray:
+        """
+        Get the raw data field for the current frame
+        """
+        return self._raw_field
+
     @features.setter
     def features(self, features_dict: dict) -> None:
         """
@@ -101,6 +108,20 @@ class Frame:
         Sets the self._feature_field attribute of the frame
         """
         self._feature_field = check_arrays(feature_field, ndim=2, dtype=int)
+
+    @lifetime_field.setter
+    def lifetime_field(self, lifetime_field: NDArray) -> None:
+        """
+        Sets the self._lifetime_field attribute of the frame
+        """
+        self._lifetime_field = check_arrays(lifetime_field, ndim=2, dtype=int)
+
+    @raw_field.setter
+    def raw_field(self, raw_field: NDArray) -> None:
+        """
+        Sets the self._raw_field attribute of the frame
+        """
+        self._raw_field = check_arrays(raw_field, ndim=2)
 
     @max_id.setter
     def max_id(self, max_id: int) -> None:
@@ -139,7 +160,7 @@ class Frame:
             time (dt.datetime): Time the frame is valid for.
             data (NDArray): Raw data to perform tracking on
         """
-        self.raw_field = check_arrays(data, ndim=2)
+        self._raw_field = check_arrays(data, ndim=2)
         if not isinstance(time, dt.datetime):
             raise TypeError(
                 f"Expected 'output_time' to be datetime objcet, got {type(time)}"
@@ -164,11 +185,11 @@ class Frame:
             - under_threshold (bool): If True, regions under the threshold
             are considered; if False, regions over the threshold are considered.
         """
-        if self.raw_field is None:
+        if self._raw_field is None:
             raise Exception("Data has not been loaded into Frame")
 
         self._feature_field = label_features(
-            field=self.raw_field,
+            field=self._raw_field,
             min_area=min_size,
             threshold=threshold,
             under_threshold=under_threshold,
@@ -212,9 +233,9 @@ class Frame:
                 id=feature_id, feature_coords=feature_coords, time=self._time
             )
             # If raw field is not None, use this to find max value within Feature
-            if self.raw_field is not None:
-                feature.max = np.max(self.raw_field[feature_mask])
-                feature.mean = np.mean(self.raw_field[feature_mask])
+            if self._raw_field is not None:
+                feature.max = np.max(self._raw_field[feature_mask])
+                feature.mean = np.mean(self._raw_field[feature_mask])
             self._features[feature_id] = feature
 
     def assign_displacements(self, y_flow: NDArray, x_flow: NDArray) -> None:
@@ -393,8 +414,17 @@ class Timeline:
     and Frame values.
     """
 
-    def __init__(self):
+    def __init__(self, max_frames: int = None) -> None:
+        """
+        Setup the Timeline object.
+
+        Args:
+            max_frames (int, optional):
+                The maximum number of frames to keep in the timeline.
+                Defaults to None (i.e., keep all frames)
+        """
         self.timeline = {}
+        self.max_frames = max_frames
 
     def __len__(self) -> int:
         return len(self.timeline)
@@ -409,6 +439,10 @@ class Timeline:
         if frame.time is None:
             raise ValueError("Frame time is not set. Cannot add to timeline.")
         self.timeline[frame.time] = frame
+
+        # Check if older frames need to be purged
+        if self.max_frames is not None and len(self.timeline) > self.max_frames:
+            self.purge_old_frame()
 
     def get_previous_frame(self, current_time: dt.time) -> Frame:
         """
@@ -426,9 +460,15 @@ class Timeline:
             raise ValueError("No previous frame found in timeline")
         return self.timeline[closest_time]
 
-    def purge_old_frame(self, max_frames: int = 2) -> None:
-        # Remove any frames that aren't needed anymore, as defined by max_frames
-        pass
+    def purge_old_frame(self) -> None:
+        # Remove any frames that aren't needed anymore, as defined by self.max_frames
+        frames_to_remove = len(self.timeline) - self.max_frames
+        if frames_to_remove > 0:
+            # Sort the timeline by time and remove the oldest frames
+            sorted_times = sorted(self.timeline.keys())
+            times_to_remove = sorted_times[:frames_to_remove]
+            for time in times_to_remove:
+                del self.timeline[time]
 
     def get_timeline(self) -> dict:
         """

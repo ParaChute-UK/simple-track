@@ -3,7 +3,7 @@
 Once inputs have been loaded into Simple-Track, the code performs the following workflow. The process can be broken down into four main steps.
 
 <p align="center">
-<img src="diagrams/st_workflow.jpg" alt="Simple-Track workflow steps" width="800"/>
+<img src="diagrams/st_workflow.png" alt="Simple-Track workflow steps" width="1000"/>
 </p>
 
 ## Step 1: Identify Features

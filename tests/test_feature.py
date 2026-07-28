@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from scipy.spatial import ConvexHull
 
+from simpletrack.exceptions import IDError
 from simpletrack.feature import Feature
 
 
@@ -16,7 +17,7 @@ def test_feature_init_with_1d_coords():
 
 def test_feature_init_with_2d_coords():
     time = dt.datetime.now()
-    test_coords = np.array([[0, 0], [1, 1], [2, 2]])
+    test_coords = np.array([[0, 1, 2], [0, 1, 2]])
     feature = Feature(1, test_coords, time)
     assert np.array_equal(feature.coords, test_coords)
 
@@ -31,7 +32,7 @@ def test_feature_init_with_3d_coord_raises_error():
 @pytest.fixture(scope="function")
 def setup_test_feature():
     time = dt.datetime.now()
-    test_coords = np.array([[0, 0], [1, 1], [2, 2]])
+    test_coords = np.array([[0, 1, 2], [0, 1, 2]])
     feature = Feature(1, test_coords, time)
     return feature
 
@@ -324,3 +325,195 @@ def test_feature_elongation_calculation():
 
     np.testing.assert_approx_equal(test_length, major_radius, significant=2)
     np.testing.assert_approx_equal(test_width, minor_radius, significant=2)
+
+
+def test_repr_method(setup_test_feature):
+    test_feature = setup_test_feature
+    repr_str = f"Feature id: {test_feature.id}, "
+    repr_str += (
+        f"lifetime: {test_feature.lifetime} timestep(s) at time: {test_feature.time}"
+    )
+    assert repr(test_feature) == repr_str
+
+
+def test_accreted_in_next_frame_by_property(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.accreted_in_next_frame_by = 5
+    assert test_feature.accreted_in_next_frame_by == 5
+
+
+def test_major_vector_property(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature._major_vector = np.array([1, 0])
+    assert np.array_equal(test_feature.major_vector, np.array([1, 0]))
+
+
+def test_minor_vector_property(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature._minor_vector = np.array([0, 1])
+    assert np.array_equal(test_feature.minor_vector, np.array([0, 1]))
+
+
+def test_major_radius_property(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature._major_radius = 10
+    assert test_feature.major_radius == 10
+
+
+def test_minor_radius_property(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature._minor_radius = 5
+    assert test_feature.minor_radius == 5
+
+
+def test_coords_setter(setup_test_feature):
+    test_feature = setup_test_feature
+    new_coords = np.array([[1, 1], [2, 2], [3, 3]])
+    test_feature.coords = new_coords
+    assert np.array_equal(test_feature.coords, new_coords)
+    assert test_feature.major_radius is not None
+    assert test_feature.minor_radius is not None
+    assert test_feature.major_vector is not None
+    assert test_feature.minor_vector is not None
+
+
+def test_coords_setter_single_coord(setup_test_feature):
+    test_feature = setup_test_feature
+    new_coords = np.array([1, 1])
+    test_feature.coords = new_coords
+    assert np.array_equal(test_feature.coords, new_coords)
+    assert test_feature.major_radius is None
+    assert test_feature.minor_radius is None
+    assert test_feature.major_vector is None
+    assert test_feature.minor_vector is None
+
+
+def test_coords_setter_invalid_shape(setup_test_feature):
+    test_feature = setup_test_feature
+    new_coords = np.array([[[1, 1], [2, 2]]])  # Invalid shape (3D)
+    with pytest.raises(ValueError):
+        test_feature.coords = new_coords
+
+
+def test_feature_equality(setup_test_feature):
+    test_feature = setup_test_feature
+    same_feature = Feature(test_feature.id, test_feature.coords, test_feature.time)
+    different_feature = Feature(2, test_feature.coords, test_feature.time)
+
+    assert test_feature == same_feature
+    assert test_feature != different_feature
+
+
+def test_provisional_id_property(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.provisional_id = 42
+    assert test_feature.provisional_id == 42
+
+
+def test_centroid_property_with_1d_coords():
+    time = dt.datetime.now()
+    test_coords = np.array([10, 20])
+    feature = Feature(1, test_coords, time)
+    assert feature.centroid == (10, 20)
+
+
+def test_centroid_property_with_2d_coords():
+    time = dt.datetime.now()
+    test_coords = np.array([[10, 30, 50], [20, 40, 60]])
+    feature = Feature(1, test_coords, time)
+    expected_centroid = (30, 40)
+    assert feature.centroid == expected_centroid
+
+
+def test_parent_property(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.parent = 5
+    assert test_feature.parent == 5
+
+
+def test_dydx_property(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.dydx = (3, 4)
+    assert test_feature.dydx == (3, 4)
+
+
+def test_max_property(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.max = 100
+    assert test_feature.max == 100
+
+
+def test_mean_property(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.mean = 50
+    assert test_feature.mean == 50
+
+
+def test_id_setter(setup_test_feature):
+    test_feature = setup_test_feature
+    test_feature.id = 10
+    assert test_feature.id == 10
+
+
+def test_id_setter_invalid_type(setup_test_feature):
+    test_feature = setup_test_feature
+    with pytest.raises(IDError):
+        test_feature.id = "invalid_id"  # Should raise IDError since id must be an int
+
+
+def test_get_size(setup_test_feature):
+    test_feature = setup_test_feature
+    expected_size = 3
+    assert test_feature.get_size() == expected_size
+
+
+def test_get_size_with_1d_coords():
+    time = dt.datetime.now()
+    test_coords = np.array([10, 20])
+    feature = Feature(1, test_coords, time)
+    expected_size = 1
+    assert feature.get_size() == expected_size
+
+
+def test_summarise_headers_only(setup_test_feature):
+    test_feature = setup_test_feature
+    headers = test_feature.summarise(headers_only=True)
+    expected_headers = [
+        "id",
+        "centroid",
+        "size",
+        "dydx",
+        "max",
+        "mean",
+        "lifetime",
+        "accreted",
+        "parent",
+        "children",
+    ]
+    assert headers == expected_headers
+
+
+@pytest.mark.parametrize("output_type", ["str", "dict"])
+def test_summarise_valid_output(setup_test_feature, output_type):
+    test_feature = setup_test_feature
+    summary = test_feature.summarise(headers_only=False, output_type=output_type)
+
+    assert (
+        isinstance(summary, str) if output_type == "str" else isinstance(summary, dict)
+    )
+    assert "id" in summary
+    assert "centroid" in summary
+    assert "size" in summary
+    assert "dydx" in summary
+    assert "max" in summary
+    assert "mean" in summary
+    assert "lifetime" in summary
+    assert "accreted" in summary
+    assert "parent" in summary
+    assert "children" in summary
+
+
+def test_summarise_invalid_output_type(setup_test_feature):
+    test_feature = setup_test_feature
+    with pytest.raises(ValueError):
+        test_feature.summarise(headers_only=False, output_type="invalid_type")
