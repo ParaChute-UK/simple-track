@@ -98,9 +98,21 @@ Rather than using the built-in Simple-Track Solver, users may instead wish to us
 
 As with the built-in FlowSolver, the estimated flow fields are dependent on a subdomain size. However, rather than being used to estimate the flow within the subdomain, a given subdomains is matched to the closest corresponding subdomain in the next frame from within a given search window. The displacement is then estimated as the vector that translates matched subdomains.
 
-Compared to the built-in flow solver, which can only estimate flow over regions containing feature, The DIS scheme can more effectively fill in the expected flow field in regions without features. This is because it uses patch aggregation across multiple scales, and so the flow-field from lower resolution searches can be used to fill in gaps in the domain. This also has the benefit of being less sensitive to small or inconsistent features, and therefore produces flow fields that are more consistent between frames. This comes at the expense of being slightly slower than the built-in method. 
+Compared to the built-in flow solver, which can only estimate flow over regions containing feature, The DIS scheme can more effectively fill in the expected flow field in regions without features. This is because it uses patch aggregation across multiple scales, and so the flow-field from lower resolution searches can be used to fill in gaps in the domain. This also has the benefit of being less sensitive to small or inconsistent features, and therefore produces flow fields that are more consistent between frames. This scheme is also slightly quicker than the built=in method.
+
+However, it is worth noting a limitation of this scheme: since it is designed specifically to solve computer vision problems, it will only accept unsigned 8-bit integer arrays as input (i.e., arrays containing integers between 0 and 255). Since Simple-Track largely works with feature fields, where feature labels will easily exceed 255, a different strategy must be taken. Instead, the feature field is converted to a binary field and this is used for tracking. Tests comparing this to feature field inputs found this also produced accurate outputs, and is therefore implemented here. 
+
+There is also a function which will normalise any input field to be convertible to the desired `np.uint8` type, so users can try estimating flow fields with raw fields as well if so desired. However, in our tests, this was found to be less accurate than using feature or binary fields as input. 
 
 For tracking purposes, both schemes produce good estimates of the flow in the regions that are important for the artificial frame advection step. Sensitivity tests between the two schemes have showed that the largest differences in the flow field occur over regions that do not contain features, and therefore will not impact the tracking.
+
+### Note: Optional Dependency
+Using `DISFlowSolver` requires the `opencv-python` package to be installed, but this is not included by default in the Simple-Track environment. Instead, this may be installed using one of the following commands:
+```
+pip install opencv-python
+conda install conda-forge::opencv
+```
+
 
 ### Config Options
 ```yaml
@@ -117,6 +129,13 @@ subdomain_size (int|str, optional):
 ```python 
 y_flow, x_flow = DISFlowSolver.analyse_flow(prev_frame, current_frame)
 ```
+
+## Step 2c: Diagnose Flow Field (ILKFlowSolver)
+ILKFlowSolver is another alternative to the built-in Simple-Track Solver. This scheme uses the `skimage.registration.optical_flow_ilk` scheme with some sensible parameters to estimate the flow. [See here for more information about ILK.](https://scikit-image.org/docs/stable/api/skimage.registration.html)
+
+Since scikit-image is already required by Simple-Track, using this optical flow scheme does not require any additional dependencies and can therefore be used as is. However, in testing, this was found to be slightly slower and less accurate than the built in scheme.
+
+
 
 
 ## Step 3: Artificial Frame Advection
