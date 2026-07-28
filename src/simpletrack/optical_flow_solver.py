@@ -75,11 +75,11 @@ class DISFlowSolver:
         return patch_size
 
 
-def normalize8(I):
-    mn = I.min()
-    mx = I.max()
+def normalize8(array: np.ndarray) -> np.ndarray:
+    mn = array.min()
+    mx = array.max()
 
     mx -= mn
 
-    I = ((I - mn) / mx) * 255
-    return I.astype(np.uint8)
+    array = ((array - mn) / mx) * 255
+    return array.astype(np.uint8)
