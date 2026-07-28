@@ -3,7 +3,6 @@ channels:
   - conda-forge
 dependencies:
   - numpy >= 2.3.4
-  - opencv
   - pytest >= 9.0
   - pytest-cov
   - pytest-xdist
@@ -11,3 +10,4 @@ dependencies:
   - scipy >= 1.16.3
   - scikit-image >= 0.25.2
   - ruff
+  # - opencv # Optional dependency for optical flow scheme

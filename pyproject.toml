@@ -18,7 +18,6 @@ classifiers = [
 ]
 license = {file = "LICENSE"}
 dependencies = [
-  "opencv-python",
   "numpy >= 2.2.0",
   "pytest >= 9.0",
   "pytest-cov",
@@ -27,6 +26,9 @@ dependencies = [
   "scipy >= 1.15.0",
   "scikit-image >= 0.25.2"
 ]
+
+[project.optional-dependencies]
+opencv = ["opencv-python"]
 
 [project.scripts]
 simpletrack = "run_simple_track:run_tracking"
