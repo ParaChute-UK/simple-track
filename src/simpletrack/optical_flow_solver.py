@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 
 from simpletrack.frame import Frame
@@ -10,19 +9,21 @@ class DISFlowSolver:
     OpenCV's DIS optical flow algorithm [Kroeger et al., 2016].
     """
 
-    def __init__(self, subdomain_size=50):
+    def __init__(self, subdomain_size=None):
         """
         Initialize the DISFlowSolver.
 
         Args:
             subdomain_size (int, optional):
                 Size of the subdomain used for matching.
-                Defaults to feature_field.shape // 5 if not provided,
-                or 50 pixels running DISFlowSolver standalone.
+                Defaults to feature_field.shape // 5 if not provided.
         """
         self.patch_size = subdomain_size
 
     def analyse_flow(self, prev_field, current_field):
+        # Set import here, since this is an optional dependency
+        import cv2
+
         # Extract field and normalize to unsigned 8-bit for optical flow calculation
         if isinstance(prev_field, Frame) and isinstance(current_field, Frame):
             prev_features = normalize8(prev_field.feature_field)
