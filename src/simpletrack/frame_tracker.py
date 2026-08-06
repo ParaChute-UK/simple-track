@@ -363,20 +363,21 @@ class FrameTracker:
                 # If so, this is a simutaneous split-merge event, which will need
                 # further analysis to detemine whether the feature should inherit
                 # the properties of the parent or the merged feature
-                if len(feature.accreted) > 0:
-                    print("Split-merge event detected")
-                    print(f"Accreted features: {feature.accreted}")
-                    for accreted_id in feature.accreted:
-                        merging_feature_from_prev_frame = advected_frame.get_feature(
-                            accreted_id
-                        )
-                        self.analyse_split_merge_event(
-                            split_merge_feature=feature,
-                            parent_feature=parent_feature,
-                            merging_feature_from_prev_frame=merging_feature_from_prev_frame,
-                            current_frame=current_frame,
-                        )
-                    continue
+                if feature.accreted is not None:
+                    if len(feature.accreted) > 0:
+                        print("Split-merge event detected")
+                        print(f"Accreted features: {feature.accreted}")
+                        for accreted_id in feature.accreted:
+                            merging_feature_from_prev_frame = (
+                                advected_frame.get_feature(accreted_id)
+                            )
+                            self.analyse_split_merge_event(
+                                split_merge_feature=feature,
+                                parent_feature=parent_feature,
+                                merging_feature_from_prev_frame=merging_feature_from_prev_frame,
+                                current_frame=current_frame,
+                            )
+                        continue
 
                 # If the feature has no accreted features, it is a simple split event
                 # and should inherit the properties of the parent feature
@@ -470,7 +471,7 @@ class FrameTracker:
         # it retains the properties of the merging feature
         else:
             split_merge_feature.provisional_id = merging_feature_from_prev_frame.id
-            split_merge_feature.lifetime = merging_feature_from_prev_frame.lifetime
+            split_merge_feature.lifetime = merging_feature_from_prev_frame.lifetime + 1
 
     def identify_unmatched_features_in_prev_frame(
         self, prev_frame: Frame, current_frame: Frame
