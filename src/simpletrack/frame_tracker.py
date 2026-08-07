@@ -59,9 +59,9 @@ class FrameTracker:
         features during this matching. Any unmatched features are designated as new
         features and assigned a new id.
 
-        Step 3: Check accreted ids from frame matching are not also present as
-        provisional ids. Accreted ids should already be removed from the field.
-        If any are present, remove them from the accreted list.
+        Step 3: Check accreted ids for any accreted ids that are also present
+        in the domain. This indicates a partial split and merge event, which
+        needs special consideration.
 
         Step 4: After Feature matching, there may be multiple Features in current Frame
         that were matched to the same previous feature. These features will now have
@@ -105,21 +105,10 @@ class FrameTracker:
             advected_frame, current_frame, prev_frame
         )
 
-        # # Debug: print provisional ids and accreted ids/parents
-        # for feature in current_frame.features.values():
-        #     print(
-        #         f"pre step 3: Feature {feature.id} (provisional: {feature.provisional_id}) accreted {feature.accreted}"
-        #     )
-
-        # # Step 3: Check accreted ids from frame matching are not also present as
-        # # provisional ids. Remove any accreted ids found as a provisional id in
-        # # current frame
-        # self.check_for_accreted_ids_still_in_domain(current_frame)
-
-        # for feature in current_frame.features.values():
-        #     print(
-        #         f"post step 3: Feature {feature.id} (provisional: {feature.provisional_id}) accreted {feature.accreted}"
-        #     )
+        # Step 3: Check accreted ids for any accreted ids that are also present
+        # in the domain. This indicates a partial split and merge event, which
+        # needs special consideration.
+        self.check_for_accreted_ids_still_in_domain(current_frame, advected_frame)
 
         # Step 4: After Feature matching, there may be multiple Features in current
         # Frame that were matched to the same previous feature. Resolve these conflicts
@@ -264,21 +253,32 @@ class FrameTracker:
                     accreted_feature.accreted_in_next_frame_by = feature_id
                     accreted_feature.set_as_final_timestep()
 
-    def check_for_accreted_ids_still_in_domain(self, frame: Frame) -> None:
+    def check_for_accreted_ids_still_in_domain(
+        self, current_frame: Frame, advected_frame: Frame
+    ) -> None:
         """
-        Any features that have been accreted by another feature should not therefore
-        appear as a provisional id in the feature field (since it should no longer
-        exist). This method checks that this is the case for all accreted ids.
-        If any accreted ids are found to still exist as a provisional id, the accreted
-        id is removed from its respective Feature
+        Any features with an accreted id that are still present in the domain
+        have undergone a split-merge event.
+
+        If the partially-accreted split feature is larger than the feature it merged
+        with, the merged feature should inherit the properties of the parent feature
+        that the feature split from and should be classed as a child of the parent
+        feature.
+
+        If instead the the partially-accreted split feature is smaller than the feature
+        it merged with, the merged feature should retain its existing properties.
+
 
         Args:
-            frame (Frame): Frame to inspect accreted ids
+            current_frame (Frame):
+                Frame to inspect accreted ids
+            advected_frame (Frame):
+                Frame containing advected Features from previous timestep
         """
-        if not isinstance(frame, Frame):
-            raise TypeError(f"Expected type Frame, got {type(frame)}")
+        if not isinstance(current_frame, Frame):
+            raise TypeError(f"Expected type Frame, got {type(current_frame)}")
 
-        all_features = frame.features.values()
+        all_features = current_frame.features.values()
         all_provisional_ids = [feature.provisional_id for feature in all_features]
 
         # Check each feature for accreted values
@@ -288,14 +288,40 @@ class FrameTracker:
             if not isinstance(feature.accreted, list):
                 raise TypeError(f"Expected list, got f{type(feature.accreted)}")
 
-            # Copy accreted id to new list if it is not a provisional id
-            new_accreted_list = [
-                acc_id
-                for acc_id in feature.accreted
-                if acc_id not in all_provisional_ids
+            partial_accreted_ids = [
+                accreted_id
+                for accreted_id in feature.accreted
+                if accreted_id in all_provisional_ids
             ]
-            # Reset the accreted feature id list
-            feature.accrete_ids(new_accreted_list, replace=True)
+
+            if len(partial_accreted_ids) > 0:
+                print(
+                    f"Split-merge event detected for feature {feature.id} with accreted ids {partial_accreted_ids}"
+                )
+                # TODO: decide a better way to handle multiple partially accreted ids.
+                # The logic that handles simultaneous split-merge events assumes that
+                # there is only one partially accreted id, though it is surely possible
+                # for there to be multiple.
+                # For now, just look at the first id
+                accreted_id = partial_accreted_ids[0]
+
+                # This feature has undergone a split-merge event
+                # Get the parent feature that this feature split from
+                # (here, the accreted id is the parent id, since it is the id
+                # with a sufficient overlap which is still in the domain)
+                parent_feature = current_frame.get_feature(accreted_id)
+                # Get the merging feature from the previous frame
+                merging_feature_from_prev_frame = advected_frame.get_feature(
+                    feature.provisional_id
+                )
+                self.analyse_split_merge_event(
+                    split_merge_feature=feature,
+                    parent_feature=parent_feature,
+                    merging_feature_from_prev_frame=merging_feature_from_prev_frame,
+                    current_frame=current_frame,
+                )
+                # Now, remove the partially accreted id from the accreted list
+                feature.accreted.remove(accreted_id)
 
     def resolve_provisional_id_conflicts(
         self, advected_frame: Frame, current_frame: Frame
@@ -332,7 +358,6 @@ class FrameTracker:
         # Find all provisional ids that are repeated
         unique_ids, counts = np.unique(all_provisional_ids, return_counts=True)
         conflicting_ids = unique_ids[counts > 1]
-        print(conflicting_ids)
 
         # Loop over all Features with repeated provisional ids and
         # designate parent/child
@@ -359,28 +384,6 @@ class FrameTracker:
             # All child features need new ids and are assigned the conflicting id as
             # parent
             for feature in child_features:
-                # First, check if the feature has accreted another feature
-                # If so, this is a simutaneous split-merge event, which will need
-                # further analysis to detemine whether the feature should inherit
-                # the properties of the parent or the merged feature
-                if feature.accreted is not None:
-                    if len(feature.accreted) > 0:
-                        print("Split-merge event detected")
-                        print(f"Accreted features: {feature.accreted}")
-                        for accreted_id in feature.accreted:
-                            merging_feature_from_prev_frame = (
-                                advected_frame.get_feature(accreted_id)
-                            )
-                            self.analyse_split_merge_event(
-                                split_merge_feature=feature,
-                                parent_feature=parent_feature,
-                                merging_feature_from_prev_frame=merging_feature_from_prev_frame,
-                                current_frame=current_frame,
-                            )
-                        continue
-
-                # If the feature has no accreted features, it is a simple split event
-                # and should inherit the properties of the parent feature
                 feature.parent = conflicting_id
                 feature.provisional_id = current_frame.get_next_available_feature_id()
                 # Handle lifetime depending on init input
@@ -456,8 +459,10 @@ class FrameTracker:
 
         # If the merging feature has grown to more than twice its original size, it is
         # classed as a child of the parent feature
-        # (The child property of the parent feature is updated in the calling function)
         if split_merge_feature_size > 2 * merging_feature_size:
+            print(
+                "Split-merge feature is larger than merging feature, classing as child of parent"
+            )
             split_merge_feature.parent = parent_feature.id
             split_merge_feature.provisional_id = (
                 current_frame.get_next_available_feature_id()
@@ -467,9 +472,15 @@ class FrameTracker:
             else:
                 split_merge_feature.lifetime = 1
 
+            # Update the parent feature to include the split-merge feature as a child
+            parent_feature.spawns(split_merge_feature.provisional_id, replace=False)
+
         # If the merging feature has not grown to more than twice its original size,
         # it retains the properties of the merging feature
         else:
+            print(
+                "Split-merge feature is smaller than merging feature, retaining properties of merging feature"
+            )
             split_merge_feature.provisional_id = merging_feature_from_prev_frame.id
             split_merge_feature.lifetime = merging_feature_from_prev_frame.lifetime + 1
 

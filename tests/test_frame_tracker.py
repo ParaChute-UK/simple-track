@@ -946,7 +946,7 @@ def test_check_accreted_feature_ids_are_not_provisional_ids():
     test_frame.features = test_features
 
     # Now, run the method which should remove this id from the accreted list
-    frame_tracker.check_for_accreted_ids_still_in_domain(test_frame)
+    frame_tracker.check_for_accreted_ids_still_in_domain(test_frame, test_frame)
 
     # Check that this correctly removed the accreted id for Feature 2
     assert test_frame.get_feature(2).accreted is None
@@ -976,7 +976,7 @@ def test_check_accreted_feature_ids_are_not_provisional_ids_valid():
     test_frame.features = test_features
 
     # Now, run the method which should not remove any accreted ids since they are all valid
-    frame_tracker.check_for_accreted_ids_still_in_domain(test_frame)
+    frame_tracker.check_for_accreted_ids_still_in_domain(test_frame, test_frame)
 
     # Check that all accreted ids are still present where appropriate
     assert test_frame.get_feature(1).accreted == [10]
@@ -1002,7 +1002,7 @@ def test_check_accreted_feature_ids_are_not_provisional_ids_with_no_provisional_
     test_frame.features = test_features
 
     # Now, run the method which should not remove any accreted ids since they are all valid
-    frame_tracker.check_for_accreted_ids_still_in_domain(test_frame)
+    frame_tracker.check_for_accreted_ids_still_in_domain(test_frame, test_frame)
 
     # Check that all accreted ids are still present where appropriate
     assert test_frame.get_feature(1).accreted == [10]
@@ -1321,3 +1321,75 @@ def test_find_id_of_closest_centroid(
         assert result == expected_result
     except expected_result:
         pass
+
+
+def test_split_merge_event_with_larger_split_feature_than_merging_feature():
+    domain_shape = (100, 100)
+
+    field1 = np.zeros(domain_shape)
+    field1[20:80, 20:40] = 1
+    field1[20:40, 40:60] = 1
+    field1[45:65, 55:60] = 2
+
+    field2 = np.zeros(domain_shape)
+    field2[20:80, 20:40] = 1
+    field2[20:45, 45:60] = 2
+    field2[45:65, 55:60] = 2
+
+    fields = [field1, field2]
+    time_base = dt.datetime.now()
+    times = [time_base + dt.timedelta(hours=i) for i in range(len(fields))]
+    frames = [Frame() for __ in fields]
+
+    for frame_idx, frame in enumerate(frames):
+        frame.import_time_and_data(times[frame_idx], fields[frame_idx])
+        frame.identify_features(0.5)
+
+    # Will use field1 as the advected frame
+    frame_tracker = FrameTracker(overlap_threshold=0.1)
+    frame_tracker.match_advected_and_current_frame_features(
+        frames[0], frames[1], frames[0]
+    )
+    frame_tracker.check_for_accreted_ids_still_in_domain(frames[1], frames[0])
+
+    # Check that feature with id 2 has been properly updated
+    feature2 = frames[1].get_feature(2)
+    assert feature2.provisional_id == 3
+    assert feature2.lifetime == 2
+    assert feature2.parent == 1
+
+
+def test_split_merge_event_with_smaller_split_feature_than_merging_feature():
+    domain_shape = (100, 100)
+
+    field1 = np.zeros(domain_shape)
+    field1[10:90, 5:40] = 1
+    field1[20:40, 40:60] = 1
+    field1[45:90, 55:80] = 2
+
+    field2 = np.zeros(domain_shape)
+    field2[10:90, 5:40] = 1
+    field2[25:45, 45:70] = 2
+    field2[45:90, 55:80] = 2
+
+    fields = [field1, field2]
+    time_base = dt.datetime.now()
+    times = [time_base + dt.timedelta(hours=i) for i in range(len(fields))]
+    frames = [Frame() for __ in fields]
+
+    for frame_idx, frame in enumerate(frames):
+        frame.import_time_and_data(times[frame_idx], fields[frame_idx])
+        frame.identify_features(0.5)
+
+    # Will use field1 as the advected frame
+    frame_tracker = FrameTracker(overlap_threshold=0.1)
+    frame_tracker.match_advected_and_current_frame_features(
+        frames[0], frames[1], frames[0]
+    )
+    frame_tracker.check_for_accreted_ids_still_in_domain(frames[1], frames[0])
+
+    # Check that feature with id 2 has been properly updated
+    feature2 = frames[1].get_feature(2)
+    assert feature2.provisional_id == 2
+    assert feature2.lifetime == 2
+    assert feature2.parent is None
