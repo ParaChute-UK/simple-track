@@ -18,7 +18,7 @@ class FrameTracker:
     def __init__(
         self,
         overlap_nbhood: int = 5,
-        overlap_threshold: float = 0.6,
+        overlap_threshold: float = 0.3,
         retain_lifetime_on_split: bool = True,
     ):
         """
@@ -34,7 +34,7 @@ class FrameTracker:
             overlap_threshold (float, optional):
                 Sets the minimum normalised overlap required between Features in
                 advected and current Frames to be considered a match.
-                Defaults to 0.6.
+                Defaults to 0.3.
             retain_lifetime_on_split (bool, optional):
                 If a child Feature splits from its parent feature, this determines
                 whether the child Feature should carry over the lifetime from the parent
@@ -59,9 +59,9 @@ class FrameTracker:
         features during this matching. Any unmatched features are designated as new
         features and assigned a new id.
 
-        Step 3: Check accreted ids from frame matching are not also present as
-        provisional ids. Accreted ids should already be removed from the field.
-        If any are present, remove them from the accreted list.
+        Step 3: Check accreted ids for any accreted ids that are also present
+        in the domain. This indicates a partial split and merge event, which
+        needs special consideration.
 
         Step 4: After Feature matching, there may be multiple Features in current Frame
         that were matched to the same previous feature. These features will now have
@@ -105,10 +105,10 @@ class FrameTracker:
             advected_frame, current_frame, prev_frame
         )
 
-        # Step 3: Check accreted ids from frame matching are not also present as
-        # provisional ids. Remove any accreted ids found as a provisional id in
-        # current frame
-        self.check_for_accreted_ids_still_in_domain(current_frame)
+        # Step 3: Check accreted ids for any accreted ids that are also present
+        # in the domain. This indicates a partial split and merge event, which
+        # needs special consideration.
+        self.check_for_accreted_ids_still_in_domain(current_frame, advected_frame)
 
         # Step 4: After Feature matching, there may be multiple Features in current
         # Frame that were matched to the same previous feature. Resolve these conflicts
@@ -208,6 +208,7 @@ class FrameTracker:
             overlap_hist = self.calculate_overlap_histogram(
                 advected_feature_field, current_feature_field, feature_id, nbhood=0
             )
+            print(f"Overlap histogram for feature {feature_id}: {overlap_hist}")
 
             # If the maximum overlap is not achieved, rerun with a nbhood surrouding the
             # feature centroid.
@@ -223,6 +224,10 @@ class FrameTracker:
             # that have a sufficient overlap
             matching_id, other_sufficient_ids = self.find_ids_of_closest_overlaps(
                 overlap_hist, advected_feature_field, current_feature_field, feature_id
+            )
+
+            print(
+                f"Feature {feature_id} matching id: {matching_id}, other sufficient ids: {other_sufficient_ids}"
             )
 
             # If a matching feature couldn't be found, this is a new Feature
@@ -248,21 +253,32 @@ class FrameTracker:
                     accreted_feature.accreted_in_next_frame_by = feature_id
                     accreted_feature.set_as_final_timestep()
 
-    def check_for_accreted_ids_still_in_domain(self, frame: Frame) -> None:
+    def check_for_accreted_ids_still_in_domain(
+        self, current_frame: Frame, advected_frame: Frame
+    ) -> None:
         """
-        Any features that have been accreted by another feature should not therefore
-        appear as a provisional id in the feature field (since it should no longer
-        exist). This method checks that this is the case for all accreted ids.
-        If any accreted ids are found to still exist as a provisional id, the accreted
-        id is removed from its respective Feature
+        Any features with an accreted id that are still present in the domain
+        have undergone a split-merge event.
+
+        If the partially-accreted split feature is larger than the feature it merged
+        with, the merged feature should inherit the properties of the parent feature
+        that the feature split from and should be classed as a child of the parent
+        feature.
+
+        If instead the the partially-accreted split feature is smaller than the feature
+        it merged with, the merged feature should retain its existing properties.
+
 
         Args:
-            frame (Frame): Frame to inspect accreted ids
+            current_frame (Frame):
+                Frame to inspect accreted ids
+            advected_frame (Frame):
+                Frame containing advected Features from previous timestep
         """
-        if not isinstance(frame, Frame):
-            raise TypeError(f"Expected type Frame, got {type(frame)}")
+        if not isinstance(current_frame, Frame):
+            raise TypeError(f"Expected type Frame, got {type(current_frame)}")
 
-        all_features = frame.features.values()
+        all_features = current_frame.features.values()
         all_provisional_ids = [feature.provisional_id for feature in all_features]
 
         # Check each feature for accreted values
@@ -272,14 +288,40 @@ class FrameTracker:
             if not isinstance(feature.accreted, list):
                 raise TypeError(f"Expected list, got f{type(feature.accreted)}")
 
-            # Copy accreted id to new list if it is not a provisional id
-            new_accreted_list = [
-                acc_id
-                for acc_id in feature.accreted
-                if acc_id not in all_provisional_ids
+            partial_accreted_ids = [
+                accreted_id
+                for accreted_id in feature.accreted
+                if accreted_id in all_provisional_ids
             ]
-            # Reset the accreted feature id list
-            feature.accrete_ids(new_accreted_list, replace=True)
+
+            if len(partial_accreted_ids) > 0:
+                print(
+                    f"Split-merge event detected for feature {feature.id} with accreted ids {partial_accreted_ids}"
+                )
+                # TODO: decide a better way to handle multiple partially accreted ids.
+                # The logic that handles simultaneous split-merge events assumes that
+                # there is only one partially accreted id, though it is surely possible
+                # for there to be multiple.
+                # For now, just look at the first id
+                accreted_id = partial_accreted_ids[0]
+
+                # This feature has undergone a split-merge event
+                # Get the parent feature that this feature split from
+                # (here, the accreted id is the parent id, since it is the id
+                # with a sufficient overlap which is still in the domain)
+                parent_feature = current_frame.get_feature(accreted_id)
+                # Get the merging feature from the previous frame
+                merging_feature_from_prev_frame = advected_frame.get_feature(
+                    feature.provisional_id
+                )
+                self.analyse_split_merge_event(
+                    split_merge_feature=feature,
+                    parent_feature=parent_feature,
+                    merging_feature_from_prev_frame=merging_feature_from_prev_frame,
+                    current_frame=current_frame,
+                )
+                # Now, remove the partially accreted id from the accreted list
+                feature.accreted.remove(accreted_id)
 
     def resolve_provisional_id_conflicts(
         self, advected_frame: Frame, current_frame: Frame
@@ -296,6 +338,11 @@ class FrameTracker:
         and have their parent attribute set to the retained provisional id. The parent
         Feature will have its children attribute updated to include the new child
         Feature ids.
+
+        If a Feature has a parent but is also matched to multiple provisional ids,
+        it has undergone a simultaneous split and merge. In this case, the relative
+        change in size of the resulting feature determines whether it inherits the
+        properties of the merged feature or the parent feature it split from.
 
         Args:
             advected_frame (Frame):
@@ -333,7 +380,6 @@ class FrameTracker:
                 current_frame.feature_field,
             )
 
-            # TODO: should some of this functionality be moved to Feature?
             # Preserve provisional id for the parent feature
             # All child features need new ids and are assigned the conflicting id as
             # parent
@@ -350,6 +396,93 @@ class FrameTracker:
             parent_feature.spawns(
                 [feature.provisional_id for feature in child_features], replace=True
             )
+
+    def analyse_split_merge_event(
+        self,
+        split_merge_feature: Feature,
+        parent_feature: Feature,
+        merging_feature_from_prev_frame: Feature,
+        current_frame: Frame,
+    ) -> None:
+        """
+        Resolve a split-merge event, where a feature has been identified as
+        simultaneously splitting from a parent feature, and merging with
+        another existing feature.
+
+        To determine the properties of the resulting feature, we assume that the
+        split-merge event has not actually occurred simultaneously, but rather
+        that we are only observing this as a result of finite dt. As shown elsewhere
+        in the docs, the most useful path forward for this is to assume that the
+        split-merge feature first splits from its parent, then merges with the
+        merging feature.
+
+        Using some examples (see split-merge mwe in the tests), we can motivate that
+        the resulting properties of the split-merge feature depends on the size of the
+        "split" feature relative to the merged feature (where, here, "split" is
+        emphasised since we cannot know the exact size of it):
+
+        a) If the "split" feature is larger than the merging feature, the split-merge
+        feature should be classed as a child of the parent feature. It should be given
+        a new id, and inherit the lifetime of the parent feature if
+        retain_lifetime_on_split is True, else it should have its lifetime set to 1.
+
+        b) If the "split" feature is smaller than the merging feature, the split-merge
+        feature should retain the properties of the merging feature.
+
+        Even though we cannot directly know the size of the "split" featture,
+        we assume that any growth in the size of the merging feature is primarily
+        due to merging with the "split" feature. Therefore, if the merging feature
+        grows by more than its own size as it becomes the split-merge feature,
+        (i.e., size in current frame > 2 * size in previous frame), we assume that the
+        "split" feature is larger than the merging feature and decision a) should be
+        taken. Otherwise, b).
+
+        Args:
+            split_merge_feature (Feature):
+                A feature that has been identified as both splitting from a parent
+                feature and merging with another feature.
+            parent_feature (Feature):
+                The feature that the split_merge_feature has split from.
+            merging_feature_from_prev_frame (Feature):
+                The feature that the split_merge_feature is merging with, from the
+                previous frame it existed.
+            current_frame (Frame):
+                The current frame containing the split_merge_feature.
+                This is used to obtain the next available id for the
+                split-merge feature if it is identified as a child of the parent
+        """
+        # Get the size of the merging feature in the previous frame
+        merging_feature_size = merging_feature_from_prev_frame.get_size()
+
+        # Get the size of the split-merge feature in the current frame
+        split_merge_feature_size = split_merge_feature.get_size()
+
+        # If the merging feature has grown to more than twice its original size, it is
+        # classed as a child of the parent feature
+        if split_merge_feature_size > 2 * merging_feature_size:
+            print(
+                "Split-merge feature is larger than merging feature, classing as child of parent"
+            )
+            split_merge_feature.parent = parent_feature.id
+            split_merge_feature.provisional_id = (
+                current_frame.get_next_available_feature_id()
+            )
+            if self.retain_lifetime_on_split:
+                split_merge_feature.lifetime = parent_feature.lifetime
+            else:
+                split_merge_feature.lifetime = 1
+
+            # Update the parent feature to include the split-merge feature as a child
+            parent_feature.spawns(split_merge_feature.provisional_id, replace=False)
+
+        # If the merging feature has not grown to more than twice its original size,
+        # it retains the properties of the merging feature
+        else:
+            print(
+                "Split-merge feature is smaller than merging feature, retaining properties of merging feature"
+            )
+            split_merge_feature.provisional_id = merging_feature_from_prev_frame.id
+            split_merge_feature.lifetime = merging_feature_from_prev_frame.lifetime + 1
 
     def identify_unmatched_features_in_prev_frame(
         self, prev_frame: Frame, current_frame: Frame

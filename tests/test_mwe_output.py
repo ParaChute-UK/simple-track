@@ -3,6 +3,7 @@ import datetime as dt
 import numpy as np
 
 from simpletrack.feature import Feature
+from simpletrack.track import Tracker
 
 
 def test_first_mwe_outputs(mwe_timeline):
@@ -267,6 +268,98 @@ def test_ninth_mwe_outputs(mwe_timeline):
 
     # test there we are back to one feature
     assert len(frame.features) == 0
+
+
+def test_split_merge_event_with_larger_split_feature_than_merging_feature():
+    domain_shape = (100, 100)
+
+    field0 = np.zeros(domain_shape)
+    field0[20:80, 20:40] = 1
+    field0[20:40, 40:60] = 1
+
+    field1 = np.zeros(domain_shape)
+    field1[20:80, 20:40] = 1
+    field1[20:40, 40:60] = 1
+    field1[45:65, 55:60] = 2
+
+    field2 = np.zeros(domain_shape)
+    field2[20:80, 20:40] = 1
+    field2[20:45, 45:60] = 2
+    field2[45:65, 55:60] = 2
+
+    fields = [field0, field1, field2]
+
+    # Setup tracking
+    # Need to use an artificially small threshold to set up MWE, especially for case 2b.
+    # Perhaps this indicates that case 2b isn't a realistic scenario, but ST should still work
+    # regardless of the threshold
+    config = {"FEATURE": {"threshold": 0.5}, "TRACKING": {"overlap_threshold": 0.1}}
+
+    # Setup data
+    time_base = dt.datetime.now()
+    times = [time_base + dt.timedelta(hours=i) for i in range(len(fields))]
+    data = {time: field for time, field in zip(times, fields)}
+
+    timeline = Tracker(config).run(data)
+
+    # Test the results in frame 3
+    frame3 = timeline.get_frame(times[2])
+    assert len(frame3.features) == 2
+
+    # Should expect that this feature will be identified as a child of the parent feature
+    # and should be given a new id of 3. It should have the same lifetime as the parent
+    # since retain_lifetime_on_split defaults to True
+
+    frame3_feature3 = frame3.get_feature(3)
+    assert isinstance(frame3_feature3, Feature)
+    assert frame3_feature3.id == 3
+    assert frame3_feature3.lifetime == 3
+    assert frame3_feature3.parent == 1
+
+
+def test_split_merge_event_with_smaller_split_feature_than_merging_feature():
+    domain_shape = (100, 100)
+
+    field0 = np.zeros(domain_shape)
+    field0[10:90, 5:40] = 1
+    field0[20:40, 40:60] = 1
+
+    field1 = np.zeros(domain_shape)
+    field1[10:90, 5:40] = 1
+    field1[20:40, 40:60] = 1
+    field1[45:90, 55:80] = 2
+
+    field2 = np.zeros(domain_shape)
+    field2[10:90, 5:40] = 1
+    field2[25:45, 45:70] = 2
+    field2[45:90, 55:80] = 2
+
+    fields = [field0, field1, field2]
+
+    # Setup tracking
+    # Need to use an artificially small threshold to set up MWE, especially for case 2b.
+    # Perhaps this indicates that case 2b isn't a realistic scenario, but ST should still work
+    # regardless of the threshold
+    config = {"FEATURE": {"threshold": 0.5}, "TRACKING": {"overlap_threshold": 0.1}}
+
+    # Setup data
+    time_base = dt.datetime.now()
+    times = [time_base + dt.timedelta(hours=i) for i in range(len(fields))]
+    data = {time: field for time, field in zip(times, fields)}
+
+    timeline = Tracker(config).run(data)
+
+    # Test the results in frame 3
+    frame3 = timeline.get_frame(times[2])
+    assert len(frame3.features) == 2
+
+    # Should expect that the split feature will merge with the existing feature
+    # and retain the id of the merging feature (feature 2)
+    frame3_feature2 = frame3.get_feature(2)
+    assert isinstance(frame3_feature2, Feature)
+    assert frame3_feature2.id == 2
+    assert frame3_feature2.lifetime == 2
+    assert frame3_feature2.parent is None
 
 
 if __name__ == "__main__":
