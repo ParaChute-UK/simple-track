@@ -230,8 +230,6 @@ class Feature:
     @dydx.setter
     def dydx(self, dy_dx: tuple) -> None:
         self._dydx = native(dy_dx)
-        if len(self._dydx) > 0 and not isinstance(self._dydx[0], (int, float)):
-            self._dydx = tuple([val.item() for val in self._dydx])
 
     @id.setter
     def id(self, _id: int) -> None:
@@ -422,7 +420,7 @@ class Feature:
             "centroid": self.centroid,
             "size": self.get_size(),
             # native() does not convert dydx to python type for some reason
-            "dydx": self._dydx,
+            "dydx": self.dydx,
             "max": self._max,
             "mean": self._mean,
             "lifetime": self._lifetime,

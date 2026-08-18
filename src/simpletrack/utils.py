@@ -142,4 +142,7 @@ def native(value):
     Returns:
         any: Converted value
     """
+    # Since tuples are immutable, convert each element to native
+    if isinstance(value, tuple):
+        return tuple([native(v) for v in value])
     return getattr(value, "tolist", lambda: value)()
