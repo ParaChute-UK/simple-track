@@ -208,7 +208,6 @@ class FrameTracker:
             overlap_hist = self.calculate_overlap_histogram(
                 advected_feature_field, current_feature_field, feature_id, nbhood=0
             )
-            print(f"Overlap histogram for feature {feature_id}: {overlap_hist}")
 
             # If the maximum overlap is not achieved, rerun with a nbhood surrouding the
             # feature centroid.
@@ -224,10 +223,6 @@ class FrameTracker:
             # that have a sufficient overlap
             matching_id, other_sufficient_ids = self.find_ids_of_closest_overlaps(
                 overlap_hist, advected_feature_field, current_feature_field, feature_id
-            )
-
-            print(
-                f"Feature {feature_id} matching id: {matching_id}, other sufficient ids: {other_sufficient_ids}"
             )
 
             # If a matching feature couldn't be found, this is a new Feature
