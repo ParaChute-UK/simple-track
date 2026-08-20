@@ -302,9 +302,13 @@ class FrameTracker:
 
                 # This feature has undergone a split-merge event
                 # Get the parent feature that this feature split from
-                # (here, the accreted id is the parent id, since it is the id
-                # with a sufficient overlap which is still in the domain)
-                parent_feature = current_frame.get_feature(accreted_id)
+                # (in this stage of the code, the parent id is the accreted id,
+                # since the provisional id has not yet been assigned to the main id property)
+                parent_feature = current_frame.get_feature(
+                    accreted_id, provisional=True
+                )
+
+                print(f"Parent feature: {parent_feature}")
                 # Get the merging feature from the previous frame
                 merging_feature_from_prev_frame = advected_frame.get_feature(
                     feature.provisional_id

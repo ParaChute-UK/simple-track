@@ -132,16 +132,24 @@ class Frame:
         max_id = check_valid_ids(max_id)
         self._max_id = max_id
 
-    def get_feature(self, feature_id: int) -> Feature:
+    def get_feature(self, feature_id: int, provisional: bool = False) -> Feature:
         """
         Get a feature matching the given id if present in the current field,
         otherwise returns None.
+
+        Args:
+            feature_id (int): The id of the feature to retrieve.
+            provisional (bool): If True, will search for a feature with a matching
+            provisional_id instead of the id. Defaults to False.
         """
         feature_id = check_valid_ids(feature_id)
-        if feature_id in self._features:
+        if feature_id in self._features and not provisional:
             return self._features[feature_id]
-        else:
-            return None
+        elif provisional:
+            for feature in self._features.values():
+                if feature.provisional_id == feature_id:
+                    return feature
+        return None
 
     def get_flow(self) -> NDArray | None:
         """

@@ -573,3 +573,62 @@ def test_purge_max_frames_default_value():
         test_timeline.add_to_timelime(frame)
 
     assert len(test_timeline.timeline) == 5
+
+
+def test_get_feature_with_provisional_id():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_feature_field[6:9, 6:9] = 2
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    # Set provisional ids for features
+    feature1 = test_frame.get_feature(1)
+    feature2 = test_frame.get_feature(2)
+    feature1.provisional_id = 10
+    feature2.provisional_id = 20
+
+    # Test getting features by their provisional ids
+    retrieved_feature1 = test_frame.get_feature(10, provisional=True)
+    retrieved_feature2 = test_frame.get_feature(20, provisional=True)
+
+    assert retrieved_feature1 == feature1
+    assert retrieved_feature2 == feature2
+
+
+def test_get_feature_with_nonexistent_provisional_id():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    # Test getting a feature with a provisional id that doesn't exist
+    retrieved_feature = test_frame.get_feature(999, provisional=True)
+    assert retrieved_feature is None
+
+
+def test_get_feature_not_in_frame():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    # Test getting a feature with an id that doesn't exist in the frame
+    retrieved_feature = test_frame.get_feature(999)
+    assert retrieved_feature is None
+
+
+def test_get_feature():
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    # Test getting a feature with an id that exists in the frame
+    retrieved_feature = test_frame.get_feature(1)
+    assert retrieved_feature is not None
+    assert retrieved_feature.id == 1
