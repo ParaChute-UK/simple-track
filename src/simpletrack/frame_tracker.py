@@ -554,7 +554,10 @@ class FrameTracker:
             # Get the maximum overlap value and the indices of all features that share
             # this
             max_overlap = np.max(overlap_hist)
-            ids_of_max_overlap = np.argwhere(overlap_hist == max_overlap).squeeze()
+            ids_of_max_overlap = np.argwhere(overlap_hist == max_overlap).squeeze(
+                axis=1
+            )  # Ensures that single element arrays remain arrays
+            print(ids_of_max_overlap)
             if len(ids_of_max_overlap) == 1:
                 matching_id = ids_of_max_overlap[0]
 
