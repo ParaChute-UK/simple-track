@@ -174,7 +174,7 @@ With both frames now valid at the same effective timestep, features in the curre
 <img src="diagrams/id_conflicts.jpg" alt="Phase cross-correlation" width="700"/>
 </p>
 
-As mentioned above, features in the current frame will only provisionally inherit an id during this process. This is because there may be multiple features that are given the same id after this process has completed. This is likely to happen if the feature in the previous frame is fragmenting and spawning other features in the current frame, as depicted in Figure above. The feature that retains the label is initially decided by the largest overlap with the respective feature in the previous field. If multiple features share the same overlap, then the feature with the closest centroid is chosen. All other features are given a fresh id, and their `Feature.parent`| properties are set to the retaining label. Similarly, the `Feature.child` property of the feature which retains its provisional id is set to the new ids of all of the child features.
+As mentioned above, features in the current frame will only provisionally inherit an id during this process. This is because there may be multiple features that are given the same id after this process has completed. This is likely to happen if the feature in the previous frame is fragmenting and spawning other features in the current frame, as depicted in Figure above. The feature that retains the label is initially decided by the largest overlap with the respective feature in the previous field. If multiple features share the same overlap, then the feature with the closest centroid is chosen. All other features are given a fresh id, and their `Feature.parent` properties are set to the retaining label. Similarly, the `Feature.child` property of the feature which retains its provisional id is set to the new ids of all of the child features.
 
 At the end of this process, the features in the current frame will be consistent between frames for those features which have matched, any new features will have a fresh id not used by a feature in any previous frame, and any information about mergers or splits will be recorded by the feature. The data in this frame is now ready for output and for matching with the next frame in sequence. 
 
@@ -206,3 +206,70 @@ retain_lifetime_on_split (bool, optional):
 FrameTracker.run(prev_frame, current_frame)
 # Note, this also includes the artificial advection from Step 3
 ```
+
+## Simultaneous Split-Merge Events
+The decision trees described in Step 4 above outline the methods for identifying cases where features merge into other features, or split from other features. However, there may also be instances where both of these events occur within the span of a single timestep. These events are observed when part of a feature splits from its parent and also merges with an existing nearby feature. The logic described above will not handle these events in an appropriate way, often causing large and unexpected changes to a feature lifetime. Therefore there must be an additional step that accounts for these events.
+
+### Desired Behaviour
+
+The desired split-merge behaviour is derived by assuming that such events do not actually occur simultaneously, rather that they only appear to do so due to the finite timesteps involved. For simplicity, we will refer to the non-merging feature that partially splits as the "parent feature", the feature that undergoes the merger as the "merging feature" and the unseen feature that splits and merges as the "split-merge feature". 
+
+There are two possible paths that can result in a split-merge event:
+
+1. If the merging feature first merges into the parent feature, then the split-merge feature splits from the parent,
+2. If the split-merge feature first splits from the parent, then merges with the merging feature.
+
+This is not a conservative problem; the logic outlined in the previous the section shows that the result does depend on the path taken. In the first instance, the outcome would be that the split-merge feature simply inherits the properties of the parent feature. This is fairly trivial to account for. However, in the second instance, a sensible choice of outcome will depend primarily on the relative size of the features:
+
+<ol type="a">
+  <li>
+  If the split-merge feature is larger than the merging feature, the resulting feature should retain the lifetime of the split-merge feature (which is inherited from the parent feature). It should be considered a "child" of the parent feature and assigned a new id. 
+
+  <p align="center">
+    <img src="diagrams/split_merge_example/case2a_field1.png" alt="Example split-merge event 2a field 1" width="280"/>
+    <img src="diagrams/split_merge_example/case2a_field2.png" alt="Example split-merge event 2a field 2"  width="280"/>
+    <img src="diagrams/split_merge_example/case2a_field3.png" alt="Example split-merge event 2a field 3"  width="280"/>
+  </p>
+  </li>
+
+  <li>
+  If the split-merge feature is smaller than the merging feature, the resulting feature should retain the lifetime of the merging feature. This does not need to be considered a child of the parent feature, and should retain the id of the merging feature. 
+
+  <p align="center">
+    <img src="diagrams/split_merge_example/case2b_field1.png" alt="Example split-merge event 2b field 1" width="280"/>
+    <img src="diagrams/split_merge_example/case2b_field2.png" alt="Example split-merge event 2b field 2"  width="280"/>
+    <img src="diagrams/split_merge_example/case2b_field3.png" alt="Example split-merge event 2ab field 3"  width="280"/>
+  </p>
+
+  </li>
+</ol>
+
+### Split-Merge Decision Tree
+
+Since we cannot determine the size of the split feature without an intermediate frame, we cannot use the same logic that distinguishes continuing features from accreted features. We also cannot determine which of the above paths was taken without any intermediate frame, therefore we must make a decision.
+
+We will choose the path that encompasses the largest range of possible outcomes: Path 2. The outcome from path 1 is also contained within the range of possible outcomes of this chosen path, which also supports this choice. However, for this path to be meaningful, we need knowledge of the relative size of the unseen "split-merge" feature compared to the merging feature.
+
+To proceed, we make the following assumptions:
+*  Any difference in size of the merging feature is primarily due to merging with the split feature and not due to some sudden unrelated growth. This is a reasonable assumption for any data that we would want to track. In fact, the assumption that features of interest grow or advect by much smaller amounts per timestep than the size of a typical feature is the core assumption that allows this tool to function. 
+* There are only two feature involved in the split-merge event: the split-merge feature, and the merging feature. It is entirely possible for multiple features to partially split in the same timestep and in the same vicinity, or for multiple features to merge into the same split-merge feature. These cases are not handled here and are left for future consideration. 
+
+Applying these assumptions, we can infer the relative size of the split-merge by inspecting at the size of the merging feature before and after the split-merge event:
+
+- If the split-merge feature size in the current frame > two times the merging feature size in the previous frame: take path 2a. 
+- If the split-merge feature size in the current frame < two times the merging feature size in the previous frame: take path 2b. 
+
+### Identifying a Split-Merge Event
+Since it is most convenient to include split-merge decision making immediately after provisional ids have been assigned (and before these provisional ids have been checked for multiplicity), identifying split-merge events will not take the parent/child properties into account. 
+
+Instead, a feature is defined as having undergone a split-merge event if it meets both of the following criteria:
+
+- The feature has accreted another id, and
+- The accreted id is still present in the domain
+
+In older versions of the code, it was assumed that this situation was not possible, since a fully accreted feature could not also be present in the domain. However, the above criteria can also be met if the parent feature has been partially accreted (enough so that the split "material" from the parent feature exceeds the overlap threshold when overlap is calculated for the split-merge feature). 
+
+By searching the feature population for these partial-split events, we are also searching for split-merge events and we can therefore use this criteria to initiate the split-merge analysis.
+
+### Tests
+The examples shown in the subsection above have been formalised into tests named `test_split_merge_event_with_larger_split_feature_than_merging_feature()` and `test_split_merge_event_with_smaller_split_feature_than_merging_feature()` in both `test_frame_tracker` and `test_mwe_output`

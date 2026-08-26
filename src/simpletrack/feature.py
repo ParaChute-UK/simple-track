@@ -420,7 +420,7 @@ class Feature:
             "centroid": self.centroid,
             "size": self.get_size(),
             # native() does not convert dydx to python type for some reason
-            "dydx": tuple([val.item() for val in self._dydx]),
+            "dydx": self.dydx,
             "max": self._max,
             "mean": self._mean,
             "lifetime": self._lifetime,
