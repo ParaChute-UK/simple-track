@@ -680,33 +680,46 @@ class FrameTracker:
             matching_id = np.argmax(overlap_hist)
 
         # If there is more than one sufficient overlap, keep the properties of the
-        # feature with the closest size. If multiple have overlaps,
-        # keep nearest in centroid
+        # feature with the best overlap. If multiple have same overlaps, keep closest
+        # in size, then keep nearest in centroid
         if len_sufficient_overlaps > 1:
-            # Check for size of each feature in advected_frame with sufficient overlap
-            ids_of_sufficient_overlaps = np.argwhere(sufficient_overlaps).squeeze()
-            min_size_comparison = self.find_ids_of_closest_size(
-                field_with_id=current_feature_field,
-                field_to_search=advected_feature_field,
-                target_feature_id=current_feature_id,
-                candidate_ids=ids_of_sufficient_overlaps.tolist(),
-            )
+            # Get the maximum overlap value and the indices of all features that share
+            # this
+            max_overlap = np.max(overlap_hist)
+            ids_of_max_overlap = np.argwhere(overlap_hist == max_overlap).squeeze(
+                axis=1
+            )  # Ensures that single element arrays remain arrays
+            print(ids_of_max_overlap)
+            if len(ids_of_max_overlap) == 1:
+                matching_id = ids_of_max_overlap[0]
 
-            # If one id has a closest size to target feature, this is the matching id
-            if len(min_size_comparison) == 1:
-                matching_id = min_size_comparison[0]
-
-            # If more than one id shares a closest size, find the closest centroid
             else:
-                matching_id = self.find_ids_of_closest_centroid(
+                # Check for size of each feature in advected_frame with sufficient
+                # overlap
+                ids_of_sufficient_overlaps = np.argwhere(sufficient_overlaps).squeeze()
+                min_size_comparison = self.find_ids_of_closest_size(
                     field_with_id=current_feature_field,
                     field_to_search=advected_feature_field,
                     target_feature_id=current_feature_id,
-                    candidate_ids=min_size_comparison,
+                    candidate_ids=ids_of_sufficient_overlaps.tolist(),
                 )
-                # If there are still more than 1 possible options at this stage,
-                # min returns the first instance
-                matching_id = matching_id[0]
+
+                # If one id has a closest size to target feature, this is the matching
+                # id
+                if len(min_size_comparison) == 1:
+                    matching_id = min_size_comparison[0]
+
+                # If more than one id shares a closest size, find the closest centroid
+                else:
+                    matching_id = self.find_ids_of_closest_centroid(
+                        field_with_id=current_feature_field,
+                        field_to_search=advected_feature_field,
+                        target_feature_id=current_feature_id,
+                        candidate_ids=min_size_comparison,
+                    )
+                    # If there are still more than 1 possible options at this stage,
+                    # min returns the first instance
+                    matching_id = matching_id[0]
 
             # Add the other sufficient overlaps to other_sufficient_ids
             # To ensure the matching id is now not included in other sufficient ids,
