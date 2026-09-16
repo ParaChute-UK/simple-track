@@ -10,4 +10,5 @@ dependencies:
   - scipy >= 1.16.3
   - scikit-image >= 0.25.2
   - ruff
+  - sphinx 
   # - opencv # Optional dependency for optical flow scheme

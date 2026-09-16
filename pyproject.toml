@@ -24,7 +24,8 @@ dependencies = [
   "pytest-xdist",
   "pyyaml",
   "scipy >= 1.15.0",
-  "scikit-image >= 0.25.2"
+  "scikit-image >= 0.25.2",
+  "sphinx >= 6.0"
 ]
 
 [project.optional-dependencies]
