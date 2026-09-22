@@ -1,9 +1,10 @@
 bibliography: tracking.bib
 
-# Simple-Track: A Data-Agnostic, Flow-Dependent Python Object Tracker
+# Simple-Track: A Data-Agnostic, Threshold-Based Python Object Tracker
 
 ## Summary
-Simple-Track is a threshold-based object tracking algorithm for 2D data, designed to track the complex interactions that can emerge between objects whose primary motion is determined by a physical, background flow field. Here, objects are defined as contiguous data regions matching a threshold condition. These objects are tracked between consecutive frames by predicting their location at a common timeframe and matching based on the degree of overlap. Matched objects retain the same identification between all tracked frames, while new objects are assigned a unique label. Additionally, objects that translate under divergent flows may merge with each other, or split into multiple separate objects. Simple-Track compiles comprehensive information about feature merging, splitting, initiation and dissipation.
+Simple-Track is an object tracking algorithm for 2D data, designed to track the complex interactions that can emerge between extended objects. Here, objects are defined as contiguous data regions matching a threshold condition. These objects are tracked between consecutive frames by predicting their location at a common timeframe and matching based on the degree of overlap. Matched objects retain the same identification between all tracked frames, while new objects are assigned a unique label. Simple-Track also includes custom logic for identifying merging and splitting events, and uses this to compile a comprehensive feature interaction history. Feature matching is aided by the inclusion of a bespoke flow solver, making it specialised in tracking object motions that are linked to a physical flow field. The data-agnostic philosophy of Simple-Track is highlighted by the modular workflow design and support for user-configurable data loading routines.
+
 
 ## State of the Field
 Tracking the motion of objects through discrete snapshots has been a longstanding problem, particularly within video and computer-vision research. Here, multi-object trackers (MOTs) track bounding boxes surrounding rigid bodies such as cars, people, or animals, whose motion is primarily self-determined. The largest issue limiting tracking accuracy in MOTs is the estimation of 3D motion using only image-plane projections. Objects that pass in front of other objects can confuse algorithms unless they use occlusion-handling techniques, such as persistence tracking [@bewley_simple_2016], re-identification using previous track properties [@wojke_simple_2017], or separately matching occluded tracks with "blurry" objects that have larger identification uncertainty [@zhang_bytetrack_2022]. Additionally, tracking accuracy can be affected by camera shake or other erratic movements. These undesirable motions can be compensated for using optical flow schemes, which estimate all-pixel (dense) or sharp-feature (sparse) motion vectors [@le_besnerais_dense_2005 @hamprecht_duality_2007 @kroeger_fast_2016 @ayzel_optical_2019]. Parallax effects are captured by using a hierarchy of tracking resolutions to accurately capture larger-scale foreground motion and smaller-scale background motion. 
@@ -14,10 +15,16 @@ MOTs can either be configured for real-time, high-frequency object tracking or f
 
 While most particle and extended-object trackers also employ the same tracking-by-detection procedure, their methods for identifying objects differ. The Crocker-Grier algorithm is one of the earliest and most popular particle-tracking algorithms, designed to track the motion of colloidal droplets suspended within another liquid [@crocker_methods_1996]. Here, particles are identified as the local maxima in brightness among points in the 70th percentile of brightness across the image. This brightness-weighted approach is also used in more modern tracking packages [@sbalzarini_feature_2005 @allan_trackpy_2025], though others favour a wavelet decomposition or gaussian-fit strategy [@jaqaman_robust_2008]. Linking strategies also differ between particle trackers, with some choosing nearest-neighbours [@allan_trackpy_2025], while others solve a global optimisation problem using a similar Hungarian algorithm approach [@jaqaman_robust_2008]. The design approach for each of these trackers is largely driven by their domain and purpose. As a result, extensions that handle object merging and splitting have become more popular, particularly with trackers used in molecular biology [@sbalzarini_feature_2005 @jaqaman_robust_2008].
 
-Trackers designed for extended objects can differ substantially from MOTs and particle trackers. Objects can be more confidently defined, meaning that simpler methods for linking objects between frames, such as overlaps, are more viable. Merging and splitting treatments are more common in extended-object tracking. [list non-met examples]]
+<!-- [Additionally, extended objects can be defined more confidently when [more data...], making simpler methods for linking objects, such as overlaps, more viable (is this true?)]. -->
 
-Within weather and climate analysis, tracking is used... give examples. 
+Compared to particle trackers, there are an even wider variety of uses for extended-object trackers. As such, these trackers can differ substantially in their construction from MOTs and particle trackers. For example, trackers that permit object shape deformations usually also include merging and splitting treatments. In biological imaging, mitosis and cell absorption can be tracked directly... 
 
+[ in coronal holes...]
+
+[In weather and climate, extended-object trackers are used for a wide variety of research purposes. Ocean eddies, sea-ice floes, wildfire perimeters...]
+
+
+[More recently, trackers have become an important part of NWP model developers toolkit. Flex met creds here. See below for some discussion to summarise/include.]
 
 Acknowledgement of origin of this algorithm: geophysical sciences/meteorology and cloud tracking. Multiple needs here: for tracking objects between discrete timesteps, and also for model evaluation. 
 
