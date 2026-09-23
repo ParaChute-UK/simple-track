@@ -290,9 +290,6 @@ class FrameTracker:
             ]
 
             if len(partial_accreted_ids) > 0:
-                print(
-                    f"Split-merge event detected for feature {feature.id} with accreted ids {partial_accreted_ids}"
-                )
                 # TODO: decide a better way to handle multiple partially accreted ids.
                 # The logic that handles simultaneous split-merge events assumes that
                 # there is only one partially accreted id, though it is surely possible
@@ -308,7 +305,6 @@ class FrameTracker:
                     accreted_id, provisional=True
                 )
 
-                print(f"Parent feature: {parent_feature}")
                 # Get the merging feature from the previous frame
                 merging_feature_from_prev_frame = advected_frame.get_feature(
                     feature.provisional_id
@@ -459,9 +455,6 @@ class FrameTracker:
         # If the merging feature has grown to more than twice its original size, it is
         # classed as a child of the parent feature
         if split_merge_feature_size > 2 * merging_feature_size:
-            print(
-                "Split-merge feature is larger than merging feature, classing as child of parent"
-            )
             split_merge_feature.parent = parent_feature.id
             split_merge_feature.provisional_id = (
                 current_frame.get_next_available_feature_id()
@@ -477,9 +470,6 @@ class FrameTracker:
         # If the merging feature has not grown to more than twice its original size,
         # it retains the properties of the merging feature
         else:
-            print(
-                "Split-merge feature is smaller than merging feature, retaining properties of merging feature"
-            )
             split_merge_feature.provisional_id = merging_feature_from_prev_frame.id
             split_merge_feature.lifetime = merging_feature_from_prev_frame.lifetime + 1
 
