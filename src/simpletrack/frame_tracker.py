@@ -679,7 +679,6 @@ class FrameTracker:
             ids_of_max_overlap = np.argwhere(overlap_hist == max_overlap).squeeze(
                 axis=1
             )  # Ensures that single element arrays remain arrays
-            print(ids_of_max_overlap)
             if len(ids_of_max_overlap) == 1:
                 matching_id = ids_of_max_overlap[0]
 
