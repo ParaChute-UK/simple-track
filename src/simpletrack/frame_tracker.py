@@ -45,7 +45,12 @@ class FrameTracker:
         self.overlap_threshold = overlap_threshold
         self.retain_lifetime_on_split = retain_lifetime_on_split
 
-    def run(self, prev_frame: Frame, current_frame: Frame) -> None:
+    def run(
+        self,
+        prev_frame: Frame,
+        current_frame: Frame,
+        dry_run: bool = False,
+    ) -> None:
         """
         Runs through the full Frame tracking procedure between two inputs.
         Step 1: Artifically advect features in the previous frame using its flow field.
@@ -84,9 +89,11 @@ class FrameTracker:
                 between timesteps
             current_frame (Frame):
                 Frame containing Features at the current timestep
-
-        Raises:
-            TypeError: _description_
+            dry_run (bool, optional):
+                If True, will run through the full procedure but will not update
+                any of the actual id of the feature (the provisional ids will,
+                however, be updated). This is useful for testing and debugging.
+                Defaults to False.
         """
         if not all(isinstance(frame, Frame) for frame in [prev_frame, current_frame]):
             raise TypeError(
@@ -114,12 +121,13 @@ class FrameTracker:
         # Frame that were matched to the same previous feature. Resolve these conflicts
         self.resolve_provisional_id_conflicts(advected_frame, current_frame)
 
-        # Step 5: Now that there is self consistent data in current frame, use this to
-        # produce updated fields
-        current_frame.update_fields_using_provisional_ids()
+        if not dry_run:
+            # Step 5: Now that there is self consistent data in current frame, use this
+            # to produce updated fields
+            current_frame.update_fields_using_feature_data(use_provisional_ids=True)
 
-        # Step 6: Promote provisional ids to final ids in current frame
-        current_frame.promote_provisional_ids()
+            # Step 6: Promote provisional ids to final ids in current frame
+            current_frame.promote_provisional_ids()
 
         # Step 7: For tracing Features in the previous Frame that aren't matched with a
         # Feature in the current Frame. This is useful for output statistics
@@ -300,7 +308,8 @@ class FrameTracker:
                 # This feature has undergone a split-merge event
                 # Get the parent feature that this feature split from
                 # (in this stage of the code, the parent id is the accreted id,
-                # since the provisional id has not yet been assigned to the main id property)
+                # since the provisional id has not yet been assigned to the
+                # main id property)
                 parent_feature = current_frame.get_feature(
                     accreted_id, provisional=True
                 )

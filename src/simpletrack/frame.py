@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 
 from simpletrack.exceptions import FeaturesNotFoundError
 from simpletrack.feature import Feature
-from simpletrack.utils import check_arrays, check_valid_ids
+from simpletrack.utils import check_arrays, check_valid_ids, native
 
 
 class Frame:
@@ -238,13 +238,13 @@ class Frame:
             # Construct Feature object, set relevant properties,
             # add to the list of features
             feature = Feature(
-                id=feature_id, feature_coords=feature_coords, time=self._time
+                id=native(feature_id), feature_coords=feature_coords, time=self._time
             )
             # If raw field is not None, use this to find max value within Feature
             if self._raw_field is not None:
                 feature.max = np.max(self._raw_field[feature_mask])
                 feature.mean = np.mean(self._raw_field[feature_mask])
-            self._features[feature_id] = feature
+            self._features[native(feature_id)] = feature
 
     def assign_displacements(self, y_flow: NDArray, x_flow: NDArray) -> None:
         """
@@ -292,6 +292,10 @@ class Frame:
     def promote_provisional_ids(self) -> None:
         """
         Promote "provisional_id" to final "id" for all features.
+
+        Args:
+            remove_provisional_id (bool, optional): Whether to remove the provisional_id
+            attribute from the Feature after promotion. Defaults to True.
         """
         # Construct updated features dictionary with new ids as keys
         new_features_dict = {}
@@ -304,9 +308,19 @@ class Frame:
 
         self._features = new_features_dict
 
-    def update_fields_using_provisional_ids(self) -> None:
+    def update_fields_using_feature_data(
+        self, use_provisional_ids: bool = True
+    ) -> None:
         """
-        Update the feature_field to reflect provisional ids.
+        Update feature_field and lifetime_field using current Feature data.
+        This is useful if there have been changes to the Feature data
+        (e.g., Features have been matched between frames)
+
+        Args:
+            use_provisional_ids (bool, optional):
+                Whether to use provisional ids for
+                updating the feature_field. If False, will use Feature.id instead
+                Defaults to True.
         """
         if self._feature_field is None:
             print(
@@ -331,7 +345,7 @@ class Frame:
         for feature in self._features.values():
             feature_mask = self._feature_field == feature.id
             updated_lifetime_field[feature_mask] = feature.lifetime
-            if feature.provisional_id is not None:
+            if use_provisional_ids and feature.provisional_id is not None:
                 updated_feature_field[feature_mask] = feature.provisional_id
             else:
                 updated_feature_field[feature_mask] = feature.id
@@ -433,6 +447,48 @@ class Timeline:
         """
         self.timeline = {}
         self.max_frames = max_frames
+
+    def __repr__(self) -> str:
+        repr_str = (
+            f"Timeline with {len(self.timeline)} frames, "
+            f"starting at {self.start_time()} "
+            f"ending at {self.end_time()}"
+        )
+        return repr_str
+
+    def start_time(self) -> dt.datetime:
+        """
+        Get the start datetime of the timeline
+        """
+        if len(self.timeline) == 0:
+            return None
+        return min(self.timeline.keys())
+
+    def end_time(self) -> dt.datetime:
+        """
+        Get the end datetime of the timeline.
+        """
+        if len(self.timeline) == 0:
+            return None
+        return max(self.timeline.keys())
+
+    def get_start_frame(self) -> Frame:
+        """
+        Get the first frame in the timeline.
+        """
+        start_time = self.start_time()
+        if start_time is None:
+            return None
+        return self.timeline[start_time]
+
+    def get_end_frame(self) -> Frame:
+        """
+        Get the last frame in the timeline.
+        """
+        end_time = self.end_time()
+        if end_time is None:
+            return None
+        return self.timeline[end_time]
 
     def __len__(self) -> int:
         return len(self.timeline)

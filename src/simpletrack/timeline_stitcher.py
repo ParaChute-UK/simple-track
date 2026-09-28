@@ -1,5 +1,7 @@
-import numpy as np
+import itertools
 
+from simpletrack.exceptions import SimpleTrackException
+from simpletrack.flow_solver import FlowSolver
 from simpletrack.frame import Frame, Timeline
 from simpletrack.frame_tracker import FrameTracker
 
@@ -19,25 +21,50 @@ class TimelineStitcher:
     by frame.max_id property)
 
     To solve these problems, this tool performs the following steps:
-    1) Identifies whether the start and end frames of consectutive timelines are
-    valid at the same time (this changes the tracking method in step 2).)
-    2) Run FrameTracker on the end of the one timeline batch and the start of the
-    next timeline batch to identify features that are tracked across the two timelines.
-    Update lifetimes of these features accordingly.
-    3) Update frame.max_id in the first frame of the second timeline batch to be the
-    max_id of the last frame of the first timeline batch. Then, update any new feature
-    ids in the second timeline batch to be unique by adding the max_id of the first
-    timeline batch as an offset to the new feature ids in the second timeline batch.
-    4) Search through the remaining frames in the batch to update:
+    1) Run FrameTracker on the end of the one timeline batch and the start of the
+    next timeline batch. This will identify features that are tracked across the two
+    timelines and update lifetimes of these features accordingly. This will also
+    identify unmatched features and assign an ID which will not conflict with existing
+    IDs in the older frame.
+    2) Search through the remaining frames in the newer batch to update:
         - tracked feature ids (reassigning them to the ids from the first frame,
         and updating lifetimes)
         - new feature ids (updating max_id for the frame, then updating any new feature
         ids to be unique using this max_id)
-    5) Update all feature_field and lifetime_field with these
+    3) Update all feature_field and lifetime_field with these properties
     """
 
-    def __init__(self, timelines):
-        self.timeline_batches = timelines
+    def __init__(self, timelines, retain_lifetime_on_split: bool = True):
+        """
+        Run TimelineStitcher on a list of timelines to create a single timeline
+        with consistent feature IDs and fields across all frames.
+
+        Args:
+            timelines (list(Timeline)):
+                List of Timeline objects to be stitched together
+            retain_lifetime_on_split (bool, optional):
+                When re-running feature matching, determines whetehr the lifetime
+                of feature that split from parent features should be retained.
+                For consistency, this should be set to the same value as the runs
+                that were used to create the input Timelines.
+                Defaults to True.
+
+        Raises:
+            TypeError: _description_
+        """
+        # Check input types
+        if not all(isinstance(t, Timeline) for t in timelines):
+            raise TypeError("All input timelines must be of type Timeline")
+
+        self.retain_lifetime_on_split = retain_lifetime_on_split
+
+        # Sort by their start frame time
+        self.timeline_batches = sorted(timelines, key=lambda t: t.start_time())
+
+        # Setup the FlowSolver for matching between boundary frames
+        # (Use default settings for now, but may want to expose these as
+        # parameters in the future)
+        self.flow_solver = FlowSolver()
 
     def run(self) -> Timeline:
         """
@@ -47,3 +74,172 @@ class TimelineStitcher:
         Returns:
             Timeline: New Timeline object with consistent data across all frames
         """
+
+        # Loop over all timeline pairs to match features between end of one and
+        # start of the next
+        for t1, t2 in itertools.pairwise(self.timeline_batches):
+            print(
+                f"Stitching timeline ending {t1.end_time()} "
+                f"with timeline starting {t2.start_time()}"
+            )
+
+            # Assert t1, t2 are timelines
+            if not isinstance(t1, Timeline) or not isinstance(t2, Timeline):
+                raise TypeError("Both t1 and t2 must be of type Timeline")
+
+            # Get the last frame of the first timeline and the first frame of the second
+            older_frame = t1.get_end_frame()
+            newer_frame = t2.get_start_frame()
+
+            # Assert prev_frame, current_frame are frames
+            if not isinstance(older_frame, Frame) or not isinstance(newer_frame, Frame):
+                raise TypeError(
+                    "Both prev_frame and current_frame must be of type Frame"
+                )
+
+            # Step 1) Align features between the two frames
+            self.align_frames_between_timelines(older_frame, newer_frame)
+
+            # Step 2) Search through remaaining frames in the newer timeline
+            # to update tracked feature ids, and make new feature ids unique
+            # This will also promote the provisional IDs to final IDs in all
+            # frames of the newer timeline
+            self.align_timeline_using_earliest_frame(t2)
+
+            # Step 3) Update the feature_field and lifetime_field in all frames of the
+            # newer timeline to reflect the updated feature data
+            for frame in t2.get_timeline().values():
+                frame.update_fields_using_feature_data(use_provisional_ids=False)
+
+        # Now, construct new Timeline object with all frames from all timelines
+        stitched_frames = {}
+        for timeline in self.timeline_batches:
+            # This will overwrite any frames with the same timestamp
+            stitched_frames.update(timeline.get_timeline())
+
+        new_timeline = Timeline()
+        for frame in stitched_frames.values():
+            new_timeline.add_to_timelime(frame)
+
+        return new_timeline
+
+    def align_frames_between_timelines(
+        self, older_frame: Frame, newer_frame: Frame
+    ) -> None:
+        """
+        Match features in the older frame with features in the newer frame.
+        Update IDs in the newerframe to match those that were tracked from the
+        older frame. Any untracked, new features in the newer timelineframe will
+        be assigned new IDs that do not conflict with the older frame.
+
+        Args:
+            older_frame (Frame):
+                Frame with older timestamps and features
+            newer_frame (Frame):
+                Frame with newer timestamps and features
+        """
+
+        # First, estimate flow between the two frames, to help with matching features
+        y_flow, x_flow = FlowSolver().analyse_flow(older_frame, newer_frame)
+        # y_flow, x_flow = self.flow_solver.analyse_flow(older_frame, newer_frame)
+
+        # Update the current Frame with these displacements
+        if y_flow is not None or x_flow is not None:
+            newer_frame.assign_displacements(y_flow, x_flow)
+
+        # First, make sure max_id is consistent between the two frames, so that
+        # unmatched features in the newer frame will be assigned new IDs
+        # that do not conflict
+        if older_frame.max_id is not None:
+            newer_frame.max_id = older_frame.max_id
+
+        # Match features between frames
+        # Using the dry_run flag means provisional IDs won't be promoted to final IDs,
+        # meaning we can use these for matching features later on
+        frame_tracker = FrameTracker()
+        frame_tracker.run(older_frame, newer_frame, dry_run=True)
+
+        # Now, in the new frame, any matched features will have their IDs updated
+        # to match the older frame
+        # Any unmatched features will have a new ID which does not condfluct with
+        # the older frame
+        # This will also have updated the lifetime properties of each feature in
+        # the newer frame
+
+    def align_timeline_using_earliest_frame(self, timeline: Timeline) -> None:
+        """
+        After frames have been aligned between two separate timelines, there will
+        still be mismatches between features in the first frame (which we have
+        aligned to the earlier timeline), and all other frames in this timeline
+
+        This function iterates through all frames in the timeline and aligns them to
+        the earliest frame by:
+        1) Ensuring any features that are present in the earliest frame
+        propagate their updated IDs to all subsequent frames in the timeline
+        (using the provisional_id property of each feature to track this)
+        2) Ensure any new features that are present in frames after the earliest
+        frame are assigned new IDs that do not conflict with the earlier timelines
+        (again using the provisional_id property to track this)
+
+        Then, in each frame, promote the provisional IDs to final IDs now that
+        full matching has been completed.
+
+        Args:
+            timeline (Timeline):
+                Timeline with its earliest Frame aligned to an earlier Timeline
+        """
+
+        # First, populate the feature_map with old_id keys and new_id values
+        # from the earliest frame
+        feature_map = {}
+        start_frame = timeline.get_start_frame()
+        for feature in list(start_frame.features.values()):
+            feature_map[feature.id] = feature.provisional_id
+
+        # Iterate through the rest of the frames in the timeline and update their
+        # feature IDs based on the feature_map
+        all_frames = list(timeline.get_timeline().values())
+
+        for prev_frame, frame in itertools.pairwise(all_frames):
+            if not isinstance(frame, Frame) or not isinstance(prev_frame, Frame):
+                raise TypeError("All frames in the timeline must be of type Frame")
+
+            # Assign the new max_id to the current_frame
+            frame.max_id = prev_frame.max_id
+
+            for feature in list(frame.features.values()):
+                # Check whether the feature is new by inspecting lifetime
+                if feature.lifetime == 1 or (
+                    self.retain_lifetime_on_split and feature.parent is not None
+                ):
+                    # This is a new feature, assign it a new provisional ID that does
+                    # not conflict with the previous frame
+                    updated_id = frame.get_next_available_feature_id()
+                    # Add this updated ID to the feature_map for future reference
+                    feature_map[feature.id] = updated_id
+                    feature.provisional_id = updated_id
+
+                # This feature was present in the earliest frame
+                elif feature.id in feature_map:
+                    # Update the feature's provisional ID and lifetime
+                    updated_id = feature_map[feature.id]
+                    feature.provisional_id = updated_id
+
+                    # Get corresponding feature in the previous frame to update lifetime
+                    prev_feature = prev_frame.get_feature(feature.id)
+                    feature.lifetime = prev_feature.lifetime + 1
+
+                else:
+                    print(feature)
+                    print(feature_map)
+                    print(feature.parent)
+                    msg = (
+                        f"Feature with ID {feature.id} in frame {frame.time} does not "
+                        "have a corresponding entry in the feature_map "
+                        "and is not a new feature."
+                    )
+                    raise SimpleTrackException(msg)
+
+        # Finally, promote all provisional IDs to final IDs
+        for frame in all_frames:
+            frame.promote_provisional_ids()

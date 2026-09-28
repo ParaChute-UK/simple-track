@@ -199,9 +199,13 @@ class LoadOutput:
         # Load raw data into frame
         # self.load_raw_fields(timeline)
 
-        # Populate features in each Frame
-        for frame in timeline.get_timeline().values():
+        # Populate features in each Frame and assign max id
+        for frame_time, frame in timeline.get_timeline().items():
             frame.populate_features()
+            frame.max_id = (
+                np.max(frame.feature_field) if frame.feature_field is not None else 0
+            )
+            frame.time = frame_time
 
         # Finally, fill these Features with data loaded from outputs
         self.load_feature_data(timeline)
@@ -283,7 +287,15 @@ class LoadOutput:
                 ftype = fname.name.split("_")[0]
                 # Set the relevant attribute of frame, as mapped using
                 # self.field_attributes
-                setattr(frame, self.field_attributes[ftype], np.loadtxt(fname))
+                setattr(
+                    frame,
+                    self.field_attributes[ftype],
+                    np.loadtxt(fname, dtype=np.float32),
+                )
+
+            # Now, convert feature_field and lifetime_field to int32
+            frame.feature_field = frame.feature_field.astype(np.int32)
+            frame.lifetime_field = frame.lifetime_field.astype(np.int32)
 
     def get_frame_times_from_field_filenames(self) -> list:
         """
