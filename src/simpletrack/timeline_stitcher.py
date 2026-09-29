@@ -36,7 +36,9 @@ class TimelineStitcher:
     """
 
     def __init__(
-        self, timelines: list[Timeline | str], retain_lifetime_on_split: bool = True
+        self,
+        timelines: list[Timeline | str],
+        timeline_config: dict = None,
     ):
         """
         Run TimelineStitcher on a list of timelines to create a single timeline
@@ -49,15 +51,12 @@ class TimelineStitcher:
                 If inputs are strings, they will be treated as paths to output data
                 and will be loaded as Timeline objects using
                 LoadOutput.load_to_timeline().
-            retain_lifetime_on_split (bool, optional):
-                When re-running feature matching, determines whetehr the lifetime
-                of feature that split from parent features should be retained.
-                For consistency, this should be set to the same value as the runs
-                that were used to create the input Timelines.
-                Defaults to True.
+            timeline_config (dict, optional):
+                One of the config files used to create the input Timeline objects.
+                This is used to ensure that the same configuration settings
+                are used when matching features between Frames in different timelines.
+                If not provided, default settings will be used.
 
-        Raises:
-            TypeError: _description_
         """
         # Check input types
         if all(isinstance(t, str) for t in timelines):
@@ -74,15 +73,30 @@ class TimelineStitcher:
         if not all(isinstance(t, Timeline) for t in timelines):
             raise TypeError("All input timelines must be of type Timeline")
 
-        self.retain_lifetime_on_split = retain_lifetime_on_split
+        # Initialise the FlowSolver and FrameTracker with the provided config
+        if timeline_config is not None:
+            self.flow_solver = FlowSolver(**timeline_config["FLOW_SOLVER"])
+            self.frame_tracker = FrameTracker(**timeline_config["TRACKING"])
+
+            # Intitialise the retain_lifetime_on_split flag, which is used when
+            # identifying features to propagate id information in
+            # self.align_timeline_using_earliest_frame()
+            # Default to True, as this is the default behaviour in FrameTracker
+            self.retain_lifetime_on_split = timeline_config.get("TRACKING", {}).get(
+                "retain_lifetime_on_split", True
+            )
+        else:
+            self.flow_solver = FlowSolver()
+            self.frame_tracker = FrameTracker()
+            self.retain_lifetime_on_split = True
+            print(
+                "WARNING: No timeline_config provided. To ensure stitching is applied "
+                "in a consistent way to the production of input Timelines, "
+                "consider providing this argument."
+            )
 
         # Sort by their start frame time
         self.timeline_batches = sorted(timelines, key=lambda t: t.start_time())
-
-        # Setup the FlowSolver for matching between boundary frames
-        # (Use default settings for now, but may want to expose these as
-        # parameters in the future)
-        self.flow_solver = FlowSolver()
 
     def run(self) -> Timeline:
         """
@@ -116,7 +130,7 @@ class TimelineStitcher:
                 )
 
             # Step 1) Align features between the two frames
-            self.align_frames_between_timelines(older_frame, newer_frame)
+            self.align_frames_at_timeline_seams(older_frame, newer_frame)
 
             # Step 2) Search through remaaining frames in the newer timeline
             # to update tracked feature ids, and make new feature ids unique
@@ -126,8 +140,11 @@ class TimelineStitcher:
 
             # Step 3) Update the feature_field and lifetime_field in all frames of the
             # newer timeline to reflect the updated feature data
+            # Finally, promote all provisional IDs to final IDs and
+            # update feature_field and lifetime_field in all frames of the timeline
             for frame in t2.get_timeline().values():
-                frame.update_fields_using_feature_data(use_provisional_ids=False)
+                frame.update_fields_using_provisional_ids()
+                frame.promote_provisional_ids()
 
         # Now, construct new Timeline object with all frames from all timelines
         stitched_frames = {}
@@ -141,7 +158,7 @@ class TimelineStitcher:
 
         return new_timeline
 
-    def align_frames_between_timelines(
+    def align_frames_at_timeline_seams(
         self, older_frame: Frame, newer_frame: Frame
     ) -> None:
         """
@@ -158,8 +175,7 @@ class TimelineStitcher:
         """
 
         # First, estimate flow between the two frames, to help with matching features
-        y_flow, x_flow = FlowSolver().analyse_flow(older_frame, newer_frame)
-        # y_flow, x_flow = self.flow_solver.analyse_flow(older_frame, newer_frame)
+        y_flow, x_flow = self.flow_solver.analyse_flow(older_frame, newer_frame)
 
         # Update the current Frame with these displacements
         if y_flow is not None or x_flow is not None:
@@ -173,9 +189,8 @@ class TimelineStitcher:
 
         # Match features between frames
         # Using the dry_run flag means provisional IDs won't be promoted to final IDs,
-        # meaning we can use these for matching features later on
-        frame_tracker = FrameTracker()
-        frame_tracker.run(older_frame, newer_frame, dry_run=True)
+        # meaning we can use these for propagating matching info throughout the timeline
+        self.frame_tracker.run(older_frame, newer_frame, dry_run=True)
 
         # Now, in the new frame, any matched features will have their IDs updated
         # to match the older frame
@@ -227,15 +242,25 @@ class TimelineStitcher:
 
             for feature in list(frame.features.values()):
                 # Check whether the feature is new by inspecting lifetime
-                if feature.lifetime == 1 or (
-                    self.retain_lifetime_on_split and feature.parent is not None
-                ):
+                if feature.lifetime == 1:
                     # This is a new feature, assign it a new provisional ID that does
                     # not conflict with the previous frame
                     updated_id = frame.get_next_available_feature_id()
                     # Add this updated ID to the feature_map for future reference
                     feature_map[feature.id] = updated_id
                     feature.provisional_id = updated_id
+
+                # Check if this feature has split from a parent and needs to
+                # retain the lifetime of its parent
+                elif self.retain_lifetime_on_split and feature.parent is not None:
+                    # We also need to update the id of this feature, in the same
+                    # way as the above condition
+                    updated_id = frame.get_next_available_feature_id()
+                    feature_map[feature.id] = updated_id
+                    feature.provisional_id = updated_id
+
+                    # Inherit the parent lifetime
+                    feature.lifetime = frame.get_feature(feature.parent).lifetime
 
                 # This feature was present in the earliest frame
                 elif feature.id in feature_map:
@@ -263,10 +288,6 @@ class TimelineStitcher:
         # Skip the first frame, as it is already aligned
         for frame in all_frames[1:]:
             self._update_feature_properties_using_feature_map(frame, feature_map)
-
-        # Finally, promote all provisional IDs to final IDs
-        for frame in all_frames:
-            frame.promote_provisional_ids()
 
     def _update_feature_properties_using_feature_map(
         self, frame: Frame, feature_map: dict

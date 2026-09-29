@@ -124,15 +124,20 @@ def mwe_timeline_stitched() -> Timeline:
     base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
     mwe_dict1 = {
         base_time + dt.timedelta(minutes=5 * int(mwe_idx)): mwe_data
-        for mwe_idx, mwe_data in enumerate(mwe_fields[:3])
+        for mwe_idx, mwe_data in enumerate(mwe_fields[:2])
     }
 
     mwe_dict2 = {
-        base_time + dt.timedelta(minutes=5 * int(mwe_idx + 3)): mwe_data
-        for mwe_idx, mwe_data in enumerate(mwe_fields[3:6])
+        base_time + dt.timedelta(minutes=5 * int(mwe_idx + 2)): mwe_data
+        for mwe_idx, mwe_data in enumerate(mwe_fields[2:4])
     }
 
     mwe_dict3 = {
+        base_time + dt.timedelta(minutes=5 * int(mwe_idx + 4)): mwe_data
+        for mwe_idx, mwe_data in enumerate(mwe_fields[4:6])
+    }
+
+    mwe_dict4 = {
         base_time + dt.timedelta(minutes=5 * int(mwe_idx + 6)): mwe_data
         for mwe_idx, mwe_data in enumerate(mwe_fields[6:])
     }
@@ -140,6 +145,9 @@ def mwe_timeline_stitched() -> Timeline:
     timeline1 = Tracker(mwe_config).run(mwe_dict1)
     timeline2 = Tracker(mwe_config).run(mwe_dict2)
     timeline3 = Tracker(mwe_config).run(mwe_dict3)
+    timeline4 = Tracker(mwe_config).run(mwe_dict4)
 
-    stitched_timeline = TimelineStitcher([timeline1, timeline2, timeline3]).run()
+    stitched_timeline = TimelineStitcher(
+        [timeline1, timeline2, timeline3, timeline4], mwe_config
+    ).run()
     return stitched_timeline

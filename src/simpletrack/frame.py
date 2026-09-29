@@ -308,19 +308,14 @@ class Frame:
 
         self._features = new_features_dict
 
-    def update_fields_using_feature_data(
-        self, use_provisional_ids: bool = True
-    ) -> None:
+    def update_fields_using_provisional_ids(self) -> None:
         """
         Update feature_field and lifetime_field using current Feature data.
         This is useful if there have been changes to the Feature data
         (e.g., Features have been matched between frames)
 
-        Args:
-            use_provisional_ids (bool, optional):
-                Whether to use provisional ids for
-                updating the feature_field. If False, will use Feature.id instead
-                Defaults to True.
+        Method creates a feature mask for each Feature based on its current ID and
+        then updates the field to be the provisional ID
         """
         if self._feature_field is None:
             print(
@@ -345,7 +340,7 @@ class Frame:
         for feature in self._features.values():
             feature_mask = self._feature_field == feature.id
             updated_lifetime_field[feature_mask] = feature.lifetime
-            if use_provisional_ids and feature.provisional_id is not None:
+            if feature.provisional_id is not None:
                 updated_feature_field[feature_mask] = feature.provisional_id
             else:
                 updated_feature_field[feature_mask] = feature.id

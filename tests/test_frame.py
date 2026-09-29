@@ -339,7 +339,7 @@ def test_promote_provisional_ids():
     assert test_frame.features == expected_features_dict
 
 
-def test_update_fields_using_feature_data_with_valid_settings():
+def test_update_fields_using_provisional_ids_with_valid_settings():
     test_frame = Frame()
     test_feature_field = np.zeros((10, 10))
     test_feature_field[2:4, 2:4] = 1
@@ -359,7 +359,7 @@ def test_update_fields_using_feature_data_with_valid_settings():
     feature2.lifetime = 3
 
     # Update the feature field using the provisional ids
-    test_frame.update_fields_using_feature_data()
+    test_frame.update_fields_using_provisional_ids()
 
     expected_feature_field = np.zeros((10, 10))
     expected_feature_field[2:4, 2:4] = 10
@@ -373,7 +373,7 @@ def test_update_fields_using_feature_data_with_valid_settings():
     np.testing.assert_array_equal(test_frame.lifetime_field, expected_lifetime_field)
 
 
-def test_update_fields_using_feature_data_with_no_provisional_ids_set():
+def test_update_fields_using_provisional_ids_with_no_provisional_ids_set():
     test_frame = Frame()
     test_feature_field = np.zeros((10, 10))
     test_feature_field[2:4, 2:4] = 1
@@ -383,29 +383,29 @@ def test_update_fields_using_feature_data_with_no_provisional_ids_set():
     test_frame.populate_features()
 
     # Update the feature field without setting any provisional ids
-    test_frame.update_fields_using_feature_data()
+    test_frame.update_fields_using_provisional_ids()
 
     # The feature field should remain unchanged
     np.testing.assert_array_equal(test_frame.feature_field, test_feature_field)
 
 
-def test_update_fields_using_feature_data_with_no_feature_field():
+def test_update_fields_using_provisional_ids_with_no_feature_field():
     test_frame = Frame()
     test_frame.populate_features()  # No feature field set, so no features populated
 
     # Update the feature field without setting any provisional ids
     # Just prints a warning and returns without error
-    test_frame.update_fields_using_feature_data()
+    test_frame.update_fields_using_provisional_ids()
 
 
-def test_update_fields_using_feature_data_with_no_features():
+def test_update_fields_using_provisional_ids_with_no_features():
     test_frame = Frame()
     test_feature_field = np.zeros((10, 10))
     test_frame.feature_field = test_feature_field
     test_frame.populate_features()  # No features populated as feature field is all zeros
 
     # Update the feature field without any features. Just prints a warning
-    test_frame.update_fields_using_feature_data()
+    test_frame.update_fields_using_provisional_ids()
 
 
 def test_get_new_features():

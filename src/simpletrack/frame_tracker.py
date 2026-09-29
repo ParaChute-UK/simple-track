@@ -124,7 +124,7 @@ class FrameTracker:
         if not dry_run:
             # Step 5: Now that there is self consistent data in current frame, use this
             # to produce updated fields
-            current_frame.update_fields_using_feature_data(use_provisional_ids=True)
+            current_frame.update_fields_using_provisional_ids()
 
             # Step 6: Promote provisional ids to final ids in current frame
             current_frame.promote_provisional_ids()
@@ -198,6 +198,8 @@ class FrameTracker:
                 Frame containing advected Features from previous timestep
             current_frame (Frame):
                 Frame containing Features at current timestep
+            prev_frame (Frame):
+                Frame containing Features at previous timestep
         """
         # Get the feature fields to analyse
         advected_feature_field = advected_frame.feature_field
