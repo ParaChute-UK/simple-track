@@ -5,7 +5,11 @@ from collections.abc import Iterable
 import numpy as np
 import scipy.ndimage as ndimage
 from numpy.typing import NDArray
-from scipy.interpolate import LinearNDInterpolator, RectBivariateSpline
+from scipy.interpolate import (
+    LinearNDInterpolator,
+    NearestNDInterpolator,
+    RectBivariateSpline,
+)
 from scipy.signal.windows import tukey
 from skimage.registration import phase_cross_correlation
 
@@ -642,20 +646,44 @@ class FlowSolver:
     def _fill_nans(self, arr: NDArray) -> NDArray:
         """
         Replace NaNs in the input field with values interpolated from neighbouring
-        grid points, or 0 if this is not possible.
+        grid points. Linear interpolation is used where the valid points span a 2D
+        area. If they don't (fewer than 3 points, or all on one line), nearest-
+        neighbour interpolation is used instead. If there are no valid points, the
+        field is filled with 0.
 
         Args:
             arr (NDArray): Input array, potentially containing NaNs
         Returns:
-            NDArray: Ouput array with NaNs filled
+            NDArray: Output array with NaNs filled
         """
-        # Create NaN mask
         valid_mask = ~np.isnan(arr)
-        coords = np.nonzero(valid_mask)
+
+        # Nothing to fill
+        if valid_mask.all():
+            return arr
+
+        # Nothing to interpolate from
+        if not valid_mask.any():
+            return np.zeros_like(arr)
+
+        # (N, 2) array of (row, col) indices of valid points
+        coords = np.argwhere(valid_mask)
         non_nan_values = arr[valid_mask]
-        it = LinearNDInterpolator(coords, non_nan_values, fill_value=0)
-        filled = it(list(np.ndindex(arr.shape))).reshape(arr.shape)
-        return filled
+        target_coords = np.argwhere(np.ones_like(arr, dtype=bool))
+
+        # Delaunay triangulation needs at least 3 points that don't all lie on one
+        # line. If the centered coords have rank < 2, the points are collinear.
+        # This covers a single row, a single column or a diagonal.
+        is_degenerate = (
+            len(coords) < 3 or np.linalg.matrix_rank(coords - coords.mean(axis=0)) < 2
+        )
+
+        if is_degenerate:
+            it = NearestNDInterpolator(coords, non_nan_values)
+        else:
+            it = LinearNDInterpolator(coords, non_nan_values, fill_value=0)
+
+        return it(target_coords).reshape(arr.shape)
 
 
 def pairwise_with_stride(input_iter: Iterable, stride: int) -> Iterable:
