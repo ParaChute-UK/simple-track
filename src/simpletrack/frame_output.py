@@ -202,9 +202,11 @@ class LoadOutput:
         # Populate features in each Frame and assign max id
         for frame_time, frame in timeline.get_timeline().items():
             frame.populate_features()
-            frame.max_id = (
-                np.max(frame.feature_field) if frame.feature_field is not None else 0
-            )
+            if frame.feature_field is not None:
+                max_id = np.max(frame.feature_field)
+                # Can't have zero max id
+                if max_id > 0:
+                    frame.max_id = max_id
             frame.time = frame_time
 
         # Finally, fill these Features with data loaded from outputs
