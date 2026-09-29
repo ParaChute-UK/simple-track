@@ -1,12 +1,20 @@
 import datetime as dt
 
 import numpy as np
+import pytest
 
 from simpletrack.feature import Feature
 from simpletrack.track import Tracker
 
 
-def test_first_mwe_outputs(mwe_timeline):
+@pytest.mark.parametrize(
+    "timeline_fixture_name",
+    [
+        ("mwe_timeline"),
+        ("mwe_timeline_stitched"),
+    ],
+)
+def test_first_mwe_outputs(timeline_fixture_name, request):
     """
     Test that a single feature exists in the first frame
     with no parent, children, and lifetime of 1, with expected
@@ -15,6 +23,7 @@ def test_first_mwe_outputs(mwe_timeline):
     Also test that there is no flow in the first frame,
     and that the feature is correctly identified as a new feature
     """
+    mwe_timeline = request.getfixturevalue(timeline_fixture_name)
     base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
     frame = mwe_timeline.get_frame(base_time)
 
@@ -36,7 +45,14 @@ def test_first_mwe_outputs(mwe_timeline):
     assert frame.get_flow() == (None, None)
 
 
-def test_second_mwe_outputs(mwe_timeline):
+@pytest.mark.parametrize(
+    "timeline_fixture_name",
+    [
+        ("mwe_timeline"),
+        ("mwe_timeline_stitched"),
+    ],
+)
+def test_second_mwe_outputs(timeline_fixture_name, request):
     """
     Test that there is still a single feature with the same id
     as the feature in the first frame and with an incremented lifetime
@@ -47,6 +63,7 @@ def test_second_mwe_outputs(mwe_timeline):
     has been updated as expected
 
     """
+    mwe_timeline = request.getfixturevalue(timeline_fixture_name)
     base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
     mwe_idx = 1
     frame_time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
@@ -75,7 +92,14 @@ def test_second_mwe_outputs(mwe_timeline):
     assert np.isclose(max_yflow, 5, atol=1)
 
 
-def test_third_mwe_outputs(mwe_timeline):
+@pytest.mark.parametrize(
+    "timeline_fixture_name",
+    [
+        ("mwe_timeline"),
+        ("mwe_timeline_stitched"),
+    ],
+)
+def test_third_mwe_outputs(timeline_fixture_name, request):
     """
     Test that there are now two features, with the first having the same
     id as the feature in the second frame and an incremented lifetime, and
@@ -83,6 +107,7 @@ def test_third_mwe_outputs(mwe_timeline):
     this new feature is not a child of the first feature, and this it is
     correctly identified as a new feature
     """
+    mwe_timeline = request.getfixturevalue(timeline_fixture_name)
     base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
     mwe_idx = 2
     frame_time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
@@ -121,13 +146,21 @@ def test_third_mwe_outputs(mwe_timeline):
     assert np.isclose(max_yflow, 5, atol=1)
 
 
-def test_fourth_mwe_outputs(mwe_timeline):
+@pytest.mark.parametrize(
+    "timeline_fixture_name",
+    [
+        ("mwe_timeline"),
+        ("mwe_timeline_stitched"),
+    ],
+)
+def test_fourth_mwe_outputs(timeline_fixture_name, request):
     """
     Test that the first feature is no longer present, and that the second
     feature has the same id as in the previous frame, and with an incremented
     lifetime.
 
     """
+    mwe_timeline = request.getfixturevalue(timeline_fixture_name)
     base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
     mwe_idx = 3
     frame_time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
@@ -154,10 +187,18 @@ def test_fourth_mwe_outputs(mwe_timeline):
     # using an optical flow solver
 
 
-def test_fifth_mwe_outputs(mwe_timeline):
+@pytest.mark.parametrize(
+    "timeline_fixture_name",
+    [
+        ("mwe_timeline"),
+        ("mwe_timeline_stitched"),
+    ],
+)
+def test_fifth_mwe_outputs(timeline_fixture_name, request):
     """
     Test that the second feature advects as expected
     """
+    mwe_timeline = request.getfixturevalue(timeline_fixture_name)
     base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
     mwe_idx = 4
     frame_time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
@@ -186,13 +227,21 @@ def test_fifth_mwe_outputs(mwe_timeline):
     assert np.isclose(max_yflow, 5, atol=1)
 
 
-def test_sixth_mwe_outputs(mwe_timeline):
+@pytest.mark.parametrize(
+    "timeline_fixture_name",
+    [
+        ("mwe_timeline"),
+        ("mwe_timeline_stitched"),
+    ],
+)
+def test_sixth_mwe_outputs(timeline_fixture_name, request):
     """
     Test that the feature has split into two, with one feature retaining the
     previous id and an incremented lifetime, and the other feature having a new id
     and a retained lifetime of 4. Also test that the new feature is correctly identified as
     a child, and the old feature is a parent.
     """
+    mwe_timeline = request.getfixturevalue(timeline_fixture_name)
     base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
     mwe_idx = 5
     frame_time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
@@ -226,13 +275,21 @@ def test_sixth_mwe_outputs(mwe_timeline):
     assert feature.get_size() == 200
 
 
-def test_seventh_mwe_outputs(mwe_timeline):
+@pytest.mark.parametrize(
+    "timeline_fixture_name",
+    [
+        ("mwe_timeline"),
+        ("mwe_timeline_stitched"),
+    ],
+)
+def test_seventh_mwe_outputs(timeline_fixture_name, request):
     """
     Test that the two features have merged back into one, with the same id
     being retained from the older timestep and with an incremented lifetime.
     Also test that the merged feature has correctly identified the split feature
     as being accreted by the resulting feature.
     """
+    mwe_timeline = request.getfixturevalue(timeline_fixture_name)
     base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
     mwe_idx = 6
     frame_time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))
@@ -257,10 +314,18 @@ def test_seventh_mwe_outputs(mwe_timeline):
     assert np.all(frame.get_flow()) is not None
 
 
-def test_ninth_mwe_outputs(mwe_timeline):
+@pytest.mark.parametrize(
+    "timeline_fixture_name",
+    [
+        ("mwe_timeline"),
+        ("mwe_timeline_stitched"),
+    ],
+)
+def test_ninth_mwe_outputs(timeline_fixture_name, request):
     """
     Test that there are no features in the ninth timestep
     """
+    mwe_timeline = request.getfixturevalue(timeline_fixture_name)
     base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
     mwe_idx = 8
     frame_time = base_time + dt.timedelta(minutes=5 * int(mwe_idx))

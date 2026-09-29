@@ -3,6 +3,7 @@ import itertools
 from simpletrack.exceptions import SimpleTrackException
 from simpletrack.flow_solver import FlowSolver
 from simpletrack.frame import Frame, Timeline
+from simpletrack.frame_output import LoadOutput
 from simpletrack.frame_tracker import FrameTracker
 
 
@@ -34,14 +35,20 @@ class TimelineStitcher:
     3) Update all feature_field and lifetime_field with these properties
     """
 
-    def __init__(self, timelines, retain_lifetime_on_split: bool = True):
+    def __init__(
+        self, timelines: list[Timeline | str], retain_lifetime_on_split: bool = True
+    ):
         """
         Run TimelineStitcher on a list of timelines to create a single timeline
         with consistent feature IDs and fields across all frames.
 
         Args:
-            timelines (list(Timeline)):
+            timelines (list(Timeline or str)):
                 List of Timeline objects to be stitched together
+                If inputs are Timelines, they will be used directly.
+                If inputs are strings, they will be treated as paths to output data
+                and will be loaded as Timeline objects using
+                LoadOutput.load_to_timeline().
             retain_lifetime_on_split (bool, optional):
                 When re-running feature matching, determines whetehr the lifetime
                 of feature that split from parent features should be retained.
@@ -53,6 +60,17 @@ class TimelineStitcher:
             TypeError: _description_
         """
         # Check input types
+        if all(isinstance(t, str) for t in timelines):
+            # If all inputs are strings, load them as Timeline objects
+            loaded_timelines = []
+            for t in timelines:
+                try:
+                    loaded_timeline = LoadOutput(t).load_to_timeline()
+                    loaded_timelines.append(loaded_timeline)
+                except Exception as e:
+                    raise ValueError(f"Failed to load timeline from path {t}") from e
+            timelines = loaded_timelines
+
         if not all(isinstance(t, Timeline) for t in timelines):
             raise TypeError("All input timelines must be of type Timeline")
 
@@ -240,6 +258,63 @@ class TimelineStitcher:
                     )
                     raise SimpleTrackException(msg)
 
+        # We now need to loop through all Feature properties in all frames that use
+        # Feature ID and update them using the feature map
+        # Skip the first frame, as it is already aligned
+        for frame in all_frames[1:]:
+            self._update_feature_properties_using_feature_map(frame, feature_map)
+
         # Finally, promote all provisional IDs to final IDs
         for frame in all_frames:
             frame.promote_provisional_ids()
+
+    def _update_feature_properties_using_feature_map(
+        self, frame: Frame, feature_map: dict
+    ) -> None:
+        """
+        Update the properties of features in a frame using a feature map that
+        maps old IDs to new IDs. This includes updating the parent, accreted,
+        children, and accreted_in_next_frame_by properties of each feature.
+
+        Args:
+            frame (Frame): The frame whose features will be updated.
+            feature_map (dict): A dictionary mapping old feature IDs to new feature IDs.
+        """
+        for feature in list(frame.features.values()):
+            # Update parent ID if it exists
+            if feature.parent is not None:
+                feature.parent = feature_map[feature.parent]
+
+            # Update accreted IDs if they exist
+            if feature.accreted is not None:
+                updated_accreted_list = []
+                for accreted_id in feature.accreted:
+                    if accreted_id in feature_map:
+                        updated_accreted_list.append(feature_map[accreted_id])
+                    else:
+                        print(feature_map)
+                        raise SimpleTrackException(
+                            f"Accreted feature ID {accreted_id} in frame {frame.time} "
+                            "does not have a corresponding entry in the feature_map."
+                        )
+                feature.accrete_ids(updated_accreted_list, replace=True)
+
+            # Update children IDs if they exist
+            if feature.children is not None:
+                updated_children = []
+                for child_id in feature.children:
+                    if child_id in feature_map:
+                        updated_children.append(feature_map[child_id])
+                    else:
+                        print(feature_map)
+                        raise SimpleTrackException(
+                            f"Child feature ID {child_id} in frame {frame.time} "
+                            "does not have a corresponding entry in the feature_map."
+                        )
+                feature.spawns(updated_children, replace=True)
+
+            # Update accreted_in_next_frame_by ID if it exists
+            if feature.accreted_in_next_frame_by is not None:
+                feature.accreted_in_next_frame_by = feature_map[
+                    feature.accreted_in_next_frame_by
+                ]

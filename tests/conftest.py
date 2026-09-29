@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from simpletrack.frame import Timeline
+from simpletrack.timeline_stitcher import TimelineStitcher
 from simpletrack.track import Tracker
 
 
@@ -101,3 +102,44 @@ def mwe_timeline() -> Timeline:
 
     timeline = Tracker(mwe_config).run(mwe_dict)
     return timeline
+
+
+@pytest.fixture(scope="session")
+def mwe_timeline_stitched() -> Timeline:
+    mwe_fields = generate_mwe_files()
+
+    mwe_config = {
+        "FEATURE": {
+            "threshold": 0.5,
+            "under_threshold": False,
+        },
+        "FLOW_SOLVER": {
+            "overlap_threshold": 0.3,
+            "subdomain_size": 20,
+        },
+        "TRACKING": {"overlap_nbhood": 5, "overlap_threshold": 0.3},
+    }
+
+    # Construct dict for passing to SimpleTrack
+    base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
+    mwe_dict1 = {
+        base_time + dt.timedelta(minutes=5 * int(mwe_idx)): mwe_data
+        for mwe_idx, mwe_data in enumerate(mwe_fields[:3])
+    }
+
+    mwe_dict2 = {
+        base_time + dt.timedelta(minutes=5 * int(mwe_idx + 3)): mwe_data
+        for mwe_idx, mwe_data in enumerate(mwe_fields[3:6])
+    }
+
+    mwe_dict3 = {
+        base_time + dt.timedelta(minutes=5 * int(mwe_idx + 6)): mwe_data
+        for mwe_idx, mwe_data in enumerate(mwe_fields[6:])
+    }
+
+    timeline1 = Tracker(mwe_config).run(mwe_dict1)
+    timeline2 = Tracker(mwe_config).run(mwe_dict2)
+    timeline3 = Tracker(mwe_config).run(mwe_dict3)
+
+    stitched_timeline = TimelineStitcher([timeline1, timeline2, timeline3]).run()
+    return stitched_timeline
