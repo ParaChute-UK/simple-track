@@ -50,6 +50,7 @@ class FrameTracker:
         prev_frame: Frame,
         current_frame: Frame,
         dry_run: bool = False,
+        increment_lifetime: bool = True,
     ) -> None:
         """
         Runs through the full Frame tracking procedure between two inputs.
@@ -94,6 +95,11 @@ class FrameTracker:
                 any of the actual id of the feature (the provisional ids will,
                 however, be updated). This is useful for testing and debugging.
                 Defaults to False.
+            increment_lifetime (bool, optional):
+                If True, will increment the lifetime of matched features in the
+                current frame. If False, will not increment the lifetime of matched
+                features in the current frame, will only inherit the ID instead.
+                Defaults to True.
         """
         if not all(isinstance(frame, Frame) for frame in [prev_frame, current_frame]):
             raise TypeError(
@@ -109,7 +115,7 @@ class FrameTracker:
         # Match features between the advected frame and the current frame by assigning a
         # new, proviosonal id to each Feature in the current Frame based on overlap
         self.match_advected_and_current_frame_features(
-            advected_frame, current_frame, prev_frame
+            advected_frame, current_frame, prev_frame, increment_lifetime
         )
 
         # Step 3: Check accreted ids for any accreted ids that are also present
@@ -178,7 +184,11 @@ class FrameTracker:
         return advected_frame
 
     def match_advected_and_current_frame_features(
-        self, advected_frame: Frame, current_frame: Frame, prev_frame: Frame
+        self,
+        advected_frame: Frame,
+        current_frame: Frame,
+        prev_frame: Frame,
+        increment_lifetime: bool = True,
     ) -> None:
         """
         For each Feature in the current Frame, attempt to match it to a Feature in
@@ -200,6 +210,10 @@ class FrameTracker:
                 Frame containing Features at current timestep
             prev_frame (Frame):
                 Frame containing Features at previous timestep
+            increment_lifetime (bool, optional):
+                If True, will increment the lifetime of matched features.
+                If False, will only inherit lifetime of matched features.
+                Defaults to True.
         """
         # Get the feature fields to analyse
         advected_feature_field = advected_frame.feature_field
@@ -242,7 +256,9 @@ class FrameTracker:
             else:
                 # Inherit lifetime from matching feature
                 matching_feature = advected_frame.get_feature(matching_id)
-                current_feature.lifetime = matching_feature.lifetime + 1
+                current_feature.lifetime = matching_feature.lifetime
+                if increment_lifetime:
+                    current_feature.lifetime += 1
 
             # Provisionally assign the matching_id to this feature
             current_feature.provisional_id = matching_id

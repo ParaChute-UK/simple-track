@@ -190,7 +190,25 @@ class TimelineStitcher:
         # Match features between frames
         # Using the dry_run flag means provisional IDs won't be promoted to final IDs,
         # meaning we can use these for propagating matching info throughout the timeline
-        self.frame_tracker.run(older_frame, newer_frame, dry_run=True)
+        # If both frames have the same time, we don't want to increment the lifetime
+        # of features in the newer frame, as they are not actually being tracked forwar
+        # in time
+        increment_lifetime = older_frame.time != newer_frame.time
+        self.frame_tracker.run(
+            older_frame,
+            newer_frame,
+            dry_run=True,
+            increment_lifetime=increment_lifetime,
+        )
+
+        # If the two frames are valid at the same time copy the flow field from the
+        # older frame to the newer frame,so that the flow field is consistent across
+        # the timeline seam. Currently, the flow in the newer frame will be 0
+        # everywhere, since it will have been compared to itself in the
+        # flow_solver code above
+        if newer_frame.time == older_frame.time:
+            y_flow, x_flow = older_frame.get_flow()
+            newer_frame.assign_displacements(y_flow, x_flow)
 
         # Now, in the new frame, any matched features will have their IDs updated
         # to match the older frame
