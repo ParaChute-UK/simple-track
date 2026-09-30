@@ -6,12 +6,19 @@ import pytest
 from simpletrack.feature import Feature
 from simpletrack.track import Tracker
 
+stitched_timelines = [
+    "mwe_timeline_stitched_iter1",
+    "mwe_timeline_stitched_iter2",
+    "mwe_timeline_stitched_iter3",
+    "mwe_timeline_stitched_iter4",
+]
+
 
 @pytest.mark.parametrize(
     "timeline_fixture_name",
     [
         ("mwe_timeline"),
-        ("mwe_timeline_stitched"),
+        *stitched_timelines,
     ],
 )
 def test_first_mwe_outputs(timeline_fixture_name, request):
@@ -49,7 +56,7 @@ def test_first_mwe_outputs(timeline_fixture_name, request):
     "timeline_fixture_name",
     [
         ("mwe_timeline"),
-        ("mwe_timeline_stitched"),
+        *stitched_timelines,
     ],
 )
 def test_second_mwe_outputs(timeline_fixture_name, request):
@@ -96,7 +103,7 @@ def test_second_mwe_outputs(timeline_fixture_name, request):
     "timeline_fixture_name",
     [
         ("mwe_timeline"),
-        ("mwe_timeline_stitched"),
+        *stitched_timelines,
     ],
 )
 def test_third_mwe_outputs(timeline_fixture_name, request):
@@ -150,7 +157,7 @@ def test_third_mwe_outputs(timeline_fixture_name, request):
     "timeline_fixture_name",
     [
         ("mwe_timeline"),
-        ("mwe_timeline_stitched"),
+        *stitched_timelines,
     ],
 )
 def test_fourth_mwe_outputs(timeline_fixture_name, request):
@@ -191,7 +198,7 @@ def test_fourth_mwe_outputs(timeline_fixture_name, request):
     "timeline_fixture_name",
     [
         ("mwe_timeline"),
-        ("mwe_timeline_stitched"),
+        *stitched_timelines,
     ],
 )
 def test_fifth_mwe_outputs(timeline_fixture_name, request):
@@ -231,7 +238,7 @@ def test_fifth_mwe_outputs(timeline_fixture_name, request):
     "timeline_fixture_name",
     [
         ("mwe_timeline"),
-        ("mwe_timeline_stitched"),
+        *stitched_timelines,
     ],
 )
 def test_sixth_mwe_outputs(timeline_fixture_name, request):
@@ -279,7 +286,7 @@ def test_sixth_mwe_outputs(timeline_fixture_name, request):
     "timeline_fixture_name",
     [
         ("mwe_timeline"),
-        ("mwe_timeline_stitched"),
+        *stitched_timelines,
     ],
 )
 def test_seventh_mwe_outputs(timeline_fixture_name, request):
@@ -299,13 +306,20 @@ def test_seventh_mwe_outputs(timeline_fixture_name, request):
     assert len(frame.features) == 1
 
     # test feature properties for feature 2
-    feature = frame.get_feature(2)
+    # Depending on the timeline stitcher, though, this may instead be feature 3
+    try:
+        feature = frame.get_feature(2)
+        assert feature.id == 2
+        assert feature.accreted == [3]
+    except:
+        feature = frame.get_feature(3)
+        assert feature.id == 3
+        assert feature.accreted == [2]
+
     assert isinstance(feature, Feature)
-    assert feature.id == 2
     assert feature.lifetime == 5
     assert feature.parent is None
     assert feature.children is None
-    assert feature.accreted == [3]
     assert feature.centroid == (42, 59.5)
     assert feature.get_size() == 500
 
@@ -318,7 +332,7 @@ def test_seventh_mwe_outputs(timeline_fixture_name, request):
     "timeline_fixture_name",
     [
         ("mwe_timeline"),
-        ("mwe_timeline_stitched"),
+        *stitched_timelines,
     ],
 )
 def test_ninth_mwe_outputs(timeline_fixture_name, request):
