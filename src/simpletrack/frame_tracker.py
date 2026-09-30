@@ -45,7 +45,13 @@ class FrameTracker:
         self.overlap_threshold = overlap_threshold
         self.retain_lifetime_on_split = retain_lifetime_on_split
 
-    def run(self, prev_frame: Frame, current_frame: Frame) -> None:
+    def run(
+        self,
+        prev_frame: Frame,
+        current_frame: Frame,
+        dry_run: bool = False,
+        increment_lifetime: bool = True,
+    ) -> None:
         """
         Runs through the full Frame tracking procedure between two inputs.
         Step 1: Artifically advect features in the previous frame using its flow field.
@@ -84,9 +90,16 @@ class FrameTracker:
                 between timesteps
             current_frame (Frame):
                 Frame containing Features at the current timestep
-
-        Raises:
-            TypeError: _description_
+            dry_run (bool, optional):
+                If True, will run through the full procedure but will not update
+                any of the actual id of the feature (the provisional ids will,
+                however, be updated). This is useful for testing and debugging.
+                Defaults to False.
+            increment_lifetime (bool, optional):
+                If True, will increment the lifetime of matched features in the
+                current frame. If False, will not increment the lifetime of matched
+                features in the current frame, will only inherit the ID instead.
+                Defaults to True.
         """
         if not all(isinstance(frame, Frame) for frame in [prev_frame, current_frame]):
             raise TypeError(
@@ -102,7 +115,7 @@ class FrameTracker:
         # Match features between the advected frame and the current frame by assigning a
         # new, proviosonal id to each Feature in the current Frame based on overlap
         self.match_advected_and_current_frame_features(
-            advected_frame, current_frame, prev_frame
+            advected_frame, current_frame, prev_frame, increment_lifetime
         )
 
         # Step 3: Check accreted ids for any accreted ids that are also present
@@ -114,12 +127,13 @@ class FrameTracker:
         # Frame that were matched to the same previous feature. Resolve these conflicts
         self.resolve_provisional_id_conflicts(advected_frame, current_frame)
 
-        # Step 5: Now that there is self consistent data in current frame, use this to
-        # produce updated fields
-        current_frame.update_fields_using_provisional_ids()
+        if not dry_run:
+            # Step 5: Now that there is self consistent data in current frame, use this
+            # to produce updated fields
+            current_frame.update_fields_using_provisional_ids()
 
-        # Step 6: Promote provisional ids to final ids in current frame
-        current_frame.promote_provisional_ids()
+            # Step 6: Promote provisional ids to final ids in current frame
+            current_frame.promote_provisional_ids()
 
         # Step 7: For tracing Features in the previous Frame that aren't matched with a
         # Feature in the current Frame. This is useful for output statistics
@@ -170,7 +184,11 @@ class FrameTracker:
         return advected_frame
 
     def match_advected_and_current_frame_features(
-        self, advected_frame: Frame, current_frame: Frame, prev_frame: Frame
+        self,
+        advected_frame: Frame,
+        current_frame: Frame,
+        prev_frame: Frame,
+        increment_lifetime: bool = True,
     ) -> None:
         """
         For each Feature in the current Frame, attempt to match it to a Feature in
@@ -190,6 +208,12 @@ class FrameTracker:
                 Frame containing advected Features from previous timestep
             current_frame (Frame):
                 Frame containing Features at current timestep
+            prev_frame (Frame):
+                Frame containing Features at previous timestep
+            increment_lifetime (bool, optional):
+                If True, will increment the lifetime of matched features.
+                If False, will only inherit lifetime of matched features.
+                Defaults to True.
         """
         # Get the feature fields to analyse
         advected_feature_field = advected_frame.feature_field
@@ -232,7 +256,9 @@ class FrameTracker:
             else:
                 # Inherit lifetime from matching feature
                 matching_feature = advected_frame.get_feature(matching_id)
-                current_feature.lifetime = matching_feature.lifetime + 1
+                current_feature.lifetime = matching_feature.lifetime
+                if increment_lifetime:
+                    current_feature.lifetime += 1
 
             # Provisionally assign the matching_id to this feature
             current_feature.provisional_id = matching_id
@@ -300,7 +326,8 @@ class FrameTracker:
                 # This feature has undergone a split-merge event
                 # Get the parent feature that this feature split from
                 # (in this stage of the code, the parent id is the accreted id,
-                # since the provisional id has not yet been assigned to the main id property)
+                # since the provisional id has not yet been assigned to the
+                # main id property)
                 parent_feature = current_frame.get_feature(
                     accreted_id, provisional=True
                 )

@@ -57,11 +57,11 @@ Simple-Track can be run in two ways:
     my_config = {
         INPUT: {
             path: "/path_to_folder_containing_data/*.data",
-            loader: "/path_to_file_containing_function|function_name" # See next section
+            loader: "/path_to_file_containing_function|function_name",  # See next section
         },
         FEATURE: {
-            threshold: 1, # Threshold used for defining a feature
-        }
+            threshold: 1,  # Threshold used for defining a feature
+        },
     }
 
     timeline = Tracker(my_config).run()
@@ -93,7 +93,7 @@ There are three methods of providing these data pairs to Simple-Track:
 
     ```python
     def user_definable_load(self, filename):
-        import iris # Import any required libraries here
+        import iris  # Import any required libraries here
 
         # Get 2D data from input file as a numpy array
         cube = iris.load_cube(filename, "precipitation_flux")
@@ -105,8 +105,8 @@ There are three methods of providing these data pairs to Simple-Track:
         tcoord = cube.coord("time")
         time = tcoord.units.num2pydate(tcoord.points)[0]
 
-        # Method must return a tuple of 
-        # (datetime.datetime, numpy.NDArray), where the 
+        # Method must return a tuple of
+        # (datetime.datetime, numpy.NDArray), where the
         # first element is the time the data is valid for
         # and second element is the 2D array of data to be tracked
         return time, data
@@ -252,3 +252,52 @@ The `LoadOutput().load_to_timeline()` method will search the directory for all S
 **NOTE**: To ensure that a `Timeline` loaded using this method is functionally identical to a `Timeline` returned by a call to `Tracker.run()`, it is important to leave the `["OUTPUT"]["output_raw_data"]` as its default value of `True`. Doing so will tell Simple-Track to save a copy of the input data to the output directory, meaning it can then be read back in using just the path to this directory (which is the only input to `LoadOutput`). 
 
 However, it may not always be desirable to save copies of this data, especially if tracking is being run on an extended period or each data instance is large. Setting `["OUTPUT"]["output_raw_data"]` to `False` will therefore skip this step, and will mean that `LoadOutput` does not load anything into the raw_field for each Frame. This is usually not too restrictive, and most of the existing functionality of these objects can still be used as expected. However, to re-gain full functionality, the input data will need to be loaded into the `raw_field` property of each respective `Frame`.  
+
+## Loading Multiple Outputs into a Single Timeline
+Simple-Track also supports stitching together multiple outputs into a single `Timeline`. This can be useful if you have parallelised your tracking over multiple batches (perhaps to save on memory or run time constraints), but still need to analyse a full timeline as if tracking had been run sequentially. 
+
+The main problem with running tracking in parallel is that batches run on later periods of data will not have knowledge of earlier periods, and therefore will have inconsistent/conflicting IDs and lifetimes. 
+
+The `TimelineStitcher` object takes a list of `Timeline` objects (or a list of `str` paths to output data), aligns the data in each frame to make data consistent, and returns a single `Timeline` with the same data as if tracking had been run in sequence.
+
+Batches can either include overlapping frames at the seams of each Timeline, or can include a gap. E.g., If an example Timeline contains times `[t1, t2, t3, t4, t5, t6]`, TimelineStitcher can recover a full timeline if batches are structured either as `[t1, t2, t3], [t3, t4, t5, t6]` or `[t1, t2, t3], [t4, t5, t6]`. Any variation of this is also supported, with any number of batches or timelines per batch. 
+
+The `TimelineStitcher` performs three steps:
+1. Runs `FrameTracker` on the Frames at the seams of two timelines. This step matches features across the boundary, and updates the IDs of new features so that they do not conflict with earlier IDs
+2. For a given batch of Frames, the code then propagates the updated ID and lifetime information from the first Frame through the rest of the Timeline batch. 
+3. Update `feature_field` and `lifetime_field` in all frames with the updated information.
+
+See `timeline_stitcher.py` for more details of this process.
+
+### Usage
+**NOTE** While not required for running `TimelineStitcher`, it is recommended that you provide one of the config files used to create these batches to the init. This helps to ensure tracking between frames of different batches is done consistently with the rest of the data. If a config is not provided, inter-batch tracking will use default values which may be different from the rest of the data. 
+
+Timeline stitching can be done using `Timeline` objects themselves...
+```python
+from simpletrack.timeline_stitcher import TimelineStitcher
+
+# Stitching Timeline objects
+timeline1 = LoadOutput("path_to_data1").load_to_timeline()
+timeline2 = LoadOutput("path_to_data2").load_to_timeline()
+timeline3 = LoadOutput("path_to_data2").load_to_timeline()
+all_timelines = [timeline1, timeline2, timeline3]
+timeline_config = {
+    ...
+}  # this ensures consistency when matching features across batches
+full_timeline = TimelineStitcher(all_timelines, timeline_config).run()
+```
+
+... or using just the `str` paths to the output data locations
+```python
+from simpletrack.timeline_stitcher import TimelineStitcher
+
+# Stitching str to output data
+timeline1_path = "./path_to_data1"
+timeline2_path = "./path_to_data2"
+timeline3_path = "./path_to_data3"
+all_timelines = [timeline1_path, timeline2_path, timeline3_path]
+timeline_config = {
+    ...
+}  # this ensures consistency when matching features across batches
+full_timeline = TimelineStitcher(all_timelines, timeline_config).run()
+```

@@ -10,8 +10,8 @@ OUTPUT:
   save_data: false
   skip_tracking: false # Whether to skip tracking and just output feature properties
 
-TIMELINE:
-  max_frames: 5 ## Maximum number of frames to keep in memory
+# TIMELINE:
+#   max_frames: 5 ## Maximum number of frames to keep in memory
 
 FEATURE:
   threshold: 3 ## Threshold used to identify objects (with value of variable greater than this threshold)
