@@ -51,6 +51,18 @@ def test_first_mwe_outputs(timeline_fixture_name, request):
     assert feature.dydx == ()
     assert frame.get_flow() == (None, None)
 
+    # test fields
+    feature_mask = np.zeros((100, 100), dtype=bool)
+    feature_mask[10:30, 10:30] = True
+
+    expected_feature_field = np.zeros((100, 100))
+    expected_lifetime_field = np.zeros((100, 100))
+    expected_feature_field[feature_mask] = 1
+    expected_lifetime_field[feature_mask] = 1
+
+    np.testing.assert_array_equal(frame.feature_field, expected_feature_field)
+    np.testing.assert_array_equal(frame.lifetime_field, expected_lifetime_field)
+
 
 @pytest.mark.parametrize(
     "timeline_fixture_name",
@@ -97,6 +109,18 @@ def test_second_mwe_outputs(timeline_fixture_name, request):
     # that the maximum is within a reasonable (large) range
     max_yflow = np.max(frame.get_flow()[0])
     assert np.isclose(max_yflow, 5, atol=1)
+
+    # test fields
+    feature_mask = np.zeros((100, 100), dtype=bool)
+    feature_mask[15:35, 10:30] = True
+
+    expected_feature_field = np.zeros((100, 100))
+    expected_lifetime_field = np.zeros((100, 100))
+    expected_feature_field[feature_mask] = 1
+    expected_lifetime_field[feature_mask] = 2
+
+    np.testing.assert_array_equal(frame.feature_field, expected_feature_field)
+    np.testing.assert_array_equal(frame.lifetime_field, expected_lifetime_field)
 
 
 @pytest.mark.parametrize(
@@ -152,6 +176,22 @@ def test_third_mwe_outputs(timeline_fixture_name, request):
     max_yflow = np.max(frame.get_flow()[0])
     assert np.isclose(max_yflow, 5, atol=1)
 
+    # test fields
+    feature1_mask = (slice(20, 40), slice(10, 30))
+    feature2_mask = (slice(15, 35), slice(50, 70))
+
+    expected_feature_field = np.zeros((100, 100))
+    expected_lifetime_field = np.zeros((100, 100))
+
+    expected_feature_field[feature1_mask] = 1
+    expected_feature_field[feature2_mask] = 2
+
+    expected_lifetime_field[feature1_mask] = 3
+    expected_lifetime_field[feature2_mask] = 1
+
+    np.testing.assert_array_equal(frame.feature_field, expected_feature_field)
+    np.testing.assert_array_equal(frame.lifetime_field, expected_lifetime_field)
+
 
 @pytest.mark.parametrize(
     "timeline_fixture_name",
@@ -193,6 +233,18 @@ def test_fourth_mwe_outputs(timeline_fixture_name, request):
     # flow for the advected feature only. This will likely be improved
     # using an optical flow solver
 
+    # test fields
+    feature2_mask = (slice(20, 40), slice(50, 70))
+
+    expected_feature_field = np.zeros((100, 100))
+    expected_lifetime_field = np.zeros((100, 100))
+
+    expected_feature_field[feature2_mask] = 2
+    expected_lifetime_field[feature2_mask] = 2
+
+    np.testing.assert_array_equal(frame.feature_field, expected_feature_field)
+    np.testing.assert_array_equal(frame.lifetime_field, expected_lifetime_field)
+
 
 @pytest.mark.parametrize(
     "timeline_fixture_name",
@@ -232,6 +284,18 @@ def test_fifth_mwe_outputs(timeline_fixture_name, request):
     # that the maximum is within a reasonable (large) range
     max_yflow = np.max(frame.get_flow()[0])
     assert np.isclose(max_yflow, 5, atol=1)
+
+    # test fields
+    feature2_mask = (slice(25, 45), slice(50, 70))
+
+    expected_feature_field = np.zeros((100, 100))
+    expected_lifetime_field = np.zeros((100, 100))
+
+    expected_feature_field[feature2_mask] = 2
+    expected_lifetime_field[feature2_mask] = 3
+
+    np.testing.assert_array_equal(frame.feature_field, expected_feature_field)
+    np.testing.assert_array_equal(frame.lifetime_field, expected_lifetime_field)
 
 
 @pytest.mark.parametrize(
@@ -281,6 +345,22 @@ def test_sixth_mwe_outputs(timeline_fixture_name, request):
     assert feature.centroid == (39.5, 66.5)
     assert feature.get_size() == 200
 
+    # test fields
+    feature2_mask = (slice(30, 50), slice(48, 58))
+    feature3_mask = (slice(30, 50), slice(62, 72))
+
+    expected_feature_field = np.zeros((100, 100))
+    expected_lifetime_field = np.zeros((100, 100))
+
+    expected_feature_field[feature2_mask] = 2
+    expected_feature_field[feature3_mask] = 3
+
+    expected_lifetime_field[feature2_mask] = 4
+    expected_lifetime_field[feature3_mask] = 4
+
+    np.testing.assert_array_equal(frame.feature_field, expected_feature_field)
+    np.testing.assert_array_equal(frame.lifetime_field, expected_lifetime_field)
+
 
 @pytest.mark.parametrize(
     "timeline_fixture_name",
@@ -327,6 +407,22 @@ def test_seventh_mwe_outputs(timeline_fixture_name, request):
     assert feature.dydx != ()
     assert np.all(frame.get_flow()) is not None
 
+    # test fields
+    feature2_mask = (slice(30, 55), slice(50, 70))
+
+    expected_feature_field = np.zeros((100, 100))
+    expected_lifetime_field = np.zeros((100, 100))
+
+    expected_lifetime_field[feature2_mask] = 5
+    np.testing.assert_array_equal(frame.lifetime_field, expected_lifetime_field)
+
+    try:
+        expected_feature_field[feature2_mask] = 2
+        np.testing.assert_array_equal(frame.feature_field, expected_feature_field)
+    except:
+        expected_feature_field[feature2_mask] = 3
+        np.testing.assert_array_equal(frame.feature_field, expected_feature_field)
+
 
 @pytest.mark.parametrize(
     "timeline_fixture_name",
@@ -347,6 +443,12 @@ def test_ninth_mwe_outputs(timeline_fixture_name, request):
 
     # test there we are back to one feature
     assert len(frame.features) == 0
+
+    # test fields
+    expected_feature_field = np.zeros((100, 100))
+    expected_lifetime_field = np.zeros((100, 100))
+    np.testing.assert_array_equal(frame.feature_field, expected_feature_field)
+    np.testing.assert_array_equal(frame.lifetime_field, expected_lifetime_field)
 
 
 def test_split_merge_event_with_larger_split_feature_than_merging_feature():
