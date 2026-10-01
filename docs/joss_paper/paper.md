@@ -19,45 +19,17 @@ While most particle and extended-object trackers also use the same tracking-by-d
 
 Compared to particle trackers, there are an even wider variety of uses for extended-object trackers. As such, these trackers can differ substantially in their construction from MOTs and particle trackers. For example, trackers that permit object shape deformations usually also include merging and splitting treatments. In biological imaging, the popular TrackMate and Lineage Mapper tools can track mitosis and cell absorption alongside other morphological properties [@chalfoun_lineage_2016, @ershov_trackmate_2022]. The most recent iteration of TrackMate includes many different object identification algorithms that can all use the same linking and analysis tools. In solar imaging, the CHIMERA and SPoCA tools use multi-thermal imaging to identify and track coronal holes or active regions within different altitudes of the solar atmosphere [@verbeeck_spoca-suite_2014, @garton_automated_2018]. The combination of several reference images strengthens identification certainty and allows on-disc features to be separated from off-limb features more effectively. In wildfire analysis, a database of recent wildfire events over California has been compiled using the VIIRS satellite to track the propagation of active fire pixels [@chen_california_2022]. This tool uses a balltree algorithm to assign nearest-neighbour active pixels to a particular cluster, and then assigns these clusters to existing fire objects based on a land-type dependent radial neighbourhood. Active-pixel clusters that don't match to an existing fire are initialised as a new object, while clusters that match to multiple fires cause them to merge. Fire objects themselves are classed as "active" if any of their pixels were active over the previous five days.
 
-Weather and climate research also makes frequent use of extended-object trackers. Ice Flow Tracker takes daily images from the MODIS satellite and applies an in-depth processing routine using K-means clustering to separate ice floes from the background water, and using a watershed algorithm to separate individual ice floes. Unlike other trackers, objects in Ice Floe Tracker are matched based on the similarity of geometric properties (area, major/minor axis radii) rather than overlap. [Ocean eddies next.]
+Oceanography research also makes frequent use of extended-object trackers. Ice Floe Tracker takes daily images from the MODIS satellite and applies an in-depth processing routine using K-means clustering to separate ice floes from the background water, and using a watershed algorithm to separate individual ice floes [@lopez-acosta_ice_2019]. Unlike other trackers, objects in Ice Floe Tracker are matched based on the similarity of geometric properties (area, major/minor axis radii) rather than overlap. Additionally, ocean eddie trackers are used to understand the impact of mesoscale circulation features on local weather patterns and upper-ocean ecology [@vu_angular_2018, @pegliasco_meta31exp_2022]. These trackers define objects as closed contours around sea-surface height or angular momentum extrema, and are linked using overlap methods. These trackers also require explicit handling of merging and splitting events. 
 
-[Titan first, then link this into ST.]
+In a broader weather and climate science context, extended-object trackers are incredibly useful for analysing the evolution of convective cells [@dixon_titan_1993, @stein_dymecs_2015, @keat_convective_2019, @lo_use_2024] and mesoscale convective systems [@maybee_how_2025, @feng_mesoscale_2025] in models and observations. One of the earliest radar analysis tools, TITAN, includes tracking as part of its extensive suite of processing methods [@dixon_titan_1993]. Simple-Track itself was originally designed as a convective cell tracker, and includes the same overlap-based linking method as TITAN. However, a key difference in Simple-Track is the inclusion of a flow-derived feature-projection step to aid with this overlap comparison. TITAN, on the other hand, performs a second centroid-matching step by solving a path optimisation problem constrained using upper bounds on storm size and speed. 
 
-Simple-Track itself was originally developed to track the evolution of convective cells [@stein_dymecs_2015, @keat_convective_2019, @lo_use_2024] and mesoscale convective systems [@maybee_how_2025, @feng_mesoscale_2025] in models and observations. The core Simple-Track 
+[Now, tobac and pyflextrakr and differences, as well as others listed in MIP paper]
 
+[Then, list the existing ST papers and describe the research done by it..., including MIP. ]
 
-[This was built on the earlier TITAN framework, which... ]
-
-
-[In weather and climate, extended-object trackers are used for a wide variety of research purposes. Ocean eddies, sea-ice floes, wildfire perimeters...]
+[Finish with updated ST, and its new portability and data agnostic creds.]
 
 
-[More recently, trackers have become an important part of NWP model developers toolkit. Flex met creds here. See below for some discussion to summarise/include.]
-
-Acknowledgement of origin of this algorithm: geophysical sciences/meteorology and cloud tracking. Multiple needs here: for tracking objects between discrete timesteps, and also for model evaluation. 
-
-Within NWP, difficulty with properly evaluating performance of models with higher resolution of precip etc. due to double penalty problem. Some approaches smooth model and obs fields. Others instead look at statistical properties of convective cells, instead asserting that models should attempt to match size and intensity distributions of obs. 
-
-
-
-Titan: multi-use radar processing suite which includes clutter rejection, quality control, cartesian projection and, most relevant, real-time storm tracking. Closest to Simple-Track, and in fact this takes most of its logic from this. However, key difference, no feature projection step. Instead, Titan uses assumptions about the maximum storm size and speed to constrain a path optimisation solution over all identified objects. Simple-Track matching, meanwhile, assumes the feature projection step will have aligned the closest matching object from the previous timestep, thereby allowing a simple overlap comparison with objects in the vicinity of the object being matched.
-
-
-tobac:
-
-PyFLEXTRAKR:
-
-(see PlFLEXTRAKR paper intro for more trackers to compare/contrast)
-
-In met, desire for temporal linkage between objects as a richer comparison source for model evaluation. This facilitates more in-depth analysis, such as convective initiation which NWP models typically struggle with accurately representing (timing, intensity, distribution etc...)
-
-
-Within geophysical sciences, Simple-Track largely inspired by TITAN code... There are other trackers too such as tobac, MODE, etc. Primary difference between these 
-
-Summarise these tracker MIPs after introducing the other trackers and explaining differences
-Feng et al 2025: Tracker MIP. 
-
-Also Prein et al 2024 tracker comparison project
 
 
 ## Statement of Need
