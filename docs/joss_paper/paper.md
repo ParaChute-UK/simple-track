@@ -21,19 +21,18 @@ Compared to particle trackers, there are an even wider variety of uses for exten
 
 Oceanography research also makes frequent use of extended-object trackers. Ice Floe Tracker takes daily images from the MODIS satellite and applies an in-depth processing routine using K-means clustering to separate ice floes from the background water, and using a watershed algorithm to separate individual ice floes [@lopez-acosta_ice_2019]. Unlike other trackers, objects in Ice Floe Tracker are matched based on the similarity of geometric properties (area, major/minor axis radii) rather than overlap. Additionally, ocean eddie trackers are used to understand the impact of mesoscale circulation features on local weather patterns and upper-ocean ecology [@vu_angular_2018, @pegliasco_meta31exp_2022]. These trackers define objects as closed contours around sea-surface height or angular momentum extrema, and are linked using overlap methods. These trackers also require explicit handling of merging and splitting events. 
 
-In a broader weather and climate science context, extended-object trackers are incredibly useful for analysing the evolution of convective cells [@dixon_titan_1993, @stein_dymecs_2015, @keat_convective_2019, @lo_use_2024] and mesoscale convective systems [@maybee_how_2025, @feng_mesoscale_2025] in models and observations. One of the earliest radar analysis tools, TITAN, includes tracking as part of its extensive suite of processing methods [@dixon_titan_1993]. Simple-Track itself was originally designed as a convective cell tracker, and includes the same overlap-based linking method as TITAN. However, a key difference in Simple-Track is the inclusion of a flow-derived feature-projection step to aid with this overlap comparison. TITAN, on the other hand, performs a second centroid-matching step by solving a path optimisation problem constrained using upper bounds on storm size and speed. 
-
-[Now, tobac and pyflextrakr and differences, as well as others listed in MIP paper]
-
-[Then, list the existing ST papers and describe the research done by it..., including MIP. ]
-
-[Finish with updated ST, and its new portability and data agnostic creds.]
-
+In a broader weather and climate science context, extended-object trackers are incredibly useful for analysing the evolution of convective cells [@dixon_titan_1993, @stein_dymecs_2015, @keat_convective_2019, @lo_use_2024] and mesoscale convective systems [@maybee_how_2025, @feng_mesoscale_2025] in models and observations. One of the earliest radar analysis tools, TITAN, includes tracking as part of its extensive suite of processing methods [@dixon_titan_1993]. Simple-Track itself was originally designed as a convective cell tracker, and includes the same overlap-based linking method as TITAN. However, a key difference in Simple-Track is the inclusion of a flow-derived feature-projection step to aid with this overlap comparison. TITAN, on the other hand, performs a second centroid-matching step by solving a path optimisation problem constrained using upper bounds on storm size and speed. As well as TITAN and the first iteration of Simple-Track, other dedicated convection trackers have been developed using different philosophies. tobac is built on the trackpy particle tracker and defines an object using multiple, nested thresholds [@heikenfeld_tobac_2019]. Merging and splitting is permitted, and projected storm locations are estimated using trajectory persistence. PyFLEXTRKR is another multi-threshold storm tracker, but also supports tracking using multiple parameters. Feature projection, merging, and splitting are handled in a similar way to Simple-Track. This consistency in design philosophy may explain the similarity in tracking behaviour when Simple-Track and PyFLEXTRKR were compared with other mesoscale convective system trackers [@feng_mesoscale_2025]. Both were evaluated as being average compared to other trackers when comparing their storm size distributions, tracking lifetimes, and contribution of physical quantities within tracked features to the total amount of that quantity.
 
 
 
 ## Statement of Need
-While ST origin is in met, ST designed to fill a niche, which can provide the foundation for other object tracking applications. Designed to be data-agnostic, with only expected input being matched key:value pairs of datetime objects and numpy arrays. 
+
+Given the wide variety of existing studies that use for extended-object tracking as part of their analysis, there is a clear desire for [trackers as an analysis method. Many studies have successfully produces their own bespoke trackers that are rigorously tested and perform well for their purpose. However, to get to this stage, researchers must spend a lot of time thinking about identification and linking methods, and, as demonstrated above, often arrive at a similar set of processes.]
+
+[Simple-Track is designed to be an easy-to-use, general-purpose tracker that handles the linking/tracking side of things. Given the wide range in approaches to defining objects motivated above, ST makes it easy for researchers to develop their own identification algorithms that feed directly into ST. This data-agnostic principle is reflected in the simplicity with which a feature id step links with the rest of the tracking machinery: the only expected inputs being matched key:value pairs of datetime objects and numpy arrays.  While we don't anticipate that ST will be useful in every context, it does allow researchers to rapidly test the suitability of ST for their purposes, and easily build upon the established framework if it is found to be suitable. This flexibility is facilitated by the modular object-oriented framework, defensive input validation to ensure codebase extensions or modifications retain compatibility with other parts of the workflow, and extensive suite of testing which includes an easy to run minimal working example. Other user friendly features include custom data storage classes, easy control over input parameters, and support for recovery of consistent, sequential tracking data from parallel batch runs. ]
+
+[Simple-Track has a proven track record of research integrity within the weather and climate research sector.  ]
+ 
 
 ## Algorithm Design
 The primary assumption behind Simple-Track matching algorithm is that, to first order, object evolution is largely controlled by background flow. 
@@ -47,10 +46,11 @@ The primary assumption behind Simple-Track matching algorithm is that, to first 
 
 ### Weather and Climate Model Evaluation
 
+[List the existing ST papers and describe the research done by them. Then show my own research. ]
 
-### Hazardous Weather Impact Attribution
+### Wildfire Tracking
 
-### Space Weather
+### Coronal Hole Tracking
 
 ## Documentation
 <!-- Need to setup readthedocs, just a basic API for now, can pretty it up over xmas -->
