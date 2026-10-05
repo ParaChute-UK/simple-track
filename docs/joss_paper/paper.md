@@ -1,9 +1,9 @@
 bibliography: tracking.bib
 
-# Simple-Track: A Data-Agnostic, Threshold-Based Python Object Tracker
+# Simple-Track: A Data-Agnostic Python Object Tracker
 
 ## Summary
-Simple-Track is an object tracking algorithm for 2D data, designed to track the complex interactions that can emerge between extended objects. Here, objects are defined as contiguous data regions matching a threshold condition. These objects are tracked between consecutive frames by predicting their location at a common timeframe and matching based on the degree of overlap. Matched objects retain the same identification between all tracked frames, while new objects are assigned a unique label. Simple-Track also includes custom logic for identifying merging and splitting events, and uses this to compile a comprehensive feature interaction history. Feature matching is aided by the inclusion of a bespoke flow solver, making it specialised in tracking object motions that are linked to a physical flow field. The data-agnostic philosophy of Simple-Track is highlighted by the modular workflow design and support for user-configurable data loading routines.
+Simple-Track is an object tracking algorithm for 2D data, designed to track the complex interactions that can emerge between extended objects. Objects can be defined flexibly by the user, but in their simplest form, represent contiguous data regions matching a threshold condition. These objects are tracked between consecutive frames by predicting their location at a common timeframe and matching based on the degree of overlap. Matched objects retain the same identification between all tracked frames, while new objects are assigned a unique label. Simple-Track also includes custom logic for identifying merging and splitting events, and uses this to compile comprehensive feature interaction histories. Feature matching is aided by the inclusion of a bespoke flow solver, making it specialised in tracking object motions that are linked to a physical flow field. The data-agnostic philosophy of Simple-Track is highlighted by the modular workflow design and support for user-configurable data loading routines.
 
 
 ## State of the Field
@@ -32,7 +32,11 @@ Simple-Track is designed to be an easy-to-use, general-purpose tracker utilising
 Simple-Track also has a proven track record of integrity within weather and climate research. Most of the existing studies have used Simple-Track to evaluate the performance of high-resolution numerical weather prediction models across various regions of the Earth [@stein_dymecs_2015, @keat_convective_2019, @lo_use_2024]. Other studies have used Simple-Track to investigate the representation of larger mesoscale convective systems compared to satellite observations [@crook_impact_2024, @maybee_how_2025, @feng_mesoscale_2025]. In all studies, Simple-Track was a core tool that facilitated the production of datasets that provided novel insights into these complex physical structures. 
  
 ## Algorithm Design
-The primary assumption behind Simple-Track matching algorithm is that, to first order, object evolution is largely controlled by background flow. 
+
+[todo: need a statement reconciling the fact that ST, in its basic form, estimates objects purely based on threshold exceedance. But, this can be easily changed in the code, or, more easily, the required pre-processing can be done in the loading function, as long as the resulting output still makes sense in the context of a "contiguous data region" object]
+
+
+[The primary assumption behind Simple-Track matching algorithm is that, to first order, object evolution is largely controlled by background flow. ]
 
 
 ## User Interaction
