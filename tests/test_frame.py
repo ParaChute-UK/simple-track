@@ -229,7 +229,44 @@ def test_identify_and_populate_features_with_raw_field_but_no_identifiable_featu
 
     if len(test_frame.features) != 0:
         raise TypeError(
-            f"No features expected for this test, got {len(test_frame.get_features())}"
+            f"No features expected for this test, got {len(test_frame.features)}"
+        )
+
+
+def test_populate_features_with_full_domain_as_feature():
+    test_time = dt.datetime.now()
+    test_frame = Frame()
+    test_frame.time = test_time
+
+    test_raw_field = np.zeros((10, 10))
+    test_raw_field[:, :] = 5
+    test_frame.raw_field = test_raw_field
+
+    test_frame.identify_features(threshold=1, min_size=1)
+    # test_frame.populate_features() automatically happens within identify_features
+
+    if len(test_frame.features) != 1:
+        raise TypeError(
+            f"1 feature expected for this test, got {len(test_frame.features)}"
+        )
+
+
+def test_populate_features_with_under_threshold():
+    test_time = dt.datetime.now()
+    test_frame = Frame()
+    test_frame.time = test_time
+
+    test_raw_field = np.zeros((10, 10))
+    test_raw_field[:, :] = 5
+    test_raw_field[0:2, 0:2] = 0.5  # Set a small region under the threshold
+    test_frame.raw_field = test_raw_field
+
+    test_frame.identify_features(threshold=1, min_size=1, under_threshold=True)
+    # test_frame.populate_features() automatically happens within identify_features
+
+    if len(test_frame.features) != 1:
+        raise TypeError(
+            f"1 feature expected for this test, got {len(test_frame.features)}"
         )
 
 

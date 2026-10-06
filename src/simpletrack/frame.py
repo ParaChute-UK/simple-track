@@ -225,7 +225,9 @@ class Frame:
         feature_ids = np.unique(self._feature_field)
         # Remove 0 from the list of ids
         # (usually this is at idx 0 but can't be guaranteed)
-        feature_ids = np.delete(feature_ids, np.where(feature_ids == 0)[0][0])
+        # Check whether 0 is in the feature_ids array before trying to delete it
+        if 0 in feature_ids:
+            feature_ids = np.delete(feature_ids, np.where(feature_ids == 0)[0][0])
         feature_ids = check_valid_ids(feature_ids)
 
         # Don't include 0 in Feature population, this is reserved for background
