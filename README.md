@@ -70,13 +70,13 @@ Simple-Track can be run in two ways:
 	from simpletrack import Tracker
 
 	my_config = {
-		INPUT: {
-			path: "/path_to_folder_containing_data/*.data",
-			loader: "/path_to_file_containing_function|function_name" # See next section
-		},
-		FEATURE: {
-			threshold: 1, # Threshold used for defining a feature
-		}
+	    INPUT: {
+	        path: "/path_to_folder_containing_data/*.data",
+	        loader: "/path_to_file_containing_function|function_name",  # See next section
+	    },
+	    FEATURE: {
+	        threshold: 1,  # Threshold used for defining a feature
+	    },
 	}
 
 	timeline = Tracker(my_config).run()
@@ -110,23 +110,23 @@ There are three methods of providing these data pairs to Simple-Track:
 
 	```python
 	def user_definable_load(self, filename):
-		import iris # Import any required libraries here
+	    import iris  # Import any required libraries here
 
-		# Get 2D data from input file as a numpy array
-		cube = iris.load_cube(filename, "precipitation_flux")
-		data = cube.data
+	    # Get 2D data from input file as a numpy array
+	    cube = iris.load_cube(filename, "precipitation_flux")
+	    data = cube.data
 
-		# Additional data pre-processing can be performed here too!
+	    # Additional data pre-processing can be performed here too!
 
-		# Get time from input file, in datetime format
-		tcoord = cube.coord("time")
-		time = tcoord.units.num2pydate(tcoord.points)[0]
+	    # Get time from input file, in datetime format
+	    tcoord = cube.coord("time")
+	    time = tcoord.units.num2pydate(tcoord.points)[0]
 
-		# Method must return a tuple of 
-		# (datetime.datetime, numpy.NDArray), where the 
-		# first element is the time the data is valid for
-		# and second element is the 2D array of data to be tracked
-		return time, data
+	    # Method must return a tuple of
+	    # (datetime.datetime, numpy.NDArray), where the
+	    # first element is the time the data is valid for
+	    # and second element is the 2D array of data to be tracked
+	    return time, data
 	```
 
 * This loader function is then specified in the `"INPUT": "loader"` config using the `./path_to_file.py|func_name` format. So in this case, the config option would be `./path_to_file.py|user_definable_load`.
@@ -157,8 +157,8 @@ There are three methods of providing these data pairs to Simple-Track:
 	data2 = np.array(...)
 
 	st_input = {
-		time1: data1,
-		time2: data2,
+	    time1: data1,
+	    time2: data2,
 	}
 
 	my_config = {...}
