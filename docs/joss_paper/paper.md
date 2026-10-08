@@ -52,7 +52,10 @@ The loading function may also contain routines that meaningfully modify the data
 
 In some instances, a user may wish to define an object using more complicated criteria than just threshold exceedance. These situations can also be accounted for by including the more complicated feature identification step within the loader, and then passing a binary feature or not-feature array to Simple-Track along with a corresponding threshold between 0 and 1. One example is demonstrated in the code testing, where well-defined binary regions are constructed and propagated to test the full workflow. A more realistic case is shown in Figure [oil], demonstrating some examples of pre-processing images of oil droplets suspended in water. The droplets are not evenly illuminated by the lighting conditions, which makes an attempt at defining objects based purely on brightness insufficient (Fig oil b). Instead, a gradient-based edge detection scheme (Fig oil c) combined with a binary fill scheme (Fig oil d) produces a smoother field that is more useful for tracking. These pre-processing steps, along with any others that improve object identification, can easily be included in the loading functions. 
 
+Once data is loaded into Simple-Track, each contiguous region met by the threshold is labelled with a unique identifier using a floodfill algorithm. The connectivity structure between neighbouring pixels can be chosen by the user but is set to eight-way connectivity by default (i.e., all cardinal and diagonal pixels surrounding a given pixel are connected by the same label). This procedure is called using `scipy.ndimage.label`. Feature labelling occurs in each input field independently, and it is therefore unlikely that the same feature in different fields will be assigned the same label at this stage. The purpose of the next three steps is therefore to identify matching features between the two frames and enforce label consistency.
+
 ### Step 2: Flow Estimation
+
 
 
 
