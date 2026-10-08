@@ -23,6 +23,10 @@ Oceanography research also makes frequent use of extended-object trackers. Ice F
 
 In a broader weather and climate science context, extended-object trackers are incredibly useful for analysing the evolution of convective cells [@dixon_titan_1993, @stein_dymecs_2015, @keat_convective_2019, @lo_use_2024] and mesoscale convective systems [@crook_impact_2024, @maybee_how_2025, @feng_mesoscale_2025] in models and observations. One of the earliest radar analysis tools, TITAN, includes tracking as part of its extensive suite of processing methods [@dixon_titan_1993]. Simple-Track itself was originally designed as a convective cell tracker, and includes the same overlap-based linking method as TITAN. However, a key difference in Simple-Track is the inclusion of a flow-derived feature-projection step to aid with this overlap comparison. TITAN, on the other hand, performs a second centroid-matching step by solving a path optimisation problem constrained using upper bounds on storm size and speed. As well as TITAN and the first iteration of Simple-Track, other dedicated convection trackers have been developed using different philosophies. tobac is built on the trackpy particle tracker and defines an object using multiple, nested thresholds [@heikenfeld_tobac_2019]. Merging and splitting is permitted, and projected storm locations are estimated using trajectory persistence. PyFLEXTRKR is another multi-threshold storm tracker, but also supports tracking using multiple parameters. Feature projection, merging, and splitting are handled in a similar way to Simple-Track. This consistency in design philosophy may explain the similarity in tracking behaviour when Simple-Track and PyFLEXTRKR were compared with other mesoscale convective system trackers [@feng_mesoscale_2025]. Both were evaluated as being average compared to other trackers when comparing their storm size distributions, tracking lifetimes, and contribution of physical quantities within tracked features to the total amount of that quantity.
 
+<!-- todo: mention moaap -->
+
+<!-- TODO: perhaps need even more in depth comparisons with closest trackers, pyflextrakr, tobac and moaap -->
+
 ## Statement of Need
 
 Given the wide variety of existing studies that use extended-object tracking as part of their analysis, there is a clear desire for tracking tools across the academic community. Many of these studies produced their own bespoke trackers from scratch that are rigorously tested and validated for their intended purpose. To get to this stage, researchers must spend considerable time designing these trackers, particularly the identification and linking methods. The examples in the previous section show that there are many valid approaches for identifying features, however researchers often arrive at a similar set of processes for linking these features. 
@@ -30,13 +34,26 @@ Given the wide variety of existing studies that use extended-object tracking as 
 Simple-Track is designed to be an easy-to-use, general-purpose tracker utilising commonly-used feature linking methods. The data-agnostic design makes it easy for researchers to develop their own identification algorithms that feed directly into the core tracking workflow - the only inputs expected by Simple-Track are matched pairs of datetime objects and numpy arrays. While we don't anticipate that Simple-Track will be suitable for every context, the simple interface allows researchers to rapidly test this suitability and build on its established framework where necessary. The flexibility of Simple-Track is facilitated by its object-oriented design, defensive input validation to ensure codebase extensions remain compatible with the rest of the workflow, and extensive testing which includes an easy to run minimal working example. Other user-friendly features include custom data classes, easy control over input and output parameters, and recovery of sequential tracking data from parallel batches.
 
 Simple-Track also has a proven track record of integrity within weather and climate research. Most of the existing studies have used Simple-Track to evaluate the performance of high-resolution numerical weather prediction models across various regions of the Earth [@stein_dymecs_2015, @keat_convective_2019, @lo_use_2024]. Other studies have used Simple-Track to investigate the representation of larger mesoscale convective systems compared to satellite observations [@crook_impact_2024, @maybee_how_2025, @feng_mesoscale_2025]. In all studies, Simple-Track was a core tool that facilitated the production of datasets that provided novel insights into these complex physical structures. 
+
+<!-- The rest of this paper is organised as follows... -->
  
-## Algorithm Design
+## Software Design
 
-[todo: need a statement reconciling the fact that ST, in its basic form, estimates objects purely based on threshold exceedance. But, this can be easily changed in the code, or, more easily, the required pre-processing can be done in the loading function, as long as the resulting output still makes sense in the context of a "contiguous data region" object]
+Simple-Track follows the same tracking-by-detection procedure as most other extended-object trackers. The workflow can be broken down into four steps as shown in Figure []: user pre-processing and feature identification, flow estimation, feature projection, and finally feature linking. 
+
+### Step 1: User Pre-Processing and Feature Identification
+A large component of Simple-Track's flexibility stems from the approach for handling data pre-processing. [As well as a parameter config defining tracking parameters, the expected input for St is a dict of datetime objects keys and numpy array values. These can be passed to simpletrack either directly if running st within a Python script, or can be contained in a custom loading function that is pointed to in the input config. ]
 
 
-[The primary assumption behind Simple-Track matching algorithm is that, to first order, object evolution is largely controlled by background flow. ]
+[The loading func can be as simple as using bespoke libraries to read the data into a numpy format. Simple-Track will then identify features in the image according to a simple set of rules: a value threshold, and a minimum size threshold. Any contiguous region of data that meets the value threshold and is above the minimum size will be defined as an object. A basic example that will be used in a later section is precipitation rate above 3 mm/hr and more than 4 pixels  
+
+As well as loading the data, The pre-processing function can also contain routines that meaningfully modify the data to make it more suitable for tracking. Primarily, this would involve making extended objects that are easier to define based on a single threshold. For instance, in section [wildfires], the loading routine developed for this example takes a rolling accumulation of burnt pixels over x days to define an object for tracking. Additionally, see oil example. 
+
+In some instances, a user may wish to define an object using more complicated criteria than just threshold exceedance. These situations can also be accounted for by including the more complicated feature identification step within the loader, and then passing a binary array of feature or not-feature to Simple-Track along with a corresponding threshold between 0 and 1. In fact, this very strategy is used to construct the minimal working example that tests the full workflow of the algorithm. Alternatively, the user may instead wish to modify the code itself, and the modular nature of Simple-Track means that adding new feature identification tools is as easy as replacing one function.]
+
+
+### Step 2: Flow Estimation
+
 
 
 ## User Interaction
@@ -47,7 +64,6 @@ Simple-Track also has a proven track record of integrity within weather and clim
 
 ### Weather and Climate Model Evaluation
 
-[List the existing ST papers and describe the research done by them. Then show my own research. ]
 
 ### Wildfire Tracking
 
