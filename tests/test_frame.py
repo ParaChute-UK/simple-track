@@ -634,6 +634,23 @@ def test_get_feature():
     assert retrieved_feature.id == 1
 
 
+def test_calc_distance_matrix():
+    test_arr = np.zeros((100, 100), dtype=int)
+    test_arr[20:40, 20:40] = 1
+    test_arr[20:40, 60:80] = 2
+    test_arr[70:90, 60:80] = 3
+
+    test_frame = Frame()
+    test_frame.feature_field = test_arr
+
+    distance_matrix = test_frame._calculate_distance_matrix()
+    assert distance_matrix.shape == (3, 3)
+    assert np.all(distance_matrix[np.diag_indices(3)] == np.inf)
+    assert distance_matrix[0, 1] == distance_matrix[1, 0]
+    assert distance_matrix[0, 1] == 21.0
+    assert distance_matrix[1, 2] == 31.0
+
+
 def test_find_nearest_feature():
     test_arr = np.zeros((100, 100), dtype=int)
     test_arr[20:40, 20:40] = 1

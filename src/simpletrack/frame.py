@@ -27,6 +27,7 @@ class Frame:
         self._features = {}
         self.y_flow = None
         self.x_flow = None
+        self._distance_matrix = None
 
     def __repr__(self) -> str:
         repr_str = f"Frame time: {self._time}, "
@@ -80,6 +81,15 @@ class Frame:
         Get the raw data field for the current frame
         """
         return self._raw_field
+
+    @property
+    def distance_matrix(self) -> NDArray:
+        """
+        Get the distance matrix for the current frame, which contains the minimum
+        distance between each feature in the frame. The distance is calculated as
+        the minimum distance between feature edges rather than centroids.
+        """
+        return self._distance_matrix
 
     @features.setter
     def features(self, features_dict: dict) -> None:
@@ -202,6 +212,7 @@ class Frame:
             threshold=threshold,
             under_threshold=under_threshold,
         )
+        self._distance_matrix = self._calculate_distance_matrix()
         # Provisionally set the lifetime field to 1 anywhere there is a feature
         self._lifetime_field = np.zeros_like(self._feature_field)
         self._lifetime_field[self._feature_field > 0] = 1
@@ -339,29 +350,66 @@ class Frame:
         self._feature_field = updated_feature_field
         self._lifetime_field = updated_lifetime_field
 
+    def _calculate_distance_matrix(self) -> NDArray:
+        """
+        Calculate the 2D distance matrix between all features in the frame.
+        Matrix is symmetric with shape (n_features, n_features), and with
+        diagonal elements equal to np.inf (to make it easier to find minimum
+        distances between features).
+
+        The distance is calculated as the minimum distance between feature
+        edges rather than centroids.
+        """
+        if self._feature_field is None:
+            return None
+
+        # Check if all zeroes
+        if not np.any(self._feature_field):
+            return None
+
+        ids = np.unique(self._feature_field)
+        ids = ids[ids > 0]
+
+        # distance_transform_edt returns the distace between each object and the nearest
+        # pixel that is not part of the object. However, ndimage.minimum with ids included
+        # as an argument will return minimum distance to each object that is not the background
+        D = np.array(
+            [
+                ndimage.minimum(
+                    ndimage.distance_transform_edt(self._feature_field != i),
+                    self._feature_field,
+                    ids,
+                )
+                for i in ids
+            ]
+        )
+        np.fill_diagonal(D, np.inf)
+        return D
+
     def find_nearest_feature(self, feature_id: int) -> tuple[int, float]:
         """
-        Find the closest feature to the input feature id by using perimeter of the
-        feature. Method uses scipy distance_transform_edt to find minimum distance
-        between all other feature id regions that are not 0 or the id itself.
-
-        Returns:
-            tuple[int, float]: nearest feature id and distance to nearest feature
+        Find nearest feature to the input feature_id, return id of the nearest
+        feature and distance to that feature. If no other features are present
+        return (None, np.inf)
         """
+        if self._distance_matrix is None:
+            self._distance_matrix = self._calculate_distance_matrix()
+            if self._distance_matrix is None:
+                return None, np.inf
+
         feature_id = check_valid_ids(feature_id)
-        if self._feature_field is None:
-            return None, np.inf
         if feature_id not in self._feature_field:
             return None, np.inf
-        # can change the sampling if dy, dx are not equal.
-        dist = ndimage.distance_transform_edt(
-            self.feature_field != feature_id, sampling=None
-        )
-        other = (self.feature_field > 0) & (self.feature_field != feature_id)
-        if not other.any():
-            return None, np.inf
-        k = np.argmin(np.where(other, dist, np.inf))
-        return self.feature_field.flat[k], dist.flat[k]
+
+        all_feature_ids = np.unique(self._feature_field)
+        all_feature_ids = all_feature_ids[all_feature_ids > 0]
+        input_feature_idx = np.where(all_feature_ids == feature_id)[0][0]
+
+        nearest_feature_idx = np.argmin(self._distance_matrix[input_feature_idx])
+        nearest_feature_id = all_feature_ids[nearest_feature_idx]
+
+        nearest_distance = self._distance_matrix[input_feature_idx, nearest_feature_idx]
+        return nearest_feature_id, nearest_distance
 
     def get_new_features(self) -> list:
         """
