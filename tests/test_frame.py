@@ -632,3 +632,45 @@ def test_get_feature():
     retrieved_feature = test_frame.get_feature(1)
     assert retrieved_feature is not None
     assert retrieved_feature.id == 1
+
+
+def test_find_nearest_feature():
+    test_arr = np.zeros((100, 100), dtype=int)
+    test_arr[20:40, 20:40] = 1
+    test_arr[20:40, 60:80] = 2
+    test_arr[70:90, 60:80] = 3
+
+    test_frame = Frame()
+    test_frame.feature_field = test_arr
+
+    nearest_1, dist_1 = test_frame.find_nearest_feature(1)
+    nearest_2, dist_2 = test_frame.find_nearest_feature(2)
+    nearest_3, dist_3 = test_frame.find_nearest_feature(3)
+
+    assert nearest_1 == 2
+    assert nearest_2 == 1
+    assert nearest_3 == 2
+    assert dist_1 == 21.0
+    assert dist_2 == 21.0
+    assert dist_3 == 31.0
+
+
+def test_find_nearest_feature_with_no_features():
+    test_arr = np.zeros((100, 100), dtype=int)
+    test_frame = Frame()
+    test_frame.feature_field = test_arr
+
+    id, dist = test_frame.find_nearest_feature(1)
+    assert id is None
+    assert dist == np.inf
+
+
+def test_find_nearest_feature_with_nonexistent_feature():
+    test_arr = np.zeros((100, 100), dtype=int)
+    test_arr[20:40, 20:40] = 1
+    test_frame = Frame()
+    test_frame.feature_field = test_arr
+
+    id, dist = test_frame.find_nearest_feature(999)
+    assert id is None
+    assert dist == np.inf

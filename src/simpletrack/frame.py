@@ -339,6 +339,30 @@ class Frame:
         self._feature_field = updated_feature_field
         self._lifetime_field = updated_lifetime_field
 
+    def find_nearest_feature(self, feature_id: int) -> tuple[int, float]:
+        """
+        Find the closest feature to the input feature id by using perimeter of the
+        feature. Method uses scipy distance_transform_edt to find minimum distance
+        between all other feature id regions that are not 0 or the id itself.
+
+        Returns:
+            tuple[int, float]: nearest feature id and distance to nearest feature
+        """
+        feature_id = check_valid_ids(feature_id)
+        if self._feature_field is None:
+            return None, np.inf
+        if feature_id not in self._feature_field:
+            return None, np.inf
+        # can change the sampling if dy, dx are not equal.
+        dist = ndimage.distance_transform_edt(
+            self.feature_field != feature_id, sampling=None
+        )
+        other = (self.feature_field > 0) & (self.feature_field != feature_id)
+        if not other.any():
+            return None, np.inf
+        k = np.argmin(np.where(other, dist, np.inf))
+        return self.feature_field.flat[k], dist.flat[k]
+
     def get_new_features(self) -> list:
         """
         Get a list of all features in the frame that do not match with a feature from
