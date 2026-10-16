@@ -277,8 +277,15 @@ class TimelineStitcher:
                     feature_map[feature.id] = updated_id
                     feature.provisional_id = updated_id
 
-                    # Inherit the parent lifetime
-                    feature.lifetime = frame.get_feature(feature.parent).lifetime
+                    # Try to inherit the parent lifetime from the current frame
+                    try:
+                        feature.lifetime = frame.get_feature(feature.parent).lifetime
+                    except AttributeError:
+                        # If the parent is not present in the current frame,
+                        # use the previous frame and increment by 1
+                        feature.lifetime = (
+                            prev_frame.get_feature(feature.parent).lifetime + 1
+                        )
 
                 # This feature was present in the earliest frame
                 elif feature.id in feature_map:
