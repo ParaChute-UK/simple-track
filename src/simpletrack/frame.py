@@ -370,15 +370,19 @@ class Frame:
         ids = np.unique(self._feature_field)
         ids = ids[ids > 0]
 
-        # distance_transform_edt returns the distace between each object and the nearest
-        # pixel that is not part of the object. However, ndimage.minimum with ids included
-        # as an argument will return minimum distance to each object that is not the background
+        # Loop over the nonzero ids
+        # distance_transform_edt returns the distace between each object and every pixel
+        # This is then used as the input array to ndimage.minimum.
+        # Then, for each object id, get the minimum edgeo-to-edge distance between that object
+        # and all other objects, as defined using self._feature_field.
+        # Repeat over all ids to get the full distance matrix.
         D = np.array(
             [
                 ndimage.minimum(
+                    # Calculate distance from all pixels to the edge of object i
                     ndimage.distance_transform_edt(self._feature_field != i),
-                    self._feature_field,
-                    ids,
+                    self._feature_field,  # Says which object each pixel belongs to
+                    ids,  # Only want outputs for out nonzero positive integer ids
                 )
                 for i in ids
             ]
