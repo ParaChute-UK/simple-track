@@ -656,34 +656,8 @@ class FlowSolver:
         Returns:
             NDArray: Output array with NaNs filled
         """
-        valid_mask = ~np.isnan(arr)
-
-        # Nothing to fill
-        if valid_mask.all():
-            return arr
-
-        # Nothing to interpolate from
-        if not valid_mask.any():
-            return np.zeros_like(arr)
-
-        # (N, 2) array of (row, col) indices of valid points
-        coords = np.argwhere(valid_mask)
-        non_nan_values = arr[valid_mask]
-        target_coords = np.argwhere(np.ones_like(arr, dtype=bool))
-
-        # Delaunay triangulation needs at least 3 points that don't all lie on one
-        # line. If the centered coords have rank < 2, the points are collinear.
-        # This covers a single row, a single column or a diagonal.
-        is_degenerate = (
-            len(coords) < 3 or np.linalg.matrix_rank(coords - coords.mean(axis=0)) < 2
-        )
-
-        if is_degenerate:
-            it = NearestNDInterpolator(coords, non_nan_values)
-        else:
-            it = LinearNDInterpolator(coords, non_nan_values, fill_value=0)
-
-        return it(target_coords).reshape(arr.shape)
+        arr[np.isnan(arr)] = 0
+        return arr
 
 
 def pairwise_with_stride(input_iter: Iterable, stride: int) -> Iterable:
