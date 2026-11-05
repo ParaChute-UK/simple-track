@@ -432,6 +432,7 @@ class Frame:
         field: str = "id",
         ax: plt.Axes = None,
         highlight_features: list | int = None,
+        vmax: int = None,
     ) -> list:
         """
         Plot a field (id, lifetime, or motion vectors) of the current Frame.
@@ -474,10 +475,16 @@ class Frame:
         field_data = field_map[field]["data"]
         cbar = field_map[field]["cbar"]
 
+        # If cbar is set, plot filled contours
+        # Otherwise, plot quiver for motion vectors
         if cbar is not None:
-            cbar = cbar.with_extremes(under="white")
-            pcm = ax.pcolormesh(field_data, cmap=cbar, vmin=1)
-            plt.colorbar(pcm, label=field, ax=ax)
+            self.__plot_filled_contours(ax, field_data, cbar, vmax)
+        else:
+            self.__plot_quiver(ax, field_data[0], field_data[1])
+
+        # Add feature contour outlines
+        binary_field = np.where(self._feature_field > 0, 1, 0)
+        ax.contour(binary_field, colors="teal", linewidths=0.1)
 
         if highlight_features is not None:
             if isinstance(highlight_features, int):
@@ -485,6 +492,7 @@ class Frame:
             for feature_id in highlight_features:
                 if feature_id not in self._features:
                     print(f"Feature {feature_id} not found in Frame")
+                    continue
                 feature = self._features[feature_id]
                 centroid = feature.centroid
                 ax.contour(
@@ -495,6 +503,36 @@ class Frame:
                 ax.annotate(feature_id, xy=centroid[::-1], color="k", fontsize=8)
 
         return ax, fig
+
+    def __plot_filled_contours(
+        self, ax: plt.Axes, field_data: NDArray, cmap: plt.cm, vmax: int
+    ) -> None:
+        """
+        Internal method to plot filled contours.
+        """
+        cmap = cmap.with_extremes(under="white")
+        pcm = ax.contourf(field_data, cmap=cmap, vmin=1, vmax=vmax)
+        plt.colorbar(pcm, label="Feature ID", ax=ax)
+
+    def __plot_quiver(
+        self, ax: plt.Axes, y_flow: NDArray, x_flow: NDArray, step: int = 20
+    ) -> None:
+        """
+        Internal method to plot quiver for motion vectors.
+        """
+        if y_flow is None or x_flow is None:
+            raise ValueError("Motion vectors not set for this Frame")
+        xmesh, ymesh = np.meshgrid(
+            np.arange(y_flow.shape[1]), np.arange(y_flow.shape[0])
+        )
+        ax.quiver(
+            xmesh[::step, ::step],
+            ymesh[::step, ::step],
+            x_flow[::step, ::step],
+            y_flow[::step, ::step],
+            color="k",
+            alpha=0.5,
+        )
 
 
 class Timeline:
