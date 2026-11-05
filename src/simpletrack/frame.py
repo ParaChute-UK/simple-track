@@ -479,6 +479,21 @@ class Frame:
             pcm = ax.pcolormesh(field_data, cmap=cbar, vmin=1)
             plt.colorbar(pcm, label=field, ax=ax)
 
+        if highlight_features is not None:
+            if isinstance(highlight_features, int):
+                highlight_features = [highlight_features]
+            for feature_id in highlight_features:
+                if feature_id not in self._features:
+                    print(f"Feature {feature_id} not found in Frame")
+                feature = self._features[feature_id]
+                centroid = feature.centroid
+                ax.contour(
+                    self._feature_field == feature_id,
+                    colors="k",
+                    linewidths=1.5,
+                )
+                ax.annotate(feature_id, xy=centroid[::-1], color="k", fontsize=8)
+
         return ax, fig
 
 
