@@ -433,7 +433,8 @@ class Frame:
         ax: plt.Axes = None,
         highlight_features: list | int = None,
         vmax: int = None,
-    ) -> list:
+        alpha: float = 1.0,
+    ) -> tuple:
         """
         Plot a field (id, lifetime, or motion vectors) of the current Frame.
         Can highlight a given Feature or list of Features. Can also plot on an
@@ -449,6 +450,11 @@ class Frame:
             highlight_features (list | int, optional):
                 The Feature or list of Features to highlight.
                 Defaults to None.
+            vmax (int, optional):
+                The maximum value for the colorbar. If None, will be set to the max
+                value of the field being plotted. Defaults to None.
+            alpha (float, optional):
+                The alpha value for the non-highlighted features. Defaults to 1.0.
 
 
         Returns:
@@ -461,12 +467,21 @@ class Frame:
 
         # Map field string to actual field data
         field_map = {
-            "id": {"data": self._feature_field, "cbar": plt.get_cmap("viridis")},
+            "id": {
+                "data": self._feature_field,
+                "cbar": plt.get_cmap("viridis"),
+                "cbar_label": "Feature ID",
+            },
             "lifetime": {
                 "data": self._lifetime_field,
                 "cbar": plt.get_cmap("YlGnBu"),
+                "cbar_label": "Lifetime",
             },
-            "motion": {"data": (self.y_flow, self.x_flow), "cbar": None},
+            "motion": {
+                "data": (self.y_flow, self.x_flow),
+                "cbar": None,
+                "cbar_label": None,
+            },
         }
 
         if field not in field_map:
@@ -474,17 +489,20 @@ class Frame:
 
         field_data = field_map[field]["data"]
         cbar = field_map[field]["cbar"]
+        cbar_label = field_map[field]["cbar_label"]
 
         # If cbar is set, plot filled contours
         # Otherwise, plot quiver for motion vectors
         if cbar is not None:
-            self.__plot_filled_contours(ax, field_data, cbar, vmax)
+            self.__plot_filled_contours(
+                ax, field_data, cbar, cbar_label, vmax, alpha=alpha
+            )
         else:
             self.__plot_quiver(ax, field_data[0], field_data[1])
 
         # Add feature contour outlines
         binary_field = np.where(self._feature_field > 0, 1, 0)
-        ax.contour(binary_field, colors="teal", linewidths=0.1)
+        ax.contour(binary_field, colors="teal", linewidths=0.1, alpha=alpha)
 
         if highlight_features is not None:
             if isinstance(highlight_features, int):
@@ -502,17 +520,23 @@ class Frame:
                 )
                 ax.annotate(feature_id, xy=centroid[::-1], color="k", fontsize=8)
 
-        return ax, fig
+        return fig, ax
 
     def __plot_filled_contours(
-        self, ax: plt.Axes, field_data: NDArray, cmap: plt.cm, vmax: int
+        self,
+        ax: plt.Axes,
+        field_data: NDArray,
+        cmap: plt.cm,
+        cbar_label: str,
+        vmax: int,
+        alpha: float = 1.0,
     ) -> None:
         """
         Internal method to plot filled contours.
         """
         cmap = cmap.with_extremes(under="white")
-        pcm = ax.contourf(field_data, cmap=cmap, vmin=1, vmax=vmax)
-        plt.colorbar(pcm, label="Feature ID", ax=ax)
+        pcm = ax.pcolormesh(field_data, cmap=cmap, vmin=1, vmax=vmax, alpha=alpha)
+        plt.colorbar(pcm, label=cbar_label, ax=ax)
 
     def __plot_quiver(
         self, ax: plt.Axes, y_flow: NDArray, x_flow: NDArray, step: int = 20
@@ -654,6 +678,68 @@ class Timeline:
         if time not in self.timeline:
             raise ValueError(f"No frame found for time {time}")
         return self.timeline[time]
+
+    def plot_trajectories(
+        self, latest_frame_time: dt.datetime, features: int | list, ax: plt.Axes = None
+    ) -> tuple:
+        """
+        Plot the trajectories of the features in the timeline up to the input frame
+        time. If features is specified, only plot those features.
+
+        Args:
+            latest_frame_time (dt.datetime):
+                The time of the frame to plot current features
+            features (int | list, optional):
+                The feature(s) to plot trajectories for
+            ax (plt.Axes, optional):
+                The axis to plot on. If None, create a new axis.
+            Defaults to None.
+        """
+        current_frame = self.get_frame(latest_frame_time)
+
+        # Plot all features in current frame for context
+        fig, ax = current_frame.plot(
+            field="id", ax=ax, highlight_features=features, alpha=0.3
+        )
+
+        if isinstance(features, int):
+            features = [features]
+
+        for feature_id in features:
+            # Get all frames where the feature exists
+            feature_frames = [
+                frame
+                for frame in self.timeline.values()
+                if feature_id in frame.features
+            ]
+            if not feature_frames:
+                print(f"Feature {feature_id} not found in any frames")
+                continue
+
+            # Plot the trajectory of the feature
+            prev_centroid = None
+            for frame in feature_frames:
+                # # Plot the feature outline
+                # feature_mask = frame.feature_field == feature_id
+                # ax.contour(feature_mask, colors="k", linewidths=1.5)
+
+                # Get centroid of the feature in this frame
+                feature = frame.get_feature(feature_id)
+                centroid = feature.centroid
+                ax.scatter(centroid[1], centroid[0], color="k", s=20, marker="x")
+
+                # If there is a previous centroid, plot a line from
+                # the previous centroid to the current centroid
+                # if prev_centroid is not None:
+                #     ax.plot(
+                #         [prev_centroid[1], centroid[1]],
+                #         [prev_centroid[0], centroid[0]],
+                #         color="k",
+                #         linewidth=1.5,
+                #     )
+                prev_centroid = centroid
+
+        return fig, ax
 
 
 def label_features(
