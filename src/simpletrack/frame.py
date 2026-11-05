@@ -1,5 +1,6 @@
 import datetime as dt
 
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as ndimage
 from numpy.typing import NDArray
@@ -425,6 +426,60 @@ class Frame:
                 init_mask = self._feature_field == feature.id
                 field[init_mask] = 1
         return field
+
+    def plot(
+        self,
+        field: str = "id",
+        ax: plt.Axes = None,
+        highlight_features: list | int = None,
+    ) -> list:
+        """
+        Plot a field (id, lifetime, or motion vectors) of the current Frame.
+        Can highlight a given Feature or list of Features. Can also plot on an
+        existing axis if provided.
+
+        Args:
+            field (str, optional):
+                Field to plot. Can be "id", "lifetime", or "motion".
+                Defaults to "id".
+            ax (plt.Axes, optional):
+                The axis on which to plot. If None, a new axis will be created.
+                Defaults to None.
+            highlight_features (list | int, optional):
+                The Feature or list of Features to highlight.
+                Defaults to None.
+
+
+        Returns:
+            fig, ax: plt Figure and Axes objects of the plot
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.figure
+
+        # Map field string to actual field data
+        field_map = {
+            "id": {"data": self._feature_field, "cbar": plt.get_cmap("viridis")},
+            "lifetime": {
+                "data": self._lifetime_field,
+                "cbar": plt.get_cmap("YlGnBu"),
+            },
+            "motion": {"data": (self.y_flow, self.x_flow), "cbar": None},
+        }
+
+        if field not in field_map:
+            raise ValueError(f"Field must be one of {list(field_map.keys())}")
+
+        field_data = field_map[field]["data"]
+        cbar = field_map[field]["cbar"]
+
+        if cbar is not None:
+            cbar = cbar.with_extremes(under="white")
+            pcm = ax.pcolormesh(field_data, cmap=cbar, vmin=1)
+            plt.colorbar(pcm, label=field, ax=ax)
+
+        return ax, fig
 
 
 class Timeline:
