@@ -680,7 +680,12 @@ class Timeline:
         return self.timeline[time]
 
     def plot_trajectories(
-        self, latest_frame_time: dt.datetime, features: int | list, ax: plt.Axes = None
+        self,
+        latest_frame_time: dt.datetime,
+        features: int | list,
+        show_centroid: bool = True,
+        show_outline: bool = False,
+        ax: plt.Axes = None,
     ) -> tuple:
         """
         Plot the trajectories of the features in the timeline up to the input frame
@@ -691,6 +696,12 @@ class Timeline:
                 The time of the frame to plot current features
             features (int | list, optional):
                 The feature(s) to plot trajectories for
+            show_centroid (bool, optional):
+                Whether to show the centroid of the features in each frame.
+                Defaults to True.
+            show_outline (bool, optional):
+                Whether to show the outline of the features in each frame.
+                Defaults to False.
             ax (plt.Axes, optional):
                 The axis to plot on. If None, create a new axis.
             Defaults to None.
@@ -706,11 +717,11 @@ class Timeline:
             features = [features]
 
         for feature_id in features:
-            # Get all frames where the feature exists
+            # Get all frames before the latest frame time where the feature exists
             feature_frames = [
                 frame
                 for frame in self.timeline.values()
-                if feature_id in frame.features
+                if feature_id in frame.features and frame.time <= latest_frame_time
             ]
             if not feature_frames:
                 print(f"Feature {feature_id} not found in any frames")
@@ -720,24 +731,27 @@ class Timeline:
             prev_centroid = None
             for frame in feature_frames:
                 # # Plot the feature outline
-                # feature_mask = frame.feature_field == feature_id
-                # ax.contour(feature_mask, colors="k", linewidths=1.5)
+                if show_outline:
+                    feature_mask = frame.feature_field == feature_id
+                    ax.contour(feature_mask, colors="k", linewidths=1.5)
 
-                # Get centroid of the feature in this frame
-                feature = frame.get_feature(feature_id)
-                centroid = feature.centroid
-                ax.scatter(centroid[1], centroid[0], color="k", s=20, marker="x")
+                # Plot feature centroid and arrow between previous and current centroid
+                if show_centroid:
+                    # Get centroid of the feature in this frame
+                    feature = frame.get_feature(feature_id)
+                    centroid = feature.centroid
+                    ax.scatter(centroid[1], centroid[0], color="k", s=20, marker="x")
 
-                # If there is a previous centroid, plot a line from
-                # the previous centroid to the current centroid
-                # if prev_centroid is not None:
-                #     ax.plot(
-                #         [prev_centroid[1], centroid[1]],
-                #         [prev_centroid[0], centroid[0]],
-                #         color="k",
-                #         linewidth=1.5,
-                #     )
-                prev_centroid = centroid
+                    # If there is a previous centroid, plot a line from
+                    # the previous centroid to the current centroid
+                    if prev_centroid is not None:
+                        ax.plot(
+                            [prev_centroid[1], centroid[1]],
+                            [prev_centroid[0], centroid[0]],
+                            color="k",
+                            linewidth=1.5,
+                        )
+                    prev_centroid = centroid
 
         return fig, ax
 
