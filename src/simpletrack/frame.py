@@ -1,5 +1,6 @@
 import datetime as dt
 
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as ndimage
@@ -435,6 +436,7 @@ class Frame:
         highlight_at_coords: list[tuple] = None,
         vmax: int = None,
         alpha: float = 1.0,
+        show_cbar: bool = True,
     ) -> tuple:
         """
         Plot a field (id, lifetime, or motion vectors) of the current Frame.
@@ -498,9 +500,9 @@ class Frame:
         # If cbar is set, plot filled contours
         # Otherwise, plot quiver for motion vectors
         if cbar is not None:
-            self.__plot_filled_contours(
-                ax, field_data, cbar, cbar_label, vmax, alpha=alpha
-            )
+            pcm = self.__plot_filled_contours(ax, field_data, cbar, vmax, alpha=alpha)
+            if show_cbar:
+                plt.colorbar(pcm, ax=ax, label=cbar_label)
         else:
             self.__plot_quiver(ax, field_data[0], field_data[1])
 
@@ -554,7 +556,6 @@ class Frame:
         ax: plt.Axes,
         field_data: NDArray,
         cmap: plt.cm,
-        cbar_label: str,
         vmax: int,
         alpha: float = 1.0,
     ) -> None:
@@ -563,7 +564,7 @@ class Frame:
         """
         cmap = cmap.with_extremes(under="white")
         pcm = ax.pcolormesh(field_data, cmap=cmap, vmin=1, vmax=vmax, alpha=alpha)
-        plt.colorbar(pcm, label=cbar_label, ax=ax)
+        return pcm
 
     def __plot_quiver(
         self, ax: plt.Axes, y_flow: NDArray, x_flow: NDArray, step: int = 20
@@ -781,6 +782,83 @@ class Timeline:
                     prev_centroid = centroid
 
         return fig, ax
+
+    def animate(
+        self,
+        field: str = "id",
+        interval: int = 500,
+        highlight_features: list = None,
+        highlight_at_coords: list = None,
+        save_as_gif: bool = False,
+    ) -> animation.FuncAnimation:
+        """
+        Animate the timeline of frames, showing the specified field.
+
+        Args:
+            field (str, optional):
+                The field to animate. Can be "id", "lifetime", or "motion".
+                Defaults to "id".
+            interval (int, optional):
+                The interval between frames in milliseconds. Defaults to 500.
+            highlight_features (list, optional):
+                A list of feature IDs to highlight in the animation. Defaults to None.
+            highlight_at_coords (list, optional):
+                A list of (y, x) coordinates to highlight features at in the animation.
+                Defaults to None.
+            save_as_gif (bool, optional):
+                Whether to save the animation as a GIF. Defaults to False.
+        """
+        print(
+            "To view this animation in a Jupyter notebook, use the following command:"
+        )
+        print("from IPython.display import HTML")
+        print("anim = timeline.animate(...)")
+        print("HTML(anim.to_jshtml())")
+
+        # Get vmax for consistent color scaling across frames
+        if field == "id":
+            vmax = self.get_end_frame().max_id
+        elif field == "lifetime":
+            vmax = np.max(self.get_end_frame().lifetime_field)
+
+        fig, ax = plt.subplots()
+
+        frame_times = sorted(self.timeline.keys())
+        colorbar = None
+
+        if field in ("id", "lifetime"):
+            first_frame = self.get_frame(frame_times[0])
+            first_frame.plot(field=field, ax=ax, vmax=vmax, show_cbar=False)
+            colorbar = fig.colorbar(ax.collections[0], ax=ax, label=field.title())
+
+        def update(frame_time):
+            ax.clear()
+            frame = self.get_frame(frame_time)
+            frame.plot(
+                field=field,
+                ax=ax,
+                highlight_features=highlight_features,
+                highlight_at_coords=highlight_at_coords,
+                vmax=vmax,
+                show_cbar=False,
+            )
+            if colorbar is not None:
+                colorbar.update_normal(ax.collections[0])
+
+        ani = animation.FuncAnimation(
+            fig,
+            update,
+            frames=sorted(self.timeline.keys()),
+            interval=interval,
+            repeat=True,
+            repeat_delay=5000,
+        )
+        if save_as_gif:
+            ani.save(
+                "timeline_animation.gif",
+                writer=animation.PillowWriter(fps=1000 / interval),
+            )
+        return ani
 
 
 def label_features(
