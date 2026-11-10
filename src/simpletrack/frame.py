@@ -432,6 +432,7 @@ class Frame:
         field: str = "id",
         ax: plt.Axes = None,
         highlight_features: list | int = None,
+        highlight_at_coords: list[tuple] = None,
         vmax: int = None,
         alpha: float = 1.0,
     ) -> tuple:
@@ -450,6 +451,9 @@ class Frame:
             highlight_features (list | int, optional):
                 The Feature or list of Features to highlight.
                 Defaults to None.
+            highlight_at_coords (list[tuple], optional):
+                A list of (y, x) coordinates which will highlight any features
+                that overlap with those coordinates. Defaults to None.
             vmax (int, optional):
                 The maximum value for the colorbar. If None, will be set to the max
                 value of the field being plotted. Defaults to None.
@@ -504,10 +508,33 @@ class Frame:
         binary_field = np.where(self._feature_field > 0, 1, 0)
         ax.contour(binary_field, colors="teal", linewidths=0.1, alpha=alpha)
 
+        # Get list of all features to highlight, either from input list or
+        # from coordinates
+        features_to_highlight = []
         if highlight_features is not None:
             if isinstance(highlight_features, int):
                 highlight_features = [highlight_features]
-            for feature_id in highlight_features:
+            features_to_highlight.extend(highlight_features)
+
+        if highlight_at_coords is not None:
+            for coord in highlight_at_coords:
+                y, x = coord
+                if (
+                    y < 0
+                    or y >= self._feature_field.shape[0]
+                    or x < 0
+                    or x >= self._feature_field.shape[1]
+                ):
+                    print(f"Coordinate {coord} is out of bounds for the feature field")
+                    continue
+                feature_id = self._feature_field[y, x]
+                if feature_id > 0:
+                    features_to_highlight.append(feature_id)
+                else:
+                    print(f"No feature found at coordinate {coord}")
+
+        if len(features_to_highlight) > 0:
+            for feature_id in features_to_highlight:
                 if feature_id not in self._features:
                     print(f"Feature {feature_id} not found in Frame")
                     continue
