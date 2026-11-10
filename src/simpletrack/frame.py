@@ -573,7 +573,8 @@ class Frame:
         Internal method to plot quiver for motion vectors.
         """
         if y_flow is None or x_flow is None:
-            raise ValueError("Motion vectors not set for this Frame")
+            print("Flow fields are not set. Cannot plot motion vectors.")
+            return
         xmesh, ymesh = np.meshgrid(
             np.arange(y_flow.shape[1]), np.arange(y_flow.shape[0])
         )
@@ -820,6 +821,8 @@ class Timeline:
             vmax = self.get_end_frame().max_id
         elif field == "lifetime":
             vmax = np.max(self.get_end_frame().lifetime_field)
+        else:
+            vmax = None
 
         fig, ax = plt.subplots()
 
