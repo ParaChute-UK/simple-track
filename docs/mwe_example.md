@@ -35,10 +35,7 @@ mwe_config = {
         "overlap_threshold": 0.3,
         "subdomain_size": 20,
     },
-    "TRACKING": {
-        "overlap_nbhood": 5, 
-        "overlap_threshold": 0.3
-    },
+    "TRACKING": {"overlap_nbhood": 5, "overlap_threshold": 0.3},
 }
 ```
 
@@ -57,6 +54,13 @@ Now, run the tracking and capture the `Timeline` output to a variable:
 >>> mwe_timeline = Tracker(mwe_config).run(mwe_dict)
 Simple-Track Progress: [------------------->] 8/8 (100%) 
 ```
+
+We can then view the contents of this Timeline:
+```
+>>> print(mwe_timeline)
+Timeline with 8 frames, starting at 2024-01-01 00:00 ending at 2024-01-01 40:00
+```
+
 
 ## Testing the MWE
 
