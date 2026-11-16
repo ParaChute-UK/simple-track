@@ -541,9 +541,7 @@ class Frame:
                     print(f"Feature {feature_id} not found in Frame")
                     continue
                 feature = self._features[feature_id]
-                text_offset = (
-                    3  # Offset for the text label to avoid overlap with the marker
-                )
+                text_offset = 5
                 centroid_text_position = (
                     feature.centroid[1] + text_offset,
                     feature.centroid[0] + text_offset,
