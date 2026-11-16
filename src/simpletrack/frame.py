@@ -541,13 +541,31 @@ class Frame:
                     print(f"Feature {feature_id} not found in Frame")
                     continue
                 feature = self._features[feature_id]
-                centroid = feature.centroid
+                text_offset = (
+                    3  # Offset for the text label to avoid overlap with the marker
+                )
+                centroid_text_position = (
+                    feature.centroid[1] + text_offset,
+                    feature.centroid[0] + text_offset,
+                )
                 ax.contour(
                     self._feature_field == feature_id,
                     colors="k",
                     linewidths=1.5,
                 )
-                ax.annotate(feature_id, xy=centroid[::-1], color="k", fontsize=8)
+                ax.annotate(
+                    feature_id,
+                    xy=centroid_text_position,
+                    color="k",
+                    fontsize=8,
+                    zorder=1000,
+                    bbox=dict(
+                        facecolor="white",
+                        edgecolor="black",
+                        boxstyle="round",
+                        alpha=0.7,
+                    ),
+                )
 
         return fig, ax
 
