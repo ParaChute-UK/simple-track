@@ -437,6 +437,7 @@ class Frame:
         vmax: int = None,
         alpha: float = 1.0,
         show_cbar: bool = True,
+        verbose=True,
     ) -> tuple:
         """
         Plot a field (id, lifetime, or motion vectors) of the current Frame.
@@ -461,6 +462,9 @@ class Frame:
                 value of the field being plotted. Defaults to None.
             alpha (float, optional):
                 The alpha value for the non-highlighted features. Defaults to 1.0.
+            verbose (bool, optional):
+                Whether to print warnings about missing Features and out-of-bounds
+                coordinates. Defaults to True.
 
 
         Returns:
@@ -504,7 +508,7 @@ class Frame:
             if show_cbar:
                 plt.colorbar(pcm, ax=ax, label=cbar_label)
         else:
-            self.__plot_quiver(ax, field_data[0], field_data[1])
+            self.__plot_quiver(ax, field_data[0], field_data[1], verbose=verbose)
 
         # Add feature contour outlines
         binary_field = np.where(self._feature_field > 0, 1, 0)
@@ -527,18 +531,25 @@ class Frame:
                     or x < 0
                     or x >= self._feature_field.shape[1]
                 ):
-                    print(f"Coordinate {coord} is out of bounds for the feature field")
+                    if verbose:
+                        print(
+                            f"Coordinate {coord} is out of bounds for the feature field"
+                        )
                     continue
                 feature_id = self._feature_field[y, x]
                 if feature_id > 0:
                     features_to_highlight.append(feature_id)
                 else:
-                    print(f"No feature found at coordinate {coord}")
+                    if verbose:
+                        print(f"No feature found at coordinate {coord}")
 
+        # Loop through the features to highlight and plot their contours and centroids
+        # And annotate the feature ID
         if len(features_to_highlight) > 0:
             for feature_id in features_to_highlight:
                 if feature_id not in self._features:
-                    print(f"Feature {feature_id} not found in Frame")
+                    if verbose:
+                        print(f"Feature {feature_id} not found in Frame")
                     continue
                 feature = self._features[feature_id]
                 text_offset = 5
@@ -583,13 +594,19 @@ class Frame:
         return pcm
 
     def __plot_quiver(
-        self, ax: plt.Axes, y_flow: NDArray, x_flow: NDArray, step: int = 20
+        self,
+        ax: plt.Axes,
+        y_flow: NDArray,
+        x_flow: NDArray,
+        step: int = 20,
+        verbose: bool = True,
     ) -> None:
         """
         Internal method to plot quiver for motion vectors.
         """
         if y_flow is None or x_flow is None:
-            print("Flow fields are not set. Cannot plot motion vectors.")
+            if verbose:
+                print("Flow fields are not set. Cannot plot motion vectors.")
             return
         xmesh, ymesh = np.meshgrid(
             np.arange(y_flow.shape[1]), np.arange(y_flow.shape[0])
@@ -755,7 +772,7 @@ class Timeline:
 
         # Plot all features in current frame for context
         fig, ax = current_frame.plot(
-            field="id", ax=ax, highlight_features=features, alpha=0.3
+            field="id", ax=ax, highlight_features=features, alpha=0.3, verbose=False
         )
 
         if isinstance(features, int):
@@ -847,7 +864,9 @@ class Timeline:
 
         if field in ("id", "lifetime"):
             first_frame = self.get_frame(frame_times[0])
-            first_frame.plot(field=field, ax=ax, vmax=vmax, show_cbar=False)
+            first_frame.plot(
+                field=field, ax=ax, vmax=vmax, show_cbar=False, verbose=False
+            )
             colorbar = fig.colorbar(ax.collections[0], ax=ax, label=field.title())
 
         def update(frame_time):
@@ -860,6 +879,7 @@ class Timeline:
                 highlight_at_coords=highlight_at_coords,
                 vmax=vmax,
                 show_cbar=False,
+                verbose=False,
             )
             if colorbar is not None:
                 colorbar.update_normal(ax.collections[0])
