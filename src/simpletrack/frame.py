@@ -492,6 +492,11 @@ class Frame:
                 "cbar": None,
                 "cbar_label": None,
             },
+            "raw": {
+                "data": self._raw_field,
+                "cbar": plt.get_cmap("viridis"),
+                "cbar_label": "Raw Data",
+            },
         }
 
         if field not in field_map:
@@ -500,6 +505,9 @@ class Frame:
         field_data = field_map[field]["data"]
         cbar = field_map[field]["cbar"]
         cbar_label = field_map[field]["cbar_label"]
+
+        if field_data is None:
+            raise ValueError(f"Field data for '{field}' is not set in this Frame")
 
         # If cbar is set, plot filled contours
         # Otherwise, plot quiver for motion vectors
@@ -824,6 +832,7 @@ class Timeline:
         highlight_features: list = None,
         highlight_at_coords: list = None,
         save_as_gif: bool = False,
+        save_path: str = "./timeline_animation.gif",
     ) -> animation.FuncAnimation:
         """
         Animate the timeline of frames, showing the specified field.
@@ -894,7 +903,7 @@ class Timeline:
         )
         if save_as_gif:
             ani.save(
-                "timeline_animation.gif",
+                save_path,
                 writer=animation.PillowWriter(fps=1000 / interval),
             )
         return ani
