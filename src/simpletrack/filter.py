@@ -82,3 +82,246 @@ class BaseFilter:
             new_timeline.add_to_timelime(new_frame)
 
         return new_timeline
+
+
+class InitFilter(BaseFilter):
+    """
+    Filter that selects Features that are newly initialised when they first appeared
+    in the Timeline (excluding the first Frame)
+    """
+
+    def __init__(self, boundary_buffer: int = 10):
+        """
+        Initialise the InitFilter with a boundary buffer to exclude features that
+        initiliase too close to the edge of the frame (and are therefore likely to
+        have advected into the domain rather than being newly initialised).
+
+        Args:
+            boundary_buffer (int, optional):
+                The boundary buffer to exclude features where any pixel within the
+                buffer is excluded.
+                Defaults to 10.
+        """
+        super().__init__()
+        self.boundary_buffer = boundary_buffer
+
+    def get_ids_matching_criteria(self, timeline: Timeline) -> list[int]:
+        """
+        Get a list of Features that are newly initialised in the Timeline.
+
+        Args:
+            timeline (Timeline):
+                The Timeline to filter.
+
+        Returns:
+            list[Feature]:
+                A list of Features that are newly initialised in the Timeline.
+        """
+        features_to_copy = []
+        frame_times = list(timeline.get_timeline().keys())
+        max_id = timeline.get_end_frame().max_id
+
+        # Now, make a dict of
+        # feature_id -> first_frame_time and then check if the feature is in the first frame
+
+
+class NonInteractionFilter(BaseFilter):
+    """
+    Filter that selects Features that do not interact with any other Features in the
+    Timeline. This is determined by checking if the Feature merges, splits or accretes
+    other features at any point in the Timeline (or within first x
+    frames of its lifetime)
+    """
+
+    def __init__(self, lifetime_window: int = None):
+        """
+        Initialise the NonInteractionFilter. If lifetime_window is specified,
+        the filter will only consider interactions within the first x frames
+        of the Feature's lifetime. Otherwise, the filter will consider interactions
+        over the entire lifetime of the Feature (until it dissipates, merges into
+        another feature, or advects out of the domain).
+
+        Args:
+            lifetime_window (int, optional):
+                The number of frames to consider for interactions. If None, the entire
+                lifetime of the Feature is considered.
+                Defaults to None.
+        """
+        super().__init__()
+        if lifetime_window is None:
+            lifetime_window = -1
+        self.lifetime_window = lifetime_window
+
+
+class LifetimeFilter(BaseFilter):
+    """
+    Filter that selects Features that reach a certain lifetime at some stage
+    in the Timeline
+    """
+
+    def __init__(self, lifetime: int = None, centile: float = None):
+        """
+        Initialise the LifetimeFilter with a lifetime threshold or centile to select
+        features that reach a certain lifetime at some stage in the Timeline.
+
+        Args:
+            lifetime (int, optional):
+                The lifetime threshold to select features that reach this lifetime.
+                Defaults to None.
+            centile (float, optional):
+                The centile threshold to select features that reach this lifetime.
+                Defaults to None.
+        """
+        super().__init__()
+        if lifetime is None and centile is None:
+            raise ValueError("Either lifetime or centile must be specified.")
+
+        self.lifetime = lifetime
+        self.centile = centile
+
+
+class SizeFilter(BaseFilter):
+    """
+    Filter that selects Features that reach a certain size at some stage
+    in the Timeline
+    """
+
+    def __init__(
+        self, size: int = None, centile: float = None, lifetime_window: int = None
+    ):
+        """
+        Initialise the SizeFilter with a size threshold or centile to select
+        features that reach a certain size at some stage in the Timeline.
+
+        Args:
+            size (int, optional):
+                The size threshold to select features that reach this size.
+                Defaults to None.
+            centile (float, optional):
+                The centile threshold to select features that reach this size.
+                Defaults to None.
+            lifetime_window (int, optional):
+                The number of frames to consider for size. If None, the entire
+                lifetime of the Feature is considered.
+                Defaults to None.
+        """
+        super().__init__()
+        if size is None and centile is None:
+            raise ValueError("Either size or centile must be specified.")
+
+        self.size = size
+        self.centile = centile
+        if lifetime_window is None:
+            lifetime_window = -1
+        self.lifetime_window = lifetime_window
+
+
+class GrowthFilter(BaseFilter):
+    """
+    Filter that selects Features that reach a certain growth rate at some stage
+    in the Timeline
+    """
+
+    def __init__(
+        self,
+        growth_rate: float = None,
+        centile: float = None,
+        lifetime_window: int = None,
+    ):
+        """
+        Initialise the GrowthFilter with a growth rate threshold or centile to select
+        features that reach a certain growth rate at some stage in the Timeline.
+
+        Args:
+            growth_rate (float, optional):
+                The growth rate threshold to select features that reach this growth rate.
+                Defaults to None.
+            centile (float, optional):
+                The centile threshold to select features that reach this growth rate.
+                Defaults to None.
+            lifetime_window (int, optional):
+                The number of frames to consider for growth rate. If None, the entire
+                lifetime of the Feature is considered.
+                Defaults to None.
+        """
+        super().__init__()
+        if growth_rate is None and centile is None:
+            raise ValueError("Either growth_rate or centile must be specified.")
+        if lifetime_window is None:
+            lifetime_window = -1
+
+        self.growth_rate = growth_rate
+        self.centile = centile
+        self.lifetime_window = lifetime_window
+
+
+class MaximumFilter(BaseFilter):
+    """
+    Filter that selects Features that reach a certain maximum value at some stage
+    in the Timeline
+    """
+
+    def __init__(
+        self, maximum: float = None, centile: float = None, lifetime_window: int = None
+    ):
+        """
+        Initialise the MaximumFilter with a maximum threshold or centile to select
+        features that reach a certain maximum at some stage in the Timeline.
+
+        Args:
+            maximum (float, optional):
+                The maximum threshold to select features that reach this maximum.
+                Defaults to None.
+            centile (float, optional):
+                The centile threshold to select features that reach this maximum.
+                Defaults to None.
+            lifetime_window (int, optional):
+                The number of frames to consider for maximum. If None, the entire
+                lifetime of the Feature is considered.
+                Defaults to None.
+        """
+        super().__init__()
+        if maximum is None and centile is None:
+            raise ValueError("Either maximum or centile must be specified.")
+
+        self.maximum = maximum
+        self.centile = centile
+        if lifetime_window is None:
+            lifetime_window = -1
+        self.lifetime_window = lifetime_window
+
+
+class MeanFilter(BaseFilter):
+    """
+    Filter that selects Features that reach a certain mean value at some stage
+    in the Timeline
+    """
+
+    def __init__(
+        self, mean: float = None, centile: float = None, lifetime_window: int = None
+    ):
+        """
+        Initialise the MeanFilter with a mean threshold or centile to select
+        features that reach a certain mean at some stage in the Timeline.
+
+        Args:
+            mean (float, optional):
+                The mean threshold to select features that reach this mean.
+                Defaults to None.
+            centile (float, optional):
+                The centile threshold to select features that reach this mean.
+                Defaults to None.
+            lifetime_window (int, optional):
+                The number of frames to consider for mean. If None, the entire
+                lifetime of the Feature is considered.
+                Defaults to None.
+        """
+        super().__init__()
+        if mean is None and centile is None:
+            raise ValueError("Either mean or centile must be specified.")
+
+        self.mean = mean
+        self.centile = centile
+        if lifetime_window is None:
+            lifetime_window = -1
+        self.lifetime_window = lifetime_window
