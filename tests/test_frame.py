@@ -669,3 +669,97 @@ def test_get_feature():
     retrieved_feature = test_frame.get_feature(1)
     assert retrieved_feature is not None
     assert retrieved_feature.id == 1
+
+
+def test_plot_field_not_set():
+    test_frame = Frame()
+
+    try:
+        test_frame.plot(field="lifetime", verbose=True)
+    except ValueError as e:
+        assert str(e) == "Field data for 'lifetime' is not set in this Frame"
+
+
+def test_plot_invalid_field():
+    test_frame = Frame()
+
+    try:
+        test_frame.plot(field="invalid_field", verbose=True)
+    except ValueError as e:
+        assert str(e) == "Field must be one of ['id', 'lifetime', 'motion', 'raw']"
+
+
+def test_highlight_at_coords_with_no_feature_at_location(capfd):
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    coords_to_highlight = [(0, 0), (5, 5)]  # Coordinates with no features
+
+    test_frame.plot(field="id", highlight_at_coords=coords_to_highlight, verbose=True)
+    out, err = capfd.readouterr()
+    assert (
+        out
+        == "No feature found at coordinate (0, 0)\nNo feature found at coordinate (5, 5)\n"
+    )
+
+
+def test_highlight_at_coords_with_oob_coords(capfd):
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    coords_to_highlight = [(15, 15)]  # One coordinate is out of bounds
+
+    test_frame.plot(field="id", highlight_at_coords=coords_to_highlight, verbose=True)
+    out, err = capfd.readouterr()
+    assert out == "Coordinate (15, 15) is out of bounds for the feature field\n"
+
+
+def test_highlight_feature_not_in_frame(capfd):
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    # Use a feature ID that does not exist in the frame
+    feature_id_to_highlight = [999]
+
+    test_frame.plot(
+        field="id", highlight_features=feature_id_to_highlight, verbose=True
+    )
+    out, err = capfd.readouterr()
+    assert out == "Feature 999 not found in Frame\n"
+
+
+def test_plot_quiver_no_flow_fields(capfd):
+    test_frame = Frame()
+    test_feature_field = np.zeros((10, 10))
+    test_feature_field[2:4, 2:4] = 1
+    test_frame.feature_field = test_feature_field
+    test_frame.populate_features()
+
+    # Call the plot method with motion field but no flow fields set
+    test_frame.plot(field="motion", verbose=True)
+    out, err = capfd.readouterr()
+    assert out == "Flow fields are not set. Cannot plot motion vectors.\n"
+
+
+def test_timeline_animate_save_gif(tmp_path):
+    timeline = Timeline()
+    for i in range(3):
+        frame = Frame()
+        frame.time = dt.datetime(2024, 1, 1, 0, 0, 0) + dt.timedelta(minutes=5 * i)
+        frame.feature_field = np.random.randint(1, 10, (10, 10))
+        frame.populate_features()
+        timeline.add_to_timelime(frame)
+
+    save_path = tmp_path / "timeline_animation.gif"
+    timeline.animate(field="id", save_as_gif=True, save_path=save_path)
+
+    assert save_path.exists()
