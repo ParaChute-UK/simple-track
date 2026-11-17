@@ -44,7 +44,8 @@ class BaseFilter:
         # Copy over the specified Features and their associated data to the new Frame
         frame_times = list(src_timeline.timeline.keys())
         for frame_time in frame_times:
-            new_frame = Frame(frame_time)
+            new_frame = Frame()
+            new_frame.time = frame_time
             src_frame = src_timeline.get_frame(frame_time)
 
             # Search each Frame in the source Timeline for any of the Features to copy
@@ -71,11 +72,13 @@ class BaseFilter:
             new_frame.raw_field = new_raw_field
             new_frame.lifetime_field = new_lifetime_field
             new_frame.feature_field = new_feature_field
+
             # Also copy motion field if it exists
-            if src_frame.get_flow() != (None, None):
-                new_frame.y_flow, new_frame.x_flow = src_frame.get_flow()
+            flow = src_frame.get_flow()
+            if flow[0] is not None and flow[1] is not None:
+                new_frame.y_flow, new_frame.x_flow = flow
 
             # Add to timeline
-            new_timeline.add_to_timeline(new_frame)
+            new_timeline.add_to_timelime(new_frame)
 
         return new_timeline
