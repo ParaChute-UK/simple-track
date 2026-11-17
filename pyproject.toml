@@ -18,6 +18,7 @@ classifiers = [
 ]
 license = {file = "LICENSE"}
 dependencies = [
+  "matplotlib",
   "numpy >= 2.2.0",
   "pytest >= 9.0",
   "pytest-cov",
