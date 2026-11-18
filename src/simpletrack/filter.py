@@ -330,6 +330,49 @@ class LifetimeFilter(BaseFilter):
         self.lifetime = lifetime
         self.centile = centile
 
+    def get_ids_matching_criteria(self, timeline: Timeline) -> list[int]:
+        """
+        Get a list of Features that reach a certain lifetime at some stage in the
+        Timeline.
+
+        Args:
+            timeline (Timeline):
+                The Timeline to filter.
+
+        Returns:
+            list[int]:
+                A list of Features that reach a certain lifetime at some stage in the
+                Timeline.
+        """
+        frame_times = list(timeline.get_timeline().keys())
+        feature_lifetimes = {}
+
+        # Get feature lifetimes across all times
+        for frame_time in frame_times:
+            frame = timeline.get_frame(frame_time)
+            for feature_id, feature in frame.features.items():
+                if feature_id not in feature_lifetimes:
+                    feature_lifetimes[feature_id] = []
+                feature_lifetimes[feature_id].append(feature.lifetime)
+
+        # Define the lifetime threshold based on the centile if specified, otherwise
+        # use the lifetime threshold directly
+        if self.centile is not None:
+            all_lifetimes = []
+            for lifetimes in feature_lifetimes.values():
+                all_lifetimes.extend(lifetimes)
+            lifetime_threshold = np.percentile(all_lifetimes, self.centile)
+        else:
+            lifetime_threshold = self.lifetime
+
+        # Get the IDs of features that meet the criteria
+        filtered_ids = []
+        for feature_id, lifetimes in feature_lifetimes.items():
+            if np.any(np.array(lifetimes) >= lifetime_threshold):
+                filtered_ids.append(feature_id)
+
+        return filtered_ids
+
 
 class SizeFilter(BaseFilter):
     """
@@ -350,6 +393,8 @@ class SizeFilter(BaseFilter):
                 Defaults to None.
             centile (float, optional):
                 The centile threshold to select features that reach this size.
+                Value associated with the centile is calculated from the distribution
+                of sizes of all features within their given lifetime window.
                 Defaults to None.
             lifetime_window (int, optional):
                 The number of frames to consider for size. If None, the entire
@@ -362,9 +407,55 @@ class SizeFilter(BaseFilter):
 
         self.size = size
         self.centile = centile
-        if lifetime_window is None:
-            lifetime_window = -1
         self.lifetime_window = lifetime_window
+
+    def get_ids_matching_criteria(self, timeline: Timeline) -> list[int]:
+        """
+        Get a list of Features that reach a certain size at some stage in the
+        Timeline.
+
+        Args:
+            timeline (Timeline):
+                The Timeline to filter.
+
+        Returns:
+            list[int]:
+                A list of Features that reach a certain size at some stage in the
+                Timeline.
+        """
+        frame_times = list(timeline.get_timeline().keys())
+        feature_sizes = {}
+
+        # Get feature sizes across all times
+        for frame_time in frame_times:
+            frame = timeline.get_frame(frame_time)
+            for feature_id, feature in frame.features.items():
+                if feature_id not in feature_sizes:
+                    feature_sizes[feature_id] = []
+                feature_sizes[feature_id].append(feature.get_size())
+
+        # Define the size threshold based on the centile if specified, otherwise use the
+        # size threshold directly
+        if self.centile is not None:
+            all_sizes = []
+            for sizes in feature_sizes.values():
+                if self.lifetime_window is not None:
+                    sizes = sizes[: self.lifetime_window]
+                all_sizes.extend(sizes)
+            size_threshold = np.percentile(all_sizes, self.centile)
+        else:
+            size_threshold = self.size
+
+        # Now, check which features meet the size threshold
+        filtered_ids = []
+        for feature_id, sizes in feature_sizes.items():
+            if self.lifetime_window is not None:
+                sizes = sizes[: self.lifetime_window]
+
+            if np.any(np.array(sizes) >= size_threshold):
+                filtered_ids.append(feature_id)
+
+        return filtered_ids
 
 
 class GrowthFilter(BaseFilter):

@@ -3,7 +3,13 @@ import datetime as dt
 import numpy as np
 import pytest
 
-from simpletrack.filter import BaseFilter, InitFilter, NonInteractionFilter
+from simpletrack.filter import (
+    BaseFilter,
+    InitFilter,
+    LifetimeFilter,
+    NonInteractionFilter,
+    SizeFilter,
+)
 from simpletrack.frame import Timeline
 from simpletrack.track import Tracker
 
@@ -225,3 +231,121 @@ def test_non_interaction_filter_with_lifetime_window_fields(
         if len(frame.features) > 0:
             # Check that the feature_field only contains feature 3
             assert np.all(np.isin(frame.feature_field, [0, 3]))
+
+
+@pytest.fixture(scope="session")
+def lifetime_filter_timeline(mwe_timeline) -> Timeline:
+    lifetime_filter = LifetimeFilter(lifetime=5)
+    filtered_timeline = lifetime_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_lifetime_filter_has_correct_features(lifetime_filter_timeline):
+    # Check that only feature 2 is present in the filtered timeline
+    for frame_time, frame in lifetime_filter_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset({2})
+
+
+def test_lifetime_filter_has_correct_fields(lifetime_filter_timeline):
+    for frame_time, frame in lifetime_filter_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains feature 2
+            assert np.all(np.isin(frame.feature_field, [0, 2]))
+
+
+@pytest.fixture(scope="session")
+def lifetime_filter_centile_timeline(mwe_timeline) -> Timeline:
+    lifetime_filter = LifetimeFilter(centile=80.0)
+    filtered_timeline = lifetime_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_lifetime_filter_centile_has_correct_features(lifetime_filter_centile_timeline):
+    # Check that only feature 2 is present in the filtered timeline
+    for frame_time, frame in lifetime_filter_centile_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset({2})
+
+
+def test_lifetime_filter_centile_has_correct_fields(lifetime_filter_centile_timeline):
+    for frame_time, frame in lifetime_filter_centile_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains feature 2
+            assert np.all(np.isin(frame.feature_field, [0, 2]))
+
+
+@pytest.fixture(scope="session")
+def size_filter_timeline(mwe_timeline) -> Timeline:
+    size_filter = SizeFilter(size=400)
+    filtered_timeline = size_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_size_filter_has_correct_features(size_filter_timeline):
+    # Check that only features 1 and 2 are present in the filtered timeline
+    # since feature 3 is smaller than the size threshold of 400
+    for frame_time, frame in size_filter_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset({1, 2})
+
+
+def test_size_filter_has_correct_fields(size_filter_timeline):
+    for frame_time, frame in size_filter_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains features 1 and 2
+            assert np.all(np.isin(frame.feature_field, [0, 1, 2]))
+
+
+@pytest.fixture(scope="session")
+def size_filter_centile_timeline(mwe_timeline) -> Timeline:
+    size_filter = SizeFilter(centile=80.0)
+    filtered_timeline = size_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_size_filter_centile_has_correct_features(size_filter_centile_timeline):
+    # Check that only feature 2 is present, since this grows to the largest
+    # size in the timeline.
+    for frame_time, frame in size_filter_centile_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset({2})
+
+
+def test_size_filter_centile_has_correct_fields(size_filter_centile_timeline):
+    for frame_time, frame in size_filter_centile_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains feature 2
+            assert np.all(np.isin(frame.feature_field, [0, 2]))
+
+
+@pytest.fixture(scope="session")
+def size_filter_within_lifetime_timeline(mwe_timeline) -> Timeline:
+    size_filter = SizeFilter(size=500, lifetime_window=2)
+    filtered_timeline = size_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_size_filter_within_lifetime_has_correct_features(
+    size_filter_within_lifetime_timeline,
+):
+    # Check that no features are present, since none of them reach this size
+    # threshold within 2 timesteps of their initiliailsation
+
+    for frame_time, frame in size_filter_within_lifetime_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset(set())
+
+
+def test_size_filter_within_lifetime_has_correct_fields(
+    size_filter_within_lifetime_timeline,
+):
+    for frame_time, frame in size_filter_within_lifetime_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains no features
+            assert np.all(np.isin(frame.feature_field, [0]))
