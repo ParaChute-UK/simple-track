@@ -462,3 +462,17 @@ class Feature:
         either dissipating or accreting into another Feature
         """
         return self._final_timestep
+
+    def is_interacting(self) -> bool:
+        """
+        Returns bool whether the Feature is 'interacting' in the sense that
+        it has split from another Feature (i.e., it has no parent) OR it has
+        accreted another Features in the current timestep OR another
+        Feature has split from this Feature in the current timestep
+        (i.e., it has a child)
+        """
+        return (
+            self._parent is not None
+            or len(self._accreted) > 0
+            or len(self._children) > 0
+        )

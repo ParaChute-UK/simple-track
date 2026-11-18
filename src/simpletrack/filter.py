@@ -16,12 +16,13 @@ class BaseFilter:
     def __init__(self):
         pass
 
-    def apply(self) -> Timeline:
+    def get_ids_matching_criteria(self, timeline: Timeline) -> list[int]:
         """
-        Apply the filter to the given timeline and features.
+        Get a list of Features that match the filter criteria. This method should be
+        implemented by subclasses.
 
         Returns:
-        - A new Timeline containing only the filtered Features.
+        - A list of IDs that match the filter criteria.
         """
         raise NotImplementedError("Subclasses must implement this method.")
 
@@ -86,6 +87,25 @@ class BaseFilter:
             new_timeline.add_to_timelime(new_frame)
 
         return new_timeline
+
+    def apply(self, timeline: Timeline) -> Timeline:
+        """
+        Apply the Filter to the given timeline and return a new timeline
+        containing only the filtered Features.
+
+        Args:
+            timeline (Timeline):
+                The Timeline to filter.
+
+        Returns:
+            Timeline:
+                A new Timeline containing only the filtered Features.
+        """
+        features_to_copy = self.get_ids_matching_criteria(timeline)
+        filtered_timeline = self._copy_features_to_new_timeline(
+            timeline, features_to_copy
+        )
+        return filtered_timeline
 
 
 class InitFilter(BaseFilter):
@@ -196,25 +216,6 @@ class InitFilter(BaseFilter):
 
         return filtered_ids
 
-    def apply(self, timeline: Timeline) -> Timeline:
-        """
-        Apply the InitFilter to the given timeline and return a new timeline
-        containing only the filtered Features.
-
-        Args:
-            timeline (Timeline):
-                The Timeline to filter.
-
-        Returns:
-            Timeline:
-                A new Timeline containing only the filtered Features.
-        """
-        features_to_copy = self.get_ids_matching_criteria(timeline)
-        filtered_timeline = self._copy_features_to_new_timeline(
-            timeline, features_to_copy
-        )
-        return filtered_timeline
-
 
 class NonInteractionFilter(BaseFilter):
     """
@@ -239,9 +240,68 @@ class NonInteractionFilter(BaseFilter):
                 Defaults to None.
         """
         super().__init__()
-        if lifetime_window is None:
-            lifetime_window = -1
         self.lifetime_window = lifetime_window
+
+    def get_ids_matching_criteria(self, timeline: Timeline) -> list[int]:
+        """
+        Get a list of Features that do not interact with any other Features in the
+        Timeline.
+
+        Args:
+            timeline (Timeline):
+                The Timeline to filter.
+
+        Returns:
+            list[int]:
+                A list of Features that do not interact with any other Features in the
+                Timeline.
+        """
+        frame_times = list(timeline.get_timeline().keys())
+
+        # Now, make a dict of feature_id -> first_frame_time
+        first_frame_time = {}
+        for frame_time in frame_times:
+            frame = timeline.get_frame(frame_time)
+            for feature_id in frame.features:
+                if feature_id not in first_frame_time:
+                    first_frame_time[feature_id] = frame_time
+
+        # For each feature, check if it interacts with any other feature
+        # in the timeline or within the lifetime_window.
+        # If it does, remove it from the list of features to copy
+        filtered_ids = []
+        for feature_id, init_time in first_frame_time.items():
+            # Get the final frame to search up to based on lifetime window
+            if self.lifetime_window is None:
+                final_time = frame_times[-1]
+            else:
+                init_time_idx = frame_times.index(init_time)
+                final_time_idx = init_time_idx + self.lifetime_window
+                if final_time_idx >= len(frame_times):
+                    final_time_idx = len(frame_times) - 1
+                final_time = frame_times[final_time_idx]
+
+            # Check for interactions in the timeline between init_time and final_time
+            frames_to_check = [
+                frame_time
+                for frame_time in frame_times
+                if init_time <= frame_time <= final_time
+            ]
+            is_non_interacting = True
+            for frame_time in frames_to_check:
+                frame = timeline.get_frame(frame_time)
+                feature = frame.get_feature(feature_id)
+                if feature is None:
+                    continue
+                if feature.is_interacting():
+                    is_non_interacting = False
+                    break
+
+            # Only add if non-interacting across all checked frames
+            if is_non_interacting:
+                filtered_ids.append(feature_id)
+
+        return filtered_ids
 
 
 class LifetimeFilter(BaseFilter):
