@@ -43,6 +43,10 @@ class BaseFilter:
         # Create a new Frame for each Frame in the source Timeline
         # Copy over the specified Features and their associated data to the new Frame
         frame_times = list(src_timeline.timeline.keys())
+
+        if len(frame_times) == 0:
+            return new_timeline
+
         for frame_time in frame_times:
             new_frame = Frame()
             new_frame.time = frame_time
@@ -99,11 +103,46 @@ class InitFilter(BaseFilter):
         Args:
             boundary_buffer (int, optional):
                 The boundary buffer to exclude features where any pixel within the
-                buffer is excluded.
+                buffer is excluded. If None, no boundary buffer is applied.
                 Defaults to 10.
         """
         super().__init__()
         self.boundary_buffer = boundary_buffer
+
+    def within_boundary(
+        self, feature: Feature, frame: Frame, boundary_buffer: int
+    ) -> bool:
+        """
+        Check if the Feature is inside the specified boundary of the Frame.
+
+        Args:
+            feature (Feature):
+                The Feature to check.
+            frame (Frame):
+                The Frame containing the Feature.
+
+        Returns:
+            bool:
+                True if the Feature is within the boundary, False otherwise.
+        """
+        if boundary_buffer is None:
+            return True
+
+        # Get the coordinates of the feature
+        feature_y_coords, feature_x_coords = feature.coords
+
+        # Calculate valid (safe) boundaries
+        x_valid_coords = np.arange(
+            boundary_buffer, frame.raw_field.shape[1] - boundary_buffer
+        )
+        y_valid_coords = np.arange(
+            boundary_buffer, frame.raw_field.shape[0] - boundary_buffer
+        )
+
+        # Return True only if all feature coords are within the valid boundaries
+        return all(np.isin(feature_x_coords, x_valid_coords)) and all(
+            np.isin(feature_y_coords, y_valid_coords)
+        )
 
     def get_ids_matching_criteria(self, timeline: Timeline) -> list[int]:
         """
@@ -117,12 +156,64 @@ class InitFilter(BaseFilter):
             list[Feature]:
                 A list of Features that are newly initialised in the Timeline.
         """
-        features_to_copy = []
         frame_times = list(timeline.get_timeline().keys())
-        max_id = timeline.get_end_frame().max_id
 
-        # Now, make a dict of
-        # feature_id -> first_frame_time and then check if the feature is in the first frame
+        # Now, make a dict of feature_id -> first_frame_time
+        first_frame_time = {}
+        for frame_time in frame_times:
+            frame = timeline.get_frame(frame_time)
+            for feature_id in frame.features:
+                if feature_id not in first_frame_time:
+                    first_frame_time[feature_id] = frame_time
+
+        # Remove any features that are newly initialised in the first frame
+        # Only copy ids that are initialised in subsequent frames to feature_to_copy
+        ids_init_after_first_frame = []
+        if not first_frame_time:
+            return ids_init_after_first_frame
+
+        for feature_id, init_time in first_frame_time.items():
+            if init_time != frame_times[0]:
+                ids_init_after_first_frame.append(feature_id)
+
+        # Check which of the remaining features are newly initialised. Remove
+        # any that don't meet the is_new() criteria or boundary criteria
+        filtered_ids = []
+        for feature_id in ids_init_after_first_frame:
+            feature_time = first_frame_time[feature_id]
+            frame = timeline.get_frame(feature_time)
+            feature = frame.get_feature(feature_id)
+
+            # Skip any features that are not newly initialised
+            if not feature.is_new():
+                continue
+
+            # Skip any features that are too close to the boundary of the frame
+            if not self.within_boundary(feature, frame, self.boundary_buffer):
+                continue
+
+            filtered_ids.append(feature_id)
+
+        return filtered_ids
+
+    def apply(self, timeline: Timeline) -> Timeline:
+        """
+        Apply the InitFilter to the given timeline and return a new timeline
+        containing only the filtered Features.
+
+        Args:
+            timeline (Timeline):
+                The Timeline to filter.
+
+        Returns:
+            Timeline:
+                A new Timeline containing only the filtered Features.
+        """
+        features_to_copy = self.get_ids_matching_criteria(timeline)
+        filtered_timeline = self._copy_features_to_new_timeline(
+            timeline, features_to_copy
+        )
+        return filtered_timeline
 
 
 class NonInteractionFilter(BaseFilter):
