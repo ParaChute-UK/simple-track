@@ -300,7 +300,15 @@ class FrameTracker:
             raise TypeError(f"Expected type Frame, got {type(current_frame)}")
 
         all_features = current_frame.features.values()
-        all_provisional_ids = [feature.provisional_id for feature in all_features]
+        # Map each provisional id to its feature as they are now, before the loop.
+        # analyse_split_merge_event can give a feature a new provisional id, so a
+        # later lookup by the old id (an accreted id) must use this snapshot, not
+        # current_frame.get_feature(..., provisional=True), which would return None.
+        # Provisional ids may not be unique yet (conflicts are resolved later):
+        # keep the first match, as get_feature does.
+        features_by_provisional_id = {}
+        for feature in all_features:
+            features_by_provisional_id.setdefault(feature.provisional_id, feature)
 
         # Check each feature for accreted values
         for feature in all_features:
@@ -312,7 +320,7 @@ class FrameTracker:
             partial_accreted_ids = [
                 accreted_id
                 for accreted_id in feature.accreted
-                if accreted_id in all_provisional_ids
+                if accreted_id in features_by_provisional_id
             ]
 
             if len(partial_accreted_ids) > 0:
@@ -327,10 +335,10 @@ class FrameTracker:
                 # Get the parent feature that this feature split from
                 # (in this stage of the code, the parent id is the accreted id,
                 # since the provisional id has not yet been assigned to the
-                # main id property)
-                parent_feature = current_frame.get_feature(
-                    accreted_id, provisional=True
-                )
+                # main id property). Looked up in the loop-start snapshot: the
+                # parent may itself have been given a new provisional id by an
+                # earlier split-merge event in this frame.
+                parent_feature = features_by_provisional_id[accreted_id]
 
                 # Get the merging feature from the previous frame
                 merging_feature_from_prev_frame = advected_frame.get_feature(

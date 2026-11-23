@@ -1393,3 +1393,51 @@ def test_split_merge_event_with_smaller_split_feature_than_merging_feature():
     assert feature2.provisional_id == 2
     assert feature2.lifetime == 2
     assert feature2.parent is None
+
+
+def test_chained_split_merge_events_in_one_frame():
+    """
+    Two split-merge events in one frame where the first event's split-merge feature
+    is the parent of the second. The first event (split feature larger than the
+    merging feature) gives that feature a new provisional id, so the second event
+    must still find it as its parent rather than getting None.
+    """
+    frame_tracker = FrameTracker()
+    current_frame = Frame()
+    advected_frame = Frame()
+
+    test_time = dt.datetime.now()
+
+    def coords(n):
+        return np.array([np.arange(n), np.arange(n)])
+
+    # Current frame: 1 is the parent of 2 (2 accreted 1), and 2 is the parent of 3
+    # (3 accreted 2). 2 and 3 are both much larger than the features they merged
+    # with, so both are classed as children of their parents.
+    current_features = {
+        1: Feature(1, coords(10), test_time),
+        2: Feature(2, coords(10), test_time),
+        3: Feature(3, coords(10), test_time),
+    }
+    current_features[2].accrete_ids(1)
+    current_features[3].accrete_ids(2)
+    for feature in current_features.values():
+        feature.provisional_id = feature.id
+    current_frame.features = current_features
+    # No feature_field in this hand-built frame: new ids must follow the existing 1-3
+    current_frame._max_id = 3
+
+    # Advected (previous) frame: the features 2 and 3 merged with were small
+    advected_frame.features = {i: Feature(i, coords(2), test_time) for i in range(1, 4)}
+
+    frame_tracker.check_for_accreted_ids_still_in_domain(current_frame, advected_frame)
+
+    feature1, feature2, feature3 = (current_features[i] for i in range(1, 4))
+    # Both split-merge features got new provisional ids
+    assert feature2.provisional_id not in (1, 2, 3)
+    assert feature3.provisional_id not in (1, 2, 3, feature2.provisional_id)
+    assert feature2.provisional_id in feature1.children
+    assert feature3.provisional_id in feature2.children
+    # Partially accreted ids are removed
+    assert feature2.accreted is None
+    assert feature3.accreted is None
