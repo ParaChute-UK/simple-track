@@ -26,6 +26,35 @@ class BaseFilter:
         """
         raise NotImplementedError("Subclasses must implement this method.")
 
+    def identify_centile_threshold(
+        self, feature_info_dict: dict, centile: float, lifetime_window: int = None
+    ) -> float:
+        """
+        Identify the threshold value for a given centile from a list of values.
+        If lifetime_window is specified, only the first `lifetime_window` values will be
+        considered for each feature.
+
+        Parameters:
+            feature_info_dict:
+                A dictionary containing feature information, where keys are
+                feature IDs and values are lists of values for each feature.
+            centile:
+                The centile to calculate (0-100).
+            lifetime_window:
+                Optional parameter to limit the number of values considered
+                for each feature. If specified, only the first `lifetime_window` values
+                will be considered.
+
+        Returns:
+        - The threshold value corresponding to the specified centile.
+        """
+        all_vals = []
+        for vals in feature_info_dict.values():
+            if lifetime_window is not None:
+                vals = vals[:lifetime_window]
+            all_vals.extend(vals)
+        return np.percentile(all_vals, centile)
+
     def _copy_features_to_new_timeline(
         self, src_timeline: Timeline, features_to_copy: list[Feature]
     ) -> Timeline:
@@ -358,10 +387,9 @@ class LifetimeFilter(BaseFilter):
         # Define the lifetime threshold based on the centile if specified, otherwise
         # use the lifetime threshold directly
         if self.centile is not None:
-            all_lifetimes = []
-            for lifetimes in feature_lifetimes.values():
-                all_lifetimes.extend(lifetimes)
-            lifetime_threshold = np.percentile(all_lifetimes, self.centile)
+            lifetime_threshold = self.identify_centile_threshold(
+                feature_lifetimes, self.centile
+            )
         else:
             lifetime_threshold = self.lifetime
 
@@ -437,12 +465,9 @@ class SizeFilter(BaseFilter):
         # Define the size threshold based on the centile if specified, otherwise use the
         # size threshold directly
         if self.centile is not None:
-            all_sizes = []
-            for sizes in feature_sizes.values():
-                if self.lifetime_window is not None:
-                    sizes = sizes[: self.lifetime_window]
-                all_sizes.extend(sizes)
-            size_threshold = np.percentile(all_sizes, self.centile)
+            size_threshold = self.identify_centile_threshold(
+                feature_sizes, self.centile, self.lifetime_window
+            )
         else:
             size_threshold = self.size
 
@@ -476,7 +501,8 @@ class GrowthFilter(BaseFilter):
 
         Args:
             growth_rate (float, optional):
-                The growth rate threshold to select features that reach this growth rate.
+                The growth rate threshold to select features that reach this growth
+                rate.
                 Defaults to None.
             centile (float, optional):
                 The centile threshold to select features that reach this growth rate.
@@ -489,15 +515,58 @@ class GrowthFilter(BaseFilter):
         super().__init__()
         if growth_rate is None and centile is None:
             raise ValueError("Either growth_rate or centile must be specified.")
-        if lifetime_window is None:
-            lifetime_window = -1
 
         self.growth_rate = growth_rate
         self.centile = centile
         self.lifetime_window = lifetime_window
 
+    def get_ids_matching_criteria(self, timeline: Timeline) -> list[int]:
+        """
+        Get the IDs of features that match the growth rate criteria.
 
-class MaximumFilter(BaseFilter):
+        Args:
+            timeline (Timeline): The Timeline containing the features to filter.
+
+        Returns:
+            list[int]: A list of feature IDs that match the criteria.
+        """
+        frame_times = list(timeline.get_timeline().keys())
+        feature_growth_rates = {}
+
+        # Get feature growth rates across all times
+        for frame_time in frame_times:
+            frame = timeline.get_frame(frame_time)
+            for feature_id, feature in frame.features.items():
+                if feature_id not in feature_growth_rates:
+                    feature_growth_rates[feature_id] = []
+                feature_growth_rates[feature_id].append(feature.growth)
+
+        # Remove "None" values from initial growth rates for each feature
+        for feature_id in feature_growth_rates:
+            feature_growth_rates[feature_id] = feature_growth_rates[feature_id][1:]
+
+        # Define the growth rate threshold based on the centile if specified, otherwise
+        # use the growth rate threshold directly
+        if self.centile is not None:
+            growth_rate_threshold = self.identify_centile_threshold(
+                feature_growth_rates, self.centile, self.lifetime_window
+            )
+        else:
+            growth_rate_threshold = self.growth_rate
+
+        # Now, check which features meet the growth rate threshold
+        filtered_ids = []
+        for feature_id, growth_rates in feature_growth_rates.items():
+            if self.lifetime_window is not None:
+                growth_rates = growth_rates[: self.lifetime_window]
+
+            if np.any(np.array(growth_rates) >= growth_rate_threshold):
+                filtered_ids.append(feature_id)
+
+        return filtered_ids
+
+
+class MaxFilter(BaseFilter):
     """
     Filter that selects Features that reach a certain maximum value at some stage
     in the Timeline
@@ -528,9 +597,52 @@ class MaximumFilter(BaseFilter):
 
         self.maximum = maximum
         self.centile = centile
-        if lifetime_window is None:
-            lifetime_window = -1
         self.lifetime_window = lifetime_window
+
+    def get_ids_matching_criteria(self, timeline: Timeline) -> list[int]:
+        """
+        Get a list of Features that reach a certain maximum at some stage in the
+        Timeline.
+
+        Args:
+            timeline (Timeline):
+                The Timeline to filter.
+
+        Returns:
+            list[int]:
+                A list of Features that reach a certain maximum at some stage in the
+                Timeline.
+        """
+        frame_times = list(timeline.get_timeline().keys())
+        feature_maxima = {}
+
+        # Get feature maxima across all times
+        for frame_time in frame_times:
+            frame = timeline.get_frame(frame_time)
+            for feature_id, feature in frame.features.items():
+                if feature_id not in feature_maxima:
+                    feature_maxima[feature_id] = []
+                feature_maxima[feature_id].append(feature.max)
+
+        # Define the maximum threshold based on the centile if specified, otherwise use
+        # the maximum threshold directly
+        if self.centile is not None:
+            max_threshold = self.identify_centile_threshold(
+                feature_maxima, self.centile, self.lifetime_window
+            )
+        else:
+            max_threshold = self.maximum
+
+        # Now, check which features meet the maximum threshold
+        filtered_ids = []
+        for feature_id, maxima in feature_maxima.items():
+            if self.lifetime_window is not None:
+                maxima = maxima[: self.lifetime_window]
+
+            if np.any(np.array(maxima) >= max_threshold):
+                filtered_ids.append(feature_id)
+
+        return filtered_ids
 
 
 class MeanFilter(BaseFilter):
@@ -564,6 +676,49 @@ class MeanFilter(BaseFilter):
 
         self.mean = mean
         self.centile = centile
-        if lifetime_window is None:
-            lifetime_window = -1
         self.lifetime_window = lifetime_window
+
+    def get_ids_matching_criteria(self, timeline: Timeline) -> list[int]:
+        """
+        Get a list of Features that reach a certain mean at some stage in the
+        Timeline.
+
+        Args:
+            timeline (Timeline):
+                The Timeline to filter.
+
+        Returns:
+            list[int]:
+                A list of Features that reach a certain mean at some stage in the
+                Timeline.
+        """
+        frame_times = list(timeline.get_timeline().keys())
+        feature_means = {}
+
+        # Get feature means across all times
+        for frame_time in frame_times:
+            frame = timeline.get_frame(frame_time)
+            for feature_id, feature in frame.features.items():
+                if feature_id not in feature_means:
+                    feature_means[feature_id] = []
+                feature_means[feature_id].append(feature.mean)
+
+        # Define the mean threshold based on the centile if specified, otherwise use the
+        # mean threshold directly
+        if self.centile is not None:
+            mean_threshold = self.identify_centile_threshold(
+                feature_means, self.centile, self.lifetime_window
+            )
+        else:
+            mean_threshold = self.mean
+
+        # Now, check which features meet the mean threshold
+        filtered_ids = []
+        for feature_id, means in feature_means.items():
+            if self.lifetime_window is not None:
+                means = means[: self.lifetime_window]
+
+            if np.any(np.array(means) >= mean_threshold):
+                filtered_ids.append(feature_id)
+
+        return filtered_ids

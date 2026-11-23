@@ -5,8 +5,11 @@ import pytest
 
 from simpletrack.filter import (
     BaseFilter,
+    GrowthFilter,
     InitFilter,
     LifetimeFilter,
+    MaxFilter,
+    MeanFilter,
     NonInteractionFilter,
     SizeFilter,
 )
@@ -349,3 +352,135 @@ def test_size_filter_within_lifetime_has_correct_fields(
         if len(frame.features) > 0:
             # Check that the feature_field only contains no features
             assert np.all(np.isin(frame.feature_field, [0]))
+
+
+@pytest.fixture(scope="session")
+def growth_filter_timeline(mwe_timeline) -> Timeline:
+    growth_filter = GrowthFilter(growth_rate=2)
+    filtered_timeline = growth_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_growth_filter_has_correct_features(growth_filter_timeline):
+    # Check that only feature 2 is present in the filtered timeline
+    for frame_time, frame in growth_filter_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset({2})
+
+
+def test_growth_filter_has_correct_fields(growth_filter_timeline):
+    for frame_time, frame in growth_filter_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains feature 2
+            assert np.all(np.isin(frame.feature_field, [0, 2]))
+
+
+@pytest.fixture(scope="session")
+def growth_filter_centile_timeline(mwe_timeline) -> Timeline:
+    growth_filter = GrowthFilter(centile=90.0)
+    filtered_timeline = growth_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_growth_filter_centile_has_correct_features(growth_filter_centile_timeline):
+    # Check that only feature 2 is present in the filtered timeline
+    for frame_time, frame in growth_filter_centile_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset({2})
+
+
+def test_growth_filter_centile_has_correct_fields(growth_filter_centile_timeline):
+    for frame_time, frame in growth_filter_centile_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains feature 2
+            assert np.all(np.isin(frame.feature_field, [0, 2]))
+
+
+@pytest.fixture(scope="session")
+def max_filter_timeline(mwe_timeline) -> Timeline:
+    max_filter = MaxFilter(maximum=1.5)
+    filtered_timeline = max_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_max_filter_has_correct_features(max_filter_timeline):
+    # Check that only feature 1 is present in the filtered timeline
+    for frame_time, frame in max_filter_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset({1})
+
+
+def test_max_filter_has_correct_fields(max_filter_timeline):
+    for frame_time, frame in max_filter_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains feature 1
+            assert np.all(np.isin(frame.feature_field, [0, 1]))
+
+
+@pytest.fixture(scope="session")
+def max_filter_centile_timeline(mwe_timeline) -> Timeline:
+    max_filter = MaxFilter(centile=90.0)
+    filtered_timeline = max_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_max_filter_centile_has_correct_features(max_filter_centile_timeline):
+    # Check that only feature 1 is present in the filtered timeline
+    for frame_time, frame in max_filter_centile_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset({1})
+
+
+def test_max_filter_centile_has_correct_fields(max_filter_centile_timeline):
+    for frame_time, frame in max_filter_centile_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains feature 1
+            assert np.all(np.isin(frame.feature_field, [0, 1]))
+
+
+@pytest.fixture(scope="session")
+def mean_filter_timeline(mwe_timeline) -> Timeline:
+    mean_filter = MeanFilter(mean=1.5)
+    filtered_timeline = mean_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_mean_filter_has_correct_features(mean_filter_timeline):
+    # Check that only feature 1 is present in the filtered timeline
+    for frame_time, frame in mean_filter_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset({1})
+
+
+def test_mean_filter_has_correct_fields(mean_filter_timeline):
+    for frame_time, frame in mean_filter_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains feature 1
+            assert np.all(np.isin(frame.feature_field, [0, 1]))
+
+
+@pytest.fixture(scope="session")
+def mean_filter_centile_timeline(mwe_timeline) -> Timeline:
+    mean_filter = MeanFilter(centile=90.0)
+    filtered_timeline = mean_filter.apply(mwe_timeline)
+    return filtered_timeline
+
+
+def test_mean_filter_centile_has_correct_features(mean_filter_centile_timeline):
+    # Check that only feature 1 is present in the filtered timeline
+    for frame_time, frame in mean_filter_centile_timeline.timeline.items():
+        features = list(frame.features.keys())
+        if len(features) > 0:
+            assert set(features).issubset({1})
+
+
+def test_mean_filter_centile_has_correct_fields(mean_filter_centile_timeline):
+    for frame_time, frame in mean_filter_centile_timeline.timeline.items():
+        if len(frame.features) > 0:
+            # Check that the feature_field only contains feature 1
+            assert np.all(np.isin(frame.feature_field, [0, 1]))

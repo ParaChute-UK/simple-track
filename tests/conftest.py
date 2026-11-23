@@ -14,7 +14,7 @@ def generate_mwe_files(save_path=None):
     mwe_domain = np.zeros((100, 100))
 
     mwe_dt1 = mwe_domain.copy()
-    mwe_dt1[10:30, 10:30] = 1
+    mwe_dt1[10:30, 10:30] = 2
 
     # Second timestep: advection of initial cell
     mwe_dt2 = mwe_domain.copy()
