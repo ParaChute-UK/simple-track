@@ -490,7 +490,9 @@ class FrameTracker:
         # If the merging feature has grown to more than twice its original size, it is
         # classed as a child of the parent feature
         if split_merge_feature_size > 2 * merging_feature_size:
-            split_merge_feature.parent = parent_feature.id
+            # The parent's provisional id: that becomes its id when provisional ids
+            # are promoted (parent_feature.id is still its raw detection label here)
+            split_merge_feature.parent = parent_feature.provisional_id
             split_merge_feature.provisional_id = (
                 current_frame.get_next_available_feature_id()
             )

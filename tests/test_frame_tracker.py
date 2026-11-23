@@ -1436,6 +1436,9 @@ def test_chained_split_merge_events_in_one_frame():
     # Both split-merge features got new provisional ids
     assert feature2.provisional_id not in (1, 2, 3)
     assert feature3.provisional_id not in (1, 2, 3, feature2.provisional_id)
+    # Parents refer to the parent's provisional id, i.e. its id once promoted
+    assert feature2.parent == feature1.provisional_id
+    assert feature3.parent == feature2.provisional_id
     assert feature2.provisional_id in feature1.children
     assert feature3.provisional_id in feature2.children
     # Partially accreted ids are removed
