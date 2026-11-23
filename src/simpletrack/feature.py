@@ -37,6 +37,7 @@ class Feature:
         self._dydx = ()
         self._max = None
         self._mean = None
+        self._growth = None
         # Only attempt pca decomposition if feature is larger than 1 pixel
         if self._feature_coords.ndim > 1 and self._feature_coords.shape[-1] > 1:
             (
@@ -45,6 +46,11 @@ class Feature:
                 self._major_radius,
                 self._minor_radius,
             ) = self.calculate_major_minor_axes(self._feature_coords)
+        else:
+            self._major_radius = None
+            self._minor_radius = None
+            self._major_vector = None
+            self._minor_vector = None
 
     def __repr__(self) -> str:
         repr_str = f"Feature id: {self._id}, "
@@ -168,6 +174,14 @@ class Feature:
         return self._mean
 
     @property
+    def growth(self) -> int:
+        """
+        Growth of the Feature between the previous and current frame, calculated as
+        the difference in size (number of pixels) between the two frames.
+        """
+        return self._growth
+
+    @property
     def major_vector(self) -> NDArray:
         """
         Unit vector of semi-major axis in (y, x) format
@@ -245,6 +259,10 @@ class Feature:
         if _id is not None:
             _id = check_valid_ids(_id)
         self._provisional_id = native(_id)
+
+    @growth.setter
+    def growth(self, growth: int) -> None:
+        self._growth = native(growth)
 
     @accreted_in_next_frame_by.setter
     def accreted_in_next_frame_by(self, id_of_accreting_feature: int):

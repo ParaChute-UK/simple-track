@@ -1393,3 +1393,35 @@ def test_split_merge_event_with_smaller_split_feature_than_merging_feature():
     assert feature2.provisional_id == 2
     assert feature2.lifetime == 2
     assert feature2.parent is None
+
+
+def test_set_growth_property_for_matched_features():
+    domain_shape = (100, 100)
+
+    field1 = np.zeros(domain_shape)
+    field1[20:80, 20:40] = 1
+
+    field2 = np.zeros(domain_shape)
+    field2[20:80, 20:50] = 1
+
+    fields = [field1, field2]
+    time_base = dt.datetime.now()
+    times = [time_base + dt.timedelta(hours=i) for i in range(len(fields))]
+    frames = [Frame() for __ in fields]
+
+    for frame_idx, frame in enumerate(frames):
+        frame.import_time_and_data(times[frame_idx], fields[frame_idx])
+        frame.identify_features(0.5)
+
+    # Will use field1 as the advected frame
+    frame_tracker = FrameTracker(overlap_threshold=0.1)
+    frame_tracker.match_advected_and_current_frame_features(
+        frames[0], frames[1], frames[0]
+    )
+    frame_tracker.check_for_accreted_ids_still_in_domain(frames[1], frames[0])
+
+    # Add growth property for matched features
+    frame_tracker.set_growth_property_for_matched_features(frames[0], frames[1])
+
+    feature = frames[1].get_feature(1)
+    assert feature.growth == 600  # Area increased from 1200 to 1800
