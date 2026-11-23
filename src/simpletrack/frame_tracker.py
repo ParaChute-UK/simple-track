@@ -300,14 +300,18 @@ class FrameTracker:
             raise TypeError(f"Expected type Frame, got {type(current_frame)}")
 
         all_features = current_frame.features.values()
-        # Map each provisional id to its feature as they are now, before the loop.
-        # analyse_split_merge_event can give a feature a new provisional id, so a
-        # later lookup by the old id (an accreted id) must use this snapshot, not
-        # current_frame.get_feature(..., provisional=True), which would return None.
-        # Provisional ids may not be unique yet (conflicts are resolved later):
-        # keep the first match, as get_feature does.
+        # Map provisional id to its feature as they are now, before the loop.
+        # Later, analyse_split_merge_event can give a feature a new provisional id,
+        # which would cause current_frame.get_feature(..., provisional=True) to
+        # return None for the old id. This snapshot prevents issues from this
+        # id reassignment.
+        # Additionally, Provisional ids may not be unique yet (conflicts are
+        # resolved later)
         features_by_provisional_id = {}
         for feature in all_features:
+            # If multiple features have the same provisional id, keep the first one
+            # TODO: change this once a better way of handling multiple partially
+            # accreted ids is implemented
             features_by_provisional_id.setdefault(feature.provisional_id, feature)
 
         # Check each feature for accreted values
@@ -328,15 +332,16 @@ class FrameTracker:
                 # The logic that handles simultaneous split-merge events assumes that
                 # there is only one partially accreted id, though it is surely possible
                 # for there to be multiple.
-                # For now, just look at the first id
+                # For now, just look at the first id.
                 accreted_id = partial_accreted_ids[0]
 
                 # This feature has undergone a split-merge event
                 # Get the parent feature that this feature split from
                 # (in this stage of the code, the parent id is the accreted id,
                 # since the provisional id has not yet been assigned to the
-                # main id property). Looked up in the loop-start snapshot: the
-                # parent may itself have been given a new provisional id by an
+                # main id property).
+                # Use the snapshot for this since the parent feature
+                # may itself have been given a new provisional id by an
                 # earlier split-merge event in this frame.
                 parent_feature = features_by_provisional_id[accreted_id]
 
