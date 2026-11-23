@@ -551,3 +551,49 @@ if __name__ == "__main__":
     mwe_file_path = "./mwe_test_files"
     Path(mwe_file_path).mkdir(parents=True, exist_ok=True)
     generate_mwe_files("./mwe_test_files")
+
+
+def test_chained_split_merge_events_in_one_frame():
+    """
+    Two split-merge events in the same frame, where the first event's split-merge
+    feature is the parent of the second: part of A merges into B (B becomes a child
+    of A, with a new id) while part of B merges into C (C becomes a child of B).
+    The second event must find B by its old id even though B was renumbered.
+    """
+    domain_shape = (100, 100)
+
+    field0 = np.zeros(domain_shape)
+    field0[10:80, 5:25] = 1  # A body
+    field0[10:25, 25:45] = 1  # A arm
+    field0[30:50, 45:50] = 1  # B body
+    field0[45:50, 50:65] = 1  # B arm
+    field0[55:75, 70:75] = 1  # C
+
+    field1 = field0.copy()
+
+    field2 = np.zeros(domain_shape)
+    field2[10:80, 5:25] = 1  # A body
+    field2[10:30, 30:50] = 1  # A arm, now joined to B body
+    field2[30:50, 45:50] = 1  # B body
+    field2[45:60, 55:75] = 1  # B arm, now joined to C
+    field2[55:75, 70:75] = 1  # C
+
+    fields = [field0, field1, field2]
+
+    config = {"FEATURE": {"threshold": 0.5}, "TRACKING": {"overlap_threshold": 0.1}}
+
+    time_base = dt.datetime.now()
+    times = [time_base + dt.timedelta(hours=i) for i in range(len(fields))]
+    data = {time: field for time, field in zip(times, fields)}
+
+    timeline = Tracker(config).run(data)
+
+    frame3 = timeline.get_frame(times[2])
+    assert sorted(frame3.features) == [1, 4, 5]
+
+    # B (was 2) is a child of A, and C (was 3) is a child of B under B's new id
+    assert frame3.get_feature(4).parent == 1
+    assert frame3.get_feature(5).parent == 4
+    # retain_lifetime_on_split defaults to True
+    assert frame3.get_feature(4).lifetime == 3
+    assert frame3.get_feature(5).lifetime == 3
