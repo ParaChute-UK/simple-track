@@ -139,6 +139,9 @@ class FrameTracker:
         # Feature in the current Frame. This is useful for output statistics
         self.identify_unmatched_features_in_prev_frame(prev_frame, current_frame)
 
+        # Step 8: Add information about growth of matched features between frames
+        self.set_growth_property_for_matched_features(prev_frame, current_frame)
+
     def advect_frame(self, frame: Frame, y_flow: NDArray, x_flow: NDArray) -> Frame:
         """
         Construct a new Frame with all Features in the input Frame advected by the
@@ -536,6 +539,24 @@ class FrameTracker:
         for feature_id, feature in prev_frame.features.items():
             if feature_id not in current_frame_ids:
                 feature.set_as_final_timestep()
+
+    def set_growth_property_for_matched_features(
+        self, prev_frame: Frame, current_frame: Frame
+    ) -> None:
+        """
+        Set the growth property for each matched feature by taking size of current
+        feature minus size of previous feature.
+        If the feature is not in the previous frame, growth remains None.
+
+        Args:
+            prev_frame (Frame): Frame containing Features at previous timestep
+            current_frame (Frame): Frame containing Features at current timestep
+        """
+        for feature_id, current_feature in current_frame.features.items():
+            if feature_id in prev_frame.features:
+                prev_feature = prev_frame.features[feature_id]
+                growth = current_feature.get_size() - prev_feature.get_size()
+                current_feature.growth = growth
 
     def identify_parent_and_child_features(
         self,
