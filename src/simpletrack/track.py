@@ -24,14 +24,16 @@ class Tracker:
     Simple-Track manager controlling inputs, processing, outputs
     """
 
-    def __init__(self, config_input: str | dict, **kwargs) -> None:
+    def __init__(self, config_input: str | dict | int, **kwargs) -> None:
         """
         Initialize SimpleTrack with configuration file
 
         Args:
-            config_iput (str|dict):
+            config_input (str|dict|int):
                 If str, provides Path to the configuration file
                 If dict, containts pre-loaded config parameters
+                If int, provides the threshold for feature identification
+                (and assumes default config parameters and inputs loaded separately)
         """
         if isinstance(config_input, str):
             config_path = config_input
@@ -40,6 +42,11 @@ class Tracker:
             config_path = None
             self._check_config(config_input)
             self.config = config_input
+        elif isinstance(config_input, int):
+            config_path = None
+            self.config = {
+                "FEATURE": {"threshold": config_input, "under_threshold": False}
+            }
         else:
             raise TypeError(
                 f"Expected config_input type str or dict, got {type(config_input)}"

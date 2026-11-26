@@ -236,3 +236,14 @@ def test_DictIterator_keys_properly_ordered():
     test_iter = DictIterator(test_dict)
     for expected_time, (iter_time, __) in zip(ordered_times, test_iter):
         assert expected_time == iter_time
+
+
+def test_Tracker_runs_with_single_threshold_input(mwe_fields):
+    mwe_dict = {
+        test_time + dt.timedelta(minutes=5 * int(mwe_idx)): mwe_data
+        for mwe_idx, mwe_data in enumerate(mwe_fields)
+    }
+
+    tracker = Tracker(3)
+    timeline = tracker.run(mwe_dict)
+    assert timeline is not None

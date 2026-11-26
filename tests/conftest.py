@@ -78,6 +78,11 @@ def generate_mwe_files(save_path=None):
 
 
 @pytest.fixture(scope="session")
+def mwe_fields():
+    return generate_mwe_files()
+
+
+@pytest.fixture(scope="session")
 def mwe_timeline() -> Timeline:
     mwe_fields = generate_mwe_files()
 
