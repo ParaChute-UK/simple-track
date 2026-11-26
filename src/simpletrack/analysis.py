@@ -149,6 +149,7 @@ def _make_phase_space_plot(
         markeredgewidth=1.0,
         label="_nolegend_",
         zorder=10,
+        ms=7,
     )
 
     # Add arrows between points to indicate direction of increasing lifetime
