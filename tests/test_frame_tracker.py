@@ -162,6 +162,62 @@ def test_advect_field():
     np.testing.assert_array_equal(advected_field, expected_field, err_msg)
 
 
+def _advect_field_reference(field, y_flow, x_flow):
+    """
+    The original advect_field_using_motion_vectors loop over range(1, max_id + 1),
+    kept as a reference for test_advect_field_matches_reference_with_sparse_ids
+    """
+    advected_field = np.zeros_like(field)
+    for feature_id in range(1, np.max(field) + 1):
+        feature_mask = np.where(field == feature_id)
+        if np.size(feature_mask) == 0:
+            continue
+        dy = np.mean(y_flow[feature_mask], dtype=int)
+        dx = np.mean(x_flow[feature_mask], dtype=int)
+        for y_coord, x_coord in zip(*feature_mask, strict=True):
+            ay, ax = y_coord + dy, x_coord + dx
+            if ay < 0 or ay > field.shape[0] - 1 or ax < 0 or ax > field.shape[1] - 1:
+                continue
+            id_at_coord = advected_field[ay, ax]
+            if id_at_coord == 0:
+                advected_field[ay, ax] = feature_id
+                continue
+            coords = np.array([ay, ax])
+            existing = np.linalg.norm(get_centroid(field, id_at_coord) - coords)
+            iterating = np.linalg.norm(get_centroid(field, feature_id) - coords)
+            if iterating < existing:
+                advected_field[ay, ax] = feature_id
+    return advected_field
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_advect_field_matches_reference_with_sparse_ids(seed):
+    """
+    Advecting only the ids present must give the same field as looping over every id
+    up to the maximum, including with large, sparse ids (as in long runs, where ids
+    persist and grow), features moving out of the domain, and conflicts between
+    features advected onto the same points
+    """
+    rng = np.random.default_rng(seed)
+    shape = (60, 80)
+    field = np.zeros(shape, dtype=int)
+    y_flow = np.zeros(shape)
+    x_flow = np.zeros(shape)
+    ids = rng.choice(np.arange(1, 50_000), size=40, replace=False)
+    for feature_id in ids:
+        y0, x0 = rng.integers(0, shape[0] - 8), rng.integers(0, shape[1] - 8)
+        h, w = rng.integers(2, 8, size=2)
+        field[y0 : y0 + h, x0 : x0 + w] = feature_id
+        y_flow[y0 : y0 + h, x0 : x0 + w] = rng.normal(0, 6)
+        x_flow[y0 : y0 + h, x0 : x0 + w] = rng.normal(0, 6)
+
+    expected_field = _advect_field_reference(field, y_flow, x_flow)
+    advected_field = advect_field_using_motion_vectors(field, y_flow, x_flow)
+
+    err_msg = "Test failed: advected array differs from the reference loop."
+    np.testing.assert_array_equal(advected_field, expected_field, err_msg)
+
+
 def test_advect_field_with_feature_conflict():
     """
     Test the advect_field_using_motion_vectors functtion to choose the correct feature
