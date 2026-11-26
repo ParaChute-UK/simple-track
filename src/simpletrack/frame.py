@@ -749,6 +749,18 @@ class Timeline:
             raise ValueError(f"No frame found for time {time}")
         return self.timeline[time]
 
+    def get_appearance_time_of_feature(
+        self, feature_id: int, return_frame: bool = False
+    ) -> dt.datetime | Frame:
+        """
+        Get the first frame or time in the timeline that contains a feature with
+        the given feature_id. Returns None if no such frame is found.
+        """
+        for time, frame in self.timeline.items():
+            if feature_id in frame.features:
+                return frame if return_frame else time
+        return None
+
     def plot_trajectories(
         self,
         latest_frame_time: dt.datetime,
