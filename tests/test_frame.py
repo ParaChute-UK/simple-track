@@ -763,3 +763,30 @@ def test_timeline_animate_save_gif(tmp_path):
     timeline.animate(field="id", save_as_gif=True, save_path=save_path)
 
     assert save_path.exists()
+
+
+def test_timeline_iterable(mwe_timeline):
+    base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
+    expected_times = [
+        base_time + dt.timedelta(minutes=5 * i) for i in range(len(mwe_timeline))
+    ]
+    iter_times = [frame.time for frame in mwe_timeline]
+    assert expected_times == iter_times
+
+
+def test_timeline_subscriptable(mwe_timeline):
+    base_time = dt.datetime(2024, 1, 1, 0, 0, 0)
+    for i in range(len(mwe_timeline)):
+        expected_time = base_time + dt.timedelta(minutes=5 * i)
+        assert mwe_timeline[i].time == expected_time
+
+
+def test_frame_iterable(mwe_timeline):
+    for frame in mwe_timeline:
+        # Also assert iterable returns feature ids monotonically increasing
+        prev_id = 0
+        for feature in frame:
+            assert isinstance(feature, Feature)
+            if prev_id > 0:
+                assert feature.id > prev_id
+            prev_id = feature.id

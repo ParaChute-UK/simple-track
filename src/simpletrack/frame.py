@@ -40,6 +40,12 @@ class Frame:
             return False
         return self.time == other.time
 
+    def __iter__(self):
+        """
+        Iterate over the features in the frame, yielding each Feature object
+        """
+        yield from sorted(self._features.values(), key=lambda f: f.id)
+
     @property
     def features(self) -> dict:
         """
@@ -655,6 +661,15 @@ class Timeline:
         )
         return repr_str
 
+    def __getitem__(self, idx):
+        return list(self.timeline.values())[idx]
+
+    def __len__(self) -> int:
+        return len(self.timeline)
+
+    def __iter__(self):
+        yield from self.timeline.values()
+
     def start_time(self) -> dt.datetime:
         """
         Get the start datetime of the timeline
@@ -688,9 +703,6 @@ class Timeline:
         if end_time is None:
             return None
         return self.timeline[end_time]
-
-    def __len__(self) -> int:
-        return len(self.timeline)
 
     def add_to_timelime(self, frame: Frame) -> None:
         """
