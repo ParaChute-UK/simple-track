@@ -44,7 +44,7 @@ class Frame:
         """
         Iterate over the features in the frame, yielding each Feature object
         """
-        yield from self._features.values()
+        yield from sorted(self._features.values(), key=lambda f: f.id)
 
     @property
     def features(self) -> dict:
@@ -660,6 +660,9 @@ class Timeline:
             f"ending at {self.end_time()}"
         )
         return repr_str
+
+    def __getitem__(self, idx):
+        return list(self.timeline.values())[idx]
 
     def __len__(self) -> int:
         return len(self.timeline)
