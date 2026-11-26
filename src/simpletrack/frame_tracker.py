@@ -1041,11 +1041,23 @@ def advect_field_using_motion_vectors(
 
     # Loop over all features (non-zero elements) in field and advect by
     # mean flow across the feature. Background field is assumed to be 0.
-    # Group the pixels of each id present in one pass (stable sort keeps each
-    # feature's pixels in row-major order, as np.where gives). Looping over
+    #
+    # Only the ids present in the field are visited. Looping over
     # range(1, max_id + 1) with a whole-field comparison per id was
     # O(max_id * domain); ids persist and grow, so the cost per frame grew
     # through a run and the total grew with the square of its length.
+    #
+    # The simplest form of this, equivalent to the code below:
+    #
+    #     for feature_id in np.unique(field[field > 0]):
+    #         feature_mask = np.where(field == feature_id)
+    #
+    # It visits the same ids in the same (ascending) order, with the same
+    # pixels in the same (row-major) order, so the result is identical. The
+    # code below does the same but faster: instead of one whole-field
+    # comparison per feature, it sorts the feature pixels by id once, so each
+    # feature's pixels are a contiguous block (a stable sort keeps each
+    # block in row-major order, as np.where gives).
     flat = field.ravel()
     nonzero = np.flatnonzero(flat > 0)  # ids start from 1, as range(1, ...) did
     nonzero = nonzero[np.argsort(flat[nonzero], kind="stable")]
