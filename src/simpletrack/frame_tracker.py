@@ -1040,12 +1040,32 @@ def advect_field_using_motion_vectors(
     advected_field = np.zeros_like(field)
 
     # Loop over all features (non-zero elements) in field and advect by
-    # mean flow across the feature. Background field is assumed to be 0
-    for feature_id in range(1, np.max(field) + 1):
-        feature_mask = np.where(field == feature_id)
-        # If mask is empty, this Feature is not in the current field
-        if np.size(feature_mask) == 0:
-            continue
+    # mean flow across the feature. Background field is assumed to be 0.
+    #
+    # Only the ids present in the field are visited. Looping over
+    # range(1, max_id + 1) with a whole-field comparison per id was
+    # O(max_id * domain); ids persist and grow, so the cost per frame grew
+    # through a run and the total grew with the square of its length.
+    #
+    # The simplest form of this, equivalent to the code below:
+    #
+    #     for feature_id in np.unique(field[field > 0]):
+    #         feature_mask = np.where(field == feature_id)
+    #
+    # It visits the same ids in the same (ascending) order, with the same
+    # pixels in the same (row-major) order, so the result is identical. The
+    # code below does the same but faster: instead of one whole-field
+    # comparison per feature, it sorts the feature pixels by id once, so each
+    # feature's pixels are a contiguous block (a stable sort keeps each
+    # block in row-major order, as np.where gives).
+    flat = field.ravel()
+    nonzero = np.flatnonzero(flat > 0)  # ids start from 1, as range(1, ...) did
+    nonzero = nonzero[np.argsort(flat[nonzero], kind="stable")]
+    feature_ids, starts = np.unique(flat[nonzero], return_index=True)
+    ends = np.append(starts[1:], nonzero.size)
+    ys, xs = np.unravel_index(nonzero, field.shape)
+    for feature_id, start, end in zip(feature_ids.tolist(), starts, ends, strict=True):
+        feature_mask = (ys[start:end], xs[start:end])
 
         # For the purposes of advecting features, need dy, dx to align with grid points
         # Therefore, perform integer mean with rounding if dy, dx values are floats
